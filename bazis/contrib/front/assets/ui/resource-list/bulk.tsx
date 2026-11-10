@@ -26,7 +26,7 @@ import { useState, type ComponentType, type ReactNode } from 'react';
 import type { PermitMeta } from '@/bazis/client';
 import { useLanguage } from '@/bazis/i18n';
 import { permitted } from '@/bazis/ui/resource';
-import { toast } from '@/bazis/ui/state-panel';
+import { failureText, toast } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
@@ -78,7 +78,8 @@ export function BulkBar({ actions, selection, page, meta, onSelect }: BulkBarPro
         await action.run(id);
       } catch (error) {
         failed.push(id);
-        if (error instanceof Error && error.message) reasons.add(error.message);
+        const reason = failureText(error, t);
+        if (reason) reasons.add(reason);
       }
       setDone(index + 1);
     }

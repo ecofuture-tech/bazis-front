@@ -19,17 +19,21 @@
 // those of the user: the core answers a filter by a field it does not list for him (hidden
 // by his field permissions, bazis-permit) with 400, so such a filter has no control.
 
-import { useState } from 'react';
+import { FunnelX, ListFilter as ListFilterIcon } from 'lucide-react';
+import { Fragment, useState, type ReactNode } from 'react';
 
 import { Filter } from '@/bazis/client';
+import { THEME } from '@/bazis/generated/theme';
+import { useBesideCard } from '@/bazis/ui/app-shell';
 import { useLanguage } from '@/bazis/i18n';
 import { choiceOptions, DateInput, type Fields, RelationPicker, typeAt, useAnyFilterFields } from '@/bazis/ui/resource';
 import { errorState, StatePanel } from '@/bazis/ui/state-panel';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { fieldGroupClassName, Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 
 /** A filter of a list: a field of `route_filter_fields/`, its label and its choices. */
 export interface ListFilter {
@@ -77,11 +81,21 @@ export const EVERY = '$every';
 /** The numeric types; a `Decimal` is sent as it is written, not as a float. */
 const NUMBERS = new Set(['integer', 'number', 'Decimal']);
 
-/** The types of the filter fields of the route set by name, whether they are loaded, the error of their request. */
-function useFilterTypes(path: string): { types: ReadonlyMap<string, FieldType>; pending: boolean; error: Error | null } {
+/** The types of the filter fields of the route set by name, whether they are loaded, the error of their request and its retry. */
+function useFilterTypes(path: string): {
+  types: ReadonlyMap<string, FieldType>;
+  pending: boolean;
+  error: Error | null;
+  retry: () => void;
+} {
   const query = useAnyFilterFields(path);
   const fields = query.data?.fields ?? [];
-  return { types: new Map(fields.map((it) => [it.name, it.py_type])), pending: query.isPending, error: query.error };
+  return {
+    types: new Map(fields.map((it) => [it.name, it.py_type])),
+    pending: query.isPending,
+    error: query.error,
+    retry: () => void query.refetch(),
+  };
 }
 
 function relationOf(type: FieldType | undefined): string | null {
@@ -139,33 +153,105 @@ export function equalValues(
   );
 }
 
+/** The kinds of the controls of the filters, by which they are as wide where the row is a line. */
+export type FilterKind = 'date' | 'text' | 'relation' | 'select' | 'chips';
+
+/** The width of the control of a filter where its row is a line (a container of 48rem); its cell otherwise. */
+const WIDTHS: Record<FilterKind, string> = {
+  date: '@3xl:w-36',
+  text: '@3xl:w-40',
+  relation: '@3xl:w-48',
+  select: '@3xl:min-w-28',
+  chips: '',
+};
+
+/** The width of a control of a filter of this kind: its cell where the filters are a grid, its own in a line. */
+export function filterWidth(kind: FilterKind): string {
+  return cn('w-full', WIDTHS[kind]);
+}
+
+/**
+ * A filter of the row of the filters (`FilterRow`): its label, always over its control (on a
+ * plate where the text of the control starts, as the label of a field of a form otherwise), in
+ * the color of the text once the filter has a value (`data-filled`); the line of the control
+ * drawn by its group (`data-slot="field-group"`), as for the range of two dates (`legend` without
+ * an `id`, its label read as the name of the group). Folded (`folded`), it is hidden on a phone and
+ * in a list beside its card (`useBesideCard`).
+ */
+export function FilterField({ label, id, kind, filled, folded = false, children, 'data-bz': mark }: {
+  label: string;
+  /** The id of the control that the label names; without one the filter is a group of controls named by the label. */
+  id?: string;
+  kind: FilterKind;
+  /** Whether the filter has a value. */
+  filled: boolean;
+  /** Whether the filters are folded behind their button where the row is one column (a phone) or beside a card. */
+  folded?: boolean;
+  /** The mark of a group of controls (`field:<field>` of the chips of a boolean). */
+  'data-bz'?: string;
+  children: ReactNode;
+}) {
+  const beside = useBesideCard();
+  // in a line (`line` of the row) of 28rem to 48rem (a calendar, a section of a card) the filters
+  // share it, each at least 10rem (a range of dates 18rem), wrapping where it has no room: never a
+  // column of filters as wide as the line; narrower, a column, as on a phone
+  const wrapper = cn(
+    'grid w-full min-w-0 gap-1 @3xl:w-auto @md:@max-3xl:in-data-line:grow @md:@max-3xl:in-data-line:basis-40',
+    kind === 'date' && '@md:col-span-2 @md:@max-3xl:in-data-line:basis-72',
+    folded && (beside ? 'hidden' : '@max-md:hidden'),
+  );
+  const text = 'cursor-pointer text-sm font-normal whitespace-nowrap text-muted-foreground in-data-filled:text-foreground';
+  const group = (
+    <div data-slot="field-group" className={cn(fieldGroupClassName, 'min-w-0 gap-2', kind === 'chips' && 'pl-1')}>
+      {children}
+    </div>
+  );
+  return id === undefined ? (
+    <fieldset data-bz={mark} data-filled={filled || undefined} className={wrapper}>
+      <legend className="sr-only">{label}</legend>
+      <span aria-hidden="true" className={text}>
+        {label}
+      </span>
+      {group}
+    </fieldset>
+  ) : (
+    <div data-filled={filled || undefined} className={wrapper}>
+      <Label htmlFor={id} className={text}>
+        {label}
+      </Label>
+      {group}
+    </div>
+  );
+}
+
 interface FilterControlProps {
   filter: ListFilter;
   label: string;
   type: FieldType | undefined;
   values: FilterValues;
   onChange: (name: string, value: string) => void;
+  folded: boolean;
 }
 
 /** The control of a filter, marked `field:<field>` (the range of a date `field:<field>__gte`, `__lte`). */
-function FilterControl({ filter, label, type, values, onChange }: FilterControlProps) {
+function FilterControl({ filter, label, type, values, onChange, folded }: FilterControlProps) {
   const { t } = useLanguage();
   const id = `filter-${filter.field}`;
   const { field } = filter;
   if (type === 'date' || type === 'datetime') {
+    const bounds = ['gte', 'lte'] as const;
     return (
-      // on a phone a row of the full width (a fieldset is as wide as its content otherwise),
-      // its two dates under the label when they do not fit beside it, sharing the row
-      <fieldset className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap">
-        <legend className="sr-only">{label}</legend>
-        <span aria-hidden="true" className="text-sm whitespace-nowrap text-muted-foreground">
-          {label}
-        </span>
-        <div className="flex min-w-0 grow items-center gap-1.5 sm:grow-0">
-          {(['gte', 'lte'] as const).map((bound) => (
+      // its two dates side by side, a dash between them, under its label
+      <FilterField folded={folded} label={label} kind="date" filled={bounds.some((bound) => values[`${field}__${bound}`])}>
+        {bounds.map((bound) => (
+          <Fragment key={bound}>
+            {bound === 'lte' && (
+              <span aria-hidden="true" className="text-muted-foreground">
+                —
+              </span>
+            )}
             <DateInput
-              key={bound}
-              className="h-9 w-36 min-w-0 flex-1 sm:flex-none"
+              className={cn('min-w-0 flex-1 @3xl:flex-none', WIDTHS.date)}
               aria-label={t(bound === 'gte' ? 'filter.from' : 'filter.to', { label })}
               data-bz={`field:${field}__${bound}`}
               value={values[`${field}__${bound}`] ?? ''}
@@ -173,19 +259,16 @@ function FilterControl({ filter, label, type, values, onChange }: FilterControlP
                 onChange(`${field}__${bound}`, value);
               }}
             />
-          ))}
-        </div>
-      </fieldset>
+          </Fragment>
+        ))}
+      </FilterField>
     );
   }
   const value = values[field] ?? '';
   if (type === 'boolean' && !filter.options) {
     // a chip for each value, pressed again to show every item
     return (
-      <div role="group" aria-label={label} data-bz={`field:${field}`} className="flex items-center gap-2">
-        <span aria-hidden="true" className="text-sm whitespace-nowrap text-muted-foreground">
-          {label}
-        </span>
+      <FilterField folded={folded} label={label} kind="chips" filled={value !== ''} data-bz={`field:${field}`}>
         {(['true', 'false'] as const).map((it) => (
           <Button
             key={it}
@@ -193,7 +276,6 @@ function FilterControl({ filter, label, type, values, onChange }: FilterControlP
             variant="outline"
             size="sm"
             aria-pressed={value === it}
-            className="rounded-full aria-pressed:border-primary aria-pressed:bg-primary-soft aria-pressed:text-primary-ink"
             onClick={() => {
               onChange(field, value === it ? '' : it);
             }}
@@ -201,62 +283,62 @@ function FilterControl({ filter, label, type, values, onChange }: FilterControlP
             {t(it === 'true' ? 'value.yes' : 'value.no')}
           </Button>
         ))}
-      </div>
+      </FilterField>
     );
   }
   if (filter.options) {
     const { options } = filter;
-    // a chip of the toolbar named by the field: its label, then the choice
     return (
-      <Select
-        value={value || EVERY}
-        onValueChange={(next) => {
-          onChange(field, next === EVERY ? '' : next);
-        }}
-      >
-        <SelectTrigger data-bz={`field:${field}`} aria-label={label} className="w-full bg-card sm:w-auto">
-          <span aria-hidden="true" className="text-muted-foreground">
-            {label}
-          </span>
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent position="popper" align="start">
-          <SelectItem value={EVERY} data-value="">
-            {t('filter.all')}
-          </SelectItem>
-          {options.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              {option.label}
+      <FilterField folded={folded} label={label} id={id} kind="select" filled={value !== ''}>
+        <Select
+          value={value || EVERY}
+          onValueChange={(next) => {
+            onChange(field, next === EVERY ? '' : next);
+          }}
+        >
+          <SelectTrigger id={id} data-bz={`field:${field}`} className={cn(filterWidth('select'), !value && 'text-muted-foreground')}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent position="popper" align="start">
+            <SelectItem value={EVERY} data-value="">
+              {t('filter.all')}
             </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+            {options.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </FilterField>
     );
   }
   const relation = relationOf(type);
   const relationType = relation === null ? undefined : typeAt(relation);
-  let control;
   if (relationType !== undefined) {
-    control = (
-      <RelationPicker
-        id={id}
-        data-bz={`field:${field}`}
-        className="w-48 min-w-0 flex-1 sm:flex-none"
-        label={label}
-        relation={relationType}
-        value={value || null}
-        placeholder={t('filter.all')}
-        onChange={(next) => {
-          onChange(field, next ?? '');
-        }}
-      />
+    return (
+      <FilterField folded={folded} label={label} id={id} kind="relation" filled={value !== ''}>
+        <RelationPicker
+          id={id}
+          data-bz={`field:${field}`}
+          className={filterWidth('relation')}
+          label={label}
+          relation={relationType}
+          value={value || null}
+          placeholder={t('filter.all')}
+          onChange={(next) => {
+            onChange(field, next ?? '');
+          }}
+        />
+      </FilterField>
     );
-  } else {
-    control = (
+  }
+  return (
+    <FilterField folded={folded} label={label} id={id} kind="text" filled={value !== ''}>
       <Input
         id={id}
         data-bz={`field:${field}`}
-        className="h-9 w-40 min-w-0 flex-1 sm:flex-none"
+        className={filterWidth('text')}
         type={type !== undefined && NUMBERS.has(type) ? 'number' : 'text'}
         step={type === 'integer' ? 1 : type !== undefined && NUMBERS.has(type) ? 'any' : undefined}
         value={value}
@@ -264,15 +346,98 @@ function FilterControl({ filter, label, type, values, onChange }: FilterControlP
           onChange(field, event.target.value);
         }}
       />
+    </FilterField>
+  );
+}
+
+/** The first control of the filters: the search, else the first control of the row of the filters. */
+const FIRST_FILTER = '[data-bz="field:$search"], [data-slot="filter-row"] :is(input, button, select):not(:disabled)';
+
+/**
+ * Clears the filters of the user (`action:reset-filters`), shown while he has any (`shown`, by
+ * default); it goes with them, the focus to the search or to the first filter of its screen.
+ * Where the row of the filters is a line its place is kept while it is hidden: the filters do not
+ * wrap again when it comes.
+ */
+export function ResetFilters({ shown = true, onReset }: { shown?: boolean; onReset: () => void }) {
+  const { t } = useLanguage();
+  const content = (
+    <>
+      <FunnelX aria-hidden="true" />
+      {t('filter.clear')}
+    </>
+  );
+  if (!shown) {
+    return (
+      <span aria-hidden="true" data-slot="reset-place" className={cn(buttonVariants({ variant: 'outline' }), 'invisible hidden @3xl:inline-flex')}>
+        {content}
+      </span>
     );
   }
-  // on a phone a row of the full width, its control taking the rest of it
   return (
-    <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto">
-      <Label htmlFor={id} className="font-normal whitespace-nowrap text-muted-foreground">
-        {label}
-      </Label>
-      {control}
+    <Button
+      type="button"
+      variant="outline"
+      data-bz="action:reset-filters"
+      aria-label={t('filter.reset')}
+      title={t('filter.reset')}
+      onClick={(event) => {
+        const screen = event.currentTarget.closest('section') ?? document;
+        onReset();
+        // once the filters are rendered again empty
+        requestAnimationFrame(() => {
+          screen.querySelector<HTMLElement>(FIRST_FILTER)?.focus();
+        });
+      }}
+    >
+      {content}
+    </Button>
+  );
+}
+
+/**
+ * The row of the filters of a list, a calendar or a board, with the search of a list, on a plate
+ * of its own (`plate`: with a search, a filter or the sort, not the tools alone; never with
+ * `composition.filters: row` of the theme, on the page then), its tools
+ * (`tools`) at its end: where its container is as wide as 48rem the filters wrap beside the tools,
+ * which stay on the right of their last line, the lines of the controls at the bottom under their
+ * labels; narrower (a list beside its card, a phone) a grid of cells of one width, two from 28rem
+ * (a range of dates takes both, the next filters filling the cell it leaves), the label and the
+ * control of a filter filling its cell, the tools at the end of the second column (of the line on
+ * a phone), wrapping there rather than past the edge. `line`: a line at any width (a list in a
+ * section of a card, its sort and its tools), its filters growing, the tools as one group at its end
+ * or, without room there, under it.
+ */
+export function FilterRow({
+  plate: content = true,
+  line = false,
+  tools,
+  children,
+}: {
+  plate?: boolean;
+  line?: boolean;
+  tools?: ReactNode;
+  children: ReactNode;
+}) {
+  const plate = content && THEME.composition.filters === 'plate';
+  return (
+    <div
+      data-slot="filter-row"
+      data-plate={plate || undefined}
+      data-line={line || undefined}
+      className={cn('@container', plate && 'surface px-(--space-card) py-[calc(var(--space-card)/2)]')}
+    >
+      {line ? (
+        <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
+          <div className="flex min-w-[min(100%,14rem)] flex-1 flex-wrap items-end gap-x-6 gap-y-3">{children}</div>
+          {tools !== undefined && <div className="ml-auto flex shrink-0 gap-2">{tools}</div>}
+        </div>
+      ) : (
+        <div className="grid grid-flow-dense grid-cols-1 items-end gap-x-6 gap-y-3 @md:grid-cols-2 @3xl:flex">
+          <div className="contents @3xl:flex @3xl:min-w-0 @3xl:flex-1 @3xl:flex-wrap @3xl:items-end @3xl:gap-x-6 @3xl:gap-y-3">{children}</div>
+          {tools !== undefined && <div className="col-span-full flex min-w-0 flex-wrap justify-end gap-2 @md:col-span-1 @md:col-start-2 @3xl:shrink-0">{tools}</div>}
+        </div>
+      )}
     </div>
   );
 }
@@ -282,6 +447,8 @@ export interface FilterBarProps {
   filters: readonly ListFilter[];
   /** Whether the titles of the fields are loaded: until then, and until the types of the filters are, a skeleton. */
   ready?: boolean;
+  /** The count of the resets of the user (`ResetFilters`): at each, the filters start again empty, unfolded as they were. */
+  resets?: number;
   /** The titles of the fields. */
   title: (name: string) => string;
   /**
@@ -296,12 +463,22 @@ export interface FilterBarProps {
  * the fields that the backend does not offer the user to filter by; the state of the error
  * when the filter fields cannot be read (not every filter hidden in silence).
  */
-export function FilterBar({ path, filters: wanted, ready = true, title, onFilter }: FilterBarProps) {
+export function FilterBar({ path, filters: wanted, ready = true, resets = 0, title, onFilter }: FilterBarProps) {
   const { t } = useLanguage();
-  const { types, pending, error } = useFilterTypes(path);
+  const { types, pending, error, retry } = useFilterTypes(path);
   const [values, setValues] = useState<FilterValues>({});
+  const [cleared, setCleared] = useState(resets);
+  if (cleared !== resets) {
+    setCleared(resets);
+    setValues({});
+  }
+  // on a phone and beside a card the filters are folded behind their button, which counts those with a value
+  const beside = useBesideCard();
+  const [unfolded, setUnfolded] = useState(false);
   const filters = wanted.filter((filter) => types.has(filter.field));
-  if (error) return <StatePanel inline state={errorState(error)} error={error} message={t('filter.unavailable')} />;
+  const foldable = filters.length > 1;
+  const count = filters.filter(({ field }) => values[field] || values[`${field}__gte`] || values[`${field}__lte`]).length;
+  if (error) return <StatePanel inline state={errorState(error)} error={error} message={t('filter.unavailable')} onRetry={retry} />;
   if (pending || !ready) {
     return (
       <>
@@ -313,9 +490,28 @@ export function FilterBar({ path, filters: wanted, ready = true, title, onFilter
   }
   return (
     <>
+      {foldable && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          data-bz="action:filters"
+          aria-expanded={unfolded}
+          className={cn('justify-self-start', !beside && '@md:hidden')}
+          onClick={() => {
+            setUnfolded(!unfolded);
+          }}
+        >
+          <ListFilterIcon aria-hidden="true" />
+          {t('filter.toggle')}
+          {count > 0 && <span className="rounded-full bg-primary px-1.5 text-xs text-primary-foreground tabular-nums">{count}</span>}
+        </Button>
+      )}
       {filters.map((filter) => (
         <FilterControl
-          key={filter.field}
+          // at a reset the controls start again, without what the user typed into them
+          key={`${filter.field}:${String(resets)}`}
+          folded={foldable && !unfolded}
           filter={filter}
           label={filter.label ?? title(filter.field)}
           type={types.get(filter.field)}

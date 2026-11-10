@@ -15,7 +15,8 @@
 // The contract of the layout: `nav:<screen>` of the navigation (the current one
 // `aria-current="page"`; a link that `requires` a permission only once the backend allows
 // it; a group under its heading while one of its links is shown, also in the menu of a
-// phone), `screen:<id>`, the logout `action:logout` with a session only, the sign-in
+// phone; the number of the items of a link `count:<screen>` once it is shown; the sidebar
+// collapsed to a rail and kept so), `screen:<id>`, the logout `action:logout` with a session only, the sign-in
 // `action:sign-in` without one, the color mode, the
 // language (`action:language`, with more than one language), the tools of the product mounted
 // once, the link of a screen back to its parent (`nav:<screen>`); and the list with its card
@@ -24,12 +25,13 @@
 
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { useEffect, useState } from 'react';
-import { Route, Routes, useNavigate } from 'react-router';
+import { Route, Routes, useLocation, useNavigate } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 
+import { Filter } from '@/bazis/client';
 import { THEME } from '@/bazis/generated/theme';
-import { AppShell, Brand, ListCardLayout, Screen, setColorMode, useNavItems } from '@/bazis/ui/app-shell';
-import { Backend, errors, ITEMS, listDocument, renderWithBazis, testLanguages } from '@/bazis/ui/testing';
+import { AppShell, Brand, ListCardLayout, Screen, setColorMode, useNavItems, useScreenPage } from '@/bazis/ui/app-shell';
+import { Backend, errors, ITEMS, listDocument, renderWithBazis, setTheme, testLanguages } from '@/bazis/ui/testing';
 
 const items = [
   { screen: 'home', label: 'Home', to: '/', end: true },
@@ -239,9 +241,12 @@ describe('AppShell', () => {
     expect(screen.queryByTestId('nav:more')).toBeNull();
   });
 
-  it('shares a group of the top bar between its row and its menu, link by link', () => {
-    // a layout for jsdom: a place of 520 px, the links of the copy of the row 100 px each, then
-    // the button of the menu of 80 px: the room for the links is 440 px, four links
+  /**
+   * A layout of the top bar for jsdom: a place of 520 px, the links of the copy of the row 100 px
+   * each, then the button of the menu of 80 px: the room for the links is 440 px, four links.
+   * Returns what undoes it.
+   */
+  function measureTheRow(): () => void {
     vi.stubGlobal(
       'ResizeObserver',
       class {
@@ -262,6 +267,14 @@ describe('AppShell', () => {
       if (index >= 0) return rect(index * 100, (index + 1) * 100);
       return this === copy.lastElementChild ? rect(links.length * 100, links.length * 100 + 80) : rect(0, 0);
     });
+    return () => {
+      measured.mockRestore();
+      vi.unstubAllGlobals();
+    };
+  }
+
+  it('shares a group of the top bar between its row and its menu, link by link', () => {
+    const restore = measureTheRow();
     try {
       const sharing = [
         ...items,
@@ -296,8 +309,43 @@ describe('AppShell', () => {
       expect(ids(menu)).toEqual(['nav:price', 'nav:about']);
       expect(within(within(menu).getByRole('group', { name: 'Work' })).getAllByTestId(/^nav:/)).toHaveLength(1);
     } finally {
-      measured.mockRestore();
-      vi.unstubAllGlobals();
+      restore();
+    }
+  });
+
+  it('counts the items of a link of the top bar in its row and in its menu', async () => {
+    const counted = { path: ITEMS, filter: Filter.where('done', false) };
+    const restore = measureTheRow();
+    try {
+      renderWithBazis(
+        <AppShell
+          title="Product"
+          navigation="topbar"
+          items={[
+            ...items,
+            { screen: 'item-list', label: 'Items', to: '/items', count: counted },
+            { screen: 'board', label: 'Board', to: '/board' },
+            { screen: 'price', label: 'Price', to: '/price' },
+            { screen: 'open-list', label: 'Open', to: '/open', count: counted },
+          ]}
+        >
+          <Screen id="home">home</Screen>
+        </AppShell>,
+        new Backend().on('GET', ITEMS, listDocument([], { meta: { aggregates: { count: 7 } } })),
+      );
+      // in the row, marked once: the copy of the row that measures it is not marked
+      const row = screen.getByRole('navigation', { name: 'Main' });
+      const count = await within(row).findByTestId('count:item-list');
+      expect(screen.getAllByTestId('count:item-list')).toEqual([count]);
+      expect(within(row).getByTestId('nav:item-list').contains(count)).toBe(true);
+      expect(count.textContent).toBe('7');
+      fireEvent.keyDown(screen.getByTestId('nav:more'), { key: 'Enter' });
+      const menu = screen.getByRole('menu');
+      const more = await within(menu).findByTestId('count:open-list');
+      expect(within(menu).getByTestId('nav:open-list').contains(more)).toBe(true);
+      expect(more.getAttribute('data-value')).toBe('7');
+    } finally {
+      restore();
     }
   });
 
@@ -521,6 +569,222 @@ describe('AppShell', () => {
     expect(row.parentElement?.contains(logout)).toBe(true);
   });
 
+  it('counts the items of a link beside it once the link is shown, nothing at 0', async () => {
+    const counted = [
+      { screen: 'home', label: 'Home', to: '/', end: true },
+      {
+        screen: 'item-list',
+        label: 'Items',
+        to: '/items',
+        requires: { path: ITEMS },
+        count: { path: ITEMS, filter: Filter.where('done', false) },
+      },
+    ];
+    const shell = (
+      <AppShell title="Product" navigation="sidebar" items={counted}>
+        <Screen id="home">home</Screen>
+      </AppShell>
+    );
+    const counts = (server: Backend) =>
+      server.requests('GET').map((it) => decodeURIComponent(it)).filter((it) => it.includes('aggregate=count'));
+    // never counted for a user whom the backend does not let view the items
+    const refused = new Backend().on('GET', `${ITEMS}schema_list/`, errors(403), 403);
+    const first = renderWithBazis(shell, refused);
+    await waitFor(() => {
+      expect(refused.requests('GET')).toContain(`GET ${ITEMS}schema_list/`);
+    });
+    expect(screen.queryByTestId('nav:item-list')).toBeNull();
+    expect(counts(refused)).toEqual([]);
+    first.unmount();
+
+    const server = new Backend()
+      .on('GET', `${ITEMS}schema_list/`, { title: 'list' })
+      .on('GET', ITEMS, listDocument([], { meta: { aggregates: { count: 12345 } } }));
+    const second = renderWithBazis(shell, server, { route: '/items' });
+    const count = await screen.findByTestId('count:item-list');
+    expect(count.getAttribute('data-value')).toBe('12345');
+    expect(count.textContent).toBe('12,345');
+    expect(screen.getByTestId('nav:item-list').contains(count)).toBe(true);
+    // one item of the list of the filter, and the count of its aggregates
+    expect(counts(server)).toHaveLength(1);
+    expect(counts(server)[0]).toContain('filter=done=false');
+    expect(counts(server)[0]).toContain('page[limit]=1');
+    second.unmount();
+
+    const none = new Backend()
+      .on('GET', `${ITEMS}schema_list/`, { title: 'list' })
+      .on('GET', ITEMS, listDocument([], { meta: { aggregates: { count: 0 } } }));
+    renderWithBazis(shell, none);
+    expect(await screen.findByTestId('nav:item-list')).toBeTruthy();
+    await waitFor(() => {
+      expect(counts(none)).toHaveLength(1);
+    });
+    expect(screen.queryByTestId('count:item-list')).toBeNull();
+  });
+
+  it('collapses the sidebar to a rail of icons, kept so in the storage of the browser', async () => {
+    setTheme({ shell: { sidebar: 'auto' } });
+    window.localStorage.removeItem('bazis-sidebar');
+    const shell = (
+      <AppShell title="Product" navigation="sidebar" items={items} session={{ user: 'Mary Manager', onLogout: vi.fn() }}>
+        <Screen id="home">home</Screen>
+      </AppShell>
+    );
+    const first = renderWithBazis(shell, new Backend());
+    const aside = () => screen.getByTestId('nav:home').closest('aside');
+    expect(aside()?.getAttribute('data-state')).toBe('expanded');
+    // an expanded link is named by its text, its title only that of its label, which may be cut
+    expect(screen.getByTestId('nav:task-list').hasAttribute('title')).toBe(false);
+    expect(screen.getByText('Tasks').getAttribute('title')).toBe('Tasks');
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse the sidebar' }));
+    expect(aside()?.getAttribute('data-state')).toBe('collapsed');
+    // a link keeps its mark and its label, also in a tooltip at its focus (only its icon is seen)
+    expect(screen.getByRole('link', { name: 'Tasks' })).toBe(screen.getByTestId('nav:task-list'));
+    expect(screen.getByTestId('nav:task-list').hasAttribute('title')).toBe(false);
+    // the tooltip is placed with ResizeObserver, which jsdom has not
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    fireEvent.focus(screen.getByTestId('nav:task-list'));
+    expect((await screen.findByRole('tooltip')).textContent).toBe('Tasks');
+    vi.unstubAllGlobals();
+    expect(screen.getByTestId('action:logout').textContent).toBe('Log out');
+    first.unmount();
+
+    renderWithBazis(shell, new Backend());
+    expect(aside()?.getAttribute('data-state')).toBe('collapsed');
+    fireEvent.click(screen.getByRole('button', { name: 'Expand the sidebar' }));
+    expect(aside()?.getAttribute('data-state')).toBe('expanded');
+    expect(screen.getByRole('button', { name: 'Collapse the sidebar' }).getAttribute('aria-expanded')).toBe('true');
+    // the choice of the user, whatever the width
+    expect(window.localStorage.getItem('bazis-sidebar')).toBe('expanded');
+    window.localStorage.removeItem('bazis-sidebar');
+  });
+
+  it('collapses the sidebar to a rail below the breakpoint lg until the user expands it', () => {
+    setTheme({ shell: { sidebar: 'auto' } });
+    window.localStorage.removeItem('bazis-sidebar');
+    // jsdom has no `matchMedia`: wide (`md`), not `lg`
+    window.matchMedia = (query: string) =>
+      ({ matches: !query.includes('64rem'), addEventListener: vi.fn(), removeEventListener: vi.fn() }) as unknown as MediaQueryList;
+    try {
+      const shell = (
+        <AppShell title="Product" navigation="sidebar" items={items}>
+          <Screen id="home">home</Screen>
+        </AppShell>
+      );
+      const first = renderWithBazis(shell, new Backend());
+      const aside = () => screen.getByTestId('nav:home').closest('aside');
+      expect(aside()?.getAttribute('data-state')).toBe('collapsed');
+      fireEvent.click(screen.getByRole('button', { name: 'Expand the sidebar' }));
+      first.unmount();
+      renderWithBazis(shell, new Backend());
+      expect(aside()?.getAttribute('data-state')).toBe('expanded');
+    } finally {
+      Reflect.deleteProperty(window, 'matchMedia');
+      window.localStorage.removeItem('bazis-sidebar');
+    }
+  });
+
+  it('stays expanded below the breakpoint lg with `shell.sidebar: expanded` of the theme', () => {
+    window.localStorage.removeItem('bazis-sidebar');
+    window.matchMedia = (query: string) =>
+      ({ matches: !query.includes('64rem'), addEventListener: vi.fn(), removeEventListener: vi.fn() }) as unknown as MediaQueryList;
+    setTheme({ shell: { sidebar: 'expanded' } });
+    try {
+      renderWithBazis(
+        <AppShell title="Product" navigation="sidebar" items={items}>
+          <Screen id="home">home</Screen>
+        </AppShell>,
+        new Backend(),
+      );
+      expect(screen.getByTestId('nav:home').closest('aside')?.getAttribute('data-state')).toBe('expanded');
+    } finally {
+      Reflect.deleteProperty(window, 'matchMedia');
+    }
+  });
+
+  it('starts as a rail with `shell.sidebar: rail` of the theme until the user expands it, as wide as the tokens of the sizes', () => {
+    window.localStorage.removeItem('bazis-sidebar');
+    setTheme({ shell: { sidebar: 'rail' } });
+    try {
+      const shell = (
+        <AppShell title="Product" navigation="sidebar" items={items}>
+          <Screen id="home">home</Screen>
+        </AppShell>
+      );
+      const first = renderWithBazis(shell, new Backend());
+      const aside = () => screen.getByTestId('nav:home').closest('aside');
+      expect(aside()?.getAttribute('data-state')).toBe('collapsed');
+      expect(aside()?.parentElement?.className).toContain('md:grid-cols-[var(--size-sidebar-rail)_minmax(0,1fr)]');
+      expect(screen.getByTestId('screen:home').className).toContain('max-w-(--size-content)');
+      fireEvent.click(screen.getByRole('button', { name: 'Expand the sidebar' }));
+      expect(aside()?.parentElement?.className).toContain('md:grid-cols-[var(--size-sidebar)_minmax(0,1fr)]');
+      first.unmount();
+      // the choice of the user over the theme
+      renderWithBazis(shell, new Backend());
+      expect(window.localStorage.getItem('bazis-sidebar')).toBe('expanded');
+      expect(aside()?.getAttribute('data-state')).toBe('expanded');
+    } finally {
+      window.localStorage.removeItem('bazis-sidebar');
+    }
+  });
+
+  it('keeps in a rail the number of a link as a dot and the names of the logout and the sign-in', async () => {
+    window.localStorage.setItem('bazis-sidebar', 'collapsed');
+    try {
+      const counted = [...items, { screen: 'item-list', label: 'Items', to: '/items', count: { path: ITEMS, filter: Filter.where('done', false) } }];
+      const server = new Backend().on('GET', ITEMS, listDocument([], { meta: { aggregates: { count: 3 } } }));
+      const first = renderWithBazis(
+        <AppShell title="Product" navigation="sidebar" items={counted} session={{ onLogout: vi.fn() }}>
+          <Screen id="home">home</Screen>
+        </AppShell>,
+        server,
+      );
+      expect(screen.getByTestId('nav:home').closest('aside')?.getAttribute('data-state')).toBe('collapsed');
+      // the dot of the link, its number kept for a screen reader
+      const count = await screen.findByTestId('count:item-list');
+      expect(screen.getByTestId('nav:item-list').contains(count)).toBe(true);
+      expect(count.className).toContain('group-data-[state=collapsed]/sidebar:size-2');
+      expect(count.textContent).toBe('3');
+      // without the plate the logout is an icon: its name in its title too
+      expect(screen.getByTestId('action:logout').getAttribute('title')).toBe('Log out');
+      first.unmount();
+
+      renderWithBazis(
+        <AppShell title="Product" navigation="sidebar" items={items} signIn={vi.fn()}>
+          <Screen id="home">home</Screen>
+        </AppShell>,
+        new Backend(),
+      );
+      expect(screen.getByTestId('action:sign-in').getAttribute('title')).toBe('Log in');
+    } finally {
+      window.localStorage.removeItem('bazis-sidebar');
+    }
+  });
+
+  it('shows the user on a plate at the foot of the sidebar, his initials, his name and its detail', () => {
+    const onLogout = vi.fn();
+    renderWithBazis(
+      <AppShell title="Product" navigation="sidebar" items={items} session={{ user: 'Mary Manager', detail: 'Rentals', onLogout }}>
+        <Screen id="home">home</Screen>
+      </AppShell>,
+      new Backend(),
+    );
+    const logout = screen.getByTestId('action:logout');
+    const plate = logout.closest('[data-slot="sidebar-user"]');
+    expect(plate?.textContent).toBe('MMMary ManagerRentalsLog out');
+    // the logout is an icon named for a screen reader
+    expect(logout.getAttribute('title')).toBe('Log out');
+    fireEvent.click(logout);
+    expect(onLogout).toHaveBeenCalledOnce();
+  });
+
   it('lays the header of a screen out in the screen, so that it sticks in it', () => {
     renderWithBazis(
       <AppShell title="Product" navigation="sidebar" items={items}>
@@ -543,6 +807,54 @@ describe('AppShell', () => {
     expect(header.textContent).not.toContain('The overview');
   });
 
+  it('shows the caption of a screen beside its title, and gives its places in the header to its parts', () => {
+    function Places() {
+      const page = useScreenPage();
+      return <p data-bz="places">{[page?.tools?.dataset.slot, page?.caption?.dataset.slot].join(' ')}</p>;
+    }
+    renderWithBazis(
+      <Screen id="home" title="Home" caption="Monday">
+        <Places />
+      </Screen>,
+      new Backend(),
+    );
+    const caption = screen.getByTestId('screen:home').querySelector('header h1 + [data-slot="screen-caption"]');
+    expect(caption?.textContent).toBe('Monday');
+    expect(screen.getByTestId('places').textContent).toBe('screen-tools screen-caption');
+  });
+
+  it('names the page by its screen before the product, back once the screen is gone', () => {
+    document.title = 'Product';
+    const { unmount } = renderWithBazis(
+      <Screen id="home" title="Home">
+        home
+      </Screen>,
+      new Backend(),
+    );
+    expect(document.title).toBe('Home · Product');
+    unmount();
+    expect(document.title).toBe('Product');
+  });
+
+  it('skips the navigation to the content by the first link of the page', () => {
+    for (const navigation of ['sidebar', 'topbar'] as const) {
+      const { unmount } = renderWithBazis(
+        <AppShell title="Product" navigation={navigation} items={items}>
+          <Screen id="home" title="Home">
+            home
+          </Screen>
+        </AppShell>,
+        new Backend(),
+      );
+      const skip = screen.getByRole('link', { name: 'Skip to content' });
+      expect(document.querySelector('a[href]')).toBe(skip);
+      const main = screen.getByRole('main');
+      expect(skip.getAttribute('href')).toBe(`#${main.id}`);
+      expect(main.tabIndex).toBe(-1);
+      unmount();
+    }
+  });
+
   it('links a screen back to the screen it was opened from', () => {
     renderWithBazis(
       <Routes>
@@ -560,7 +872,7 @@ describe('AppShell', () => {
       { route: '/tasks/1' },
     );
     const back = screen.getByTestId('nav:task-list');
-    // in the header, before the title, named by the parent also where only its arrow shows
+    // in the header, before the title, named by the parent
     const header = screen.getByTestId('screen:task-card').querySelector('header');
     expect(header?.contains(back)).toBe(true);
     expect(back.compareDocumentPosition(screen.getByRole('heading', { level: 1 })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -692,6 +1004,170 @@ describe('ListCardLayout', () => {
       expect(mounted).toBe(1);
     });
   }
+
+  it('replaces the open card in the history by another item of its list: Back leaves the list', () => {
+    function List() {
+      const navigate = useNavigate();
+      return (
+        <Screen id="item-list" title="Items">
+          {['1', '2', '3'].map((id) => (
+            <button key={id} type="button" onClick={() => void navigate(`/items/${id}`)}>
+              {`open ${id}`}
+            </button>
+          ))}
+          <button type="button" onClick={() => void navigate('/other')}>
+            other
+          </button>
+        </Screen>
+      );
+    }
+    function Back() {
+      const navigate = useNavigate();
+      const { pathname } = useLocation();
+      return (
+        <button type="button" data-path={pathname} onClick={() => void navigate(-1)}>
+          back
+        </button>
+      );
+    }
+    renderWithBazis(
+      <>
+        <Routes>
+          <Route path="/items" element={<ListCardLayout mode="split" list={<List />} />}>
+            <Route
+              path=":id"
+              element={
+                <Screen id="item-card" title="Item">
+                  card
+                </Screen>
+              }
+            />
+          </Route>
+          <Route
+            path="/other"
+            element={
+              <Screen id="other" title="Other">
+                another screen
+              </Screen>
+            }
+          />
+        </Routes>
+        <Back />
+      </>,
+      new Backend(),
+      { route: '/items' },
+    );
+    const back = screen.getByText('back');
+    fireEvent.click(screen.getByText('open 1'));
+    fireEvent.click(screen.getByText('open 2'));
+    fireEvent.click(screen.getByText('open 3'));
+    expect(back.dataset.path).toBe('/items/3');
+    fireEvent.click(back);
+    expect(back.dataset.path).toBe('/items');
+    // another screen from the list over an open card adds an entry
+    fireEvent.click(screen.getByText('open 1'));
+    fireEvent.click(screen.getByText('other'));
+    fireEvent.click(back);
+    expect(back.dataset.path).toBe('/items/1');
+  });
+
+  it('closes the card beside its list back to it, by Escape too, from the breakpoint xl only', () => {
+    for (const xl of [true, false]) {
+      // jsdom has no `matchMedia`: `xl` or not
+      window.matchMedia = (query: string) =>
+        ({ matches: xl || !query.includes('80rem'), addEventListener: vi.fn(), removeEventListener: vi.fn() }) as unknown as MediaQueryList;
+      try {
+        const { unmount } = renderWithBazis(
+          <Routes>
+            <Route path="/items" element={<ListCardLayout mode="split" list={<Screen id="item-list">list</Screen>} />}>
+              <Route
+                path=":id"
+                element={
+                  <Screen id="item-card" parent={{ screen: 'item-list', label: 'Items', to: '/items' }}>
+                    <input type="search" aria-label="Search" />
+                    <div role="combobox" aria-expanded aria-controls="options" aria-label="Assignee" tabIndex={0} />
+                  </Screen>
+                }
+              />
+            </Route>
+          </Routes>,
+          new Backend(),
+          { route: '/items/1' },
+        );
+        if (!xl) {
+          expect(screen.queryByTestId('action:close')).toBeNull();
+          fireEvent.keyDown(document.body, { key: 'Escape' });
+          expect(screen.getByTestId('screen:item-card')).toBeTruthy();
+          unmount();
+          continue;
+        }
+        // the breadcrumb stays, the close at the end of the header
+        expect(screen.getByTestId('nav:item-list')).toBeTruthy();
+        expect(screen.getByTestId('action:close').getAttribute('aria-label')).toBe('Close');
+        // a key that a dialog or a menu took leaves the card open
+        const taken = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+        taken.preventDefault();
+        document.body.dispatchEvent(taken);
+        expect(screen.getByTestId('screen:item-card')).toBeTruthy();
+        // a field keeps its own Escape: the search clears, a combobox closes its list
+        fireEvent.keyDown(screen.getByLabelText('Search'), { key: 'Escape' });
+        fireEvent.keyDown(screen.getByLabelText('Assignee'), { key: 'Escape' });
+        expect(screen.getByTestId('screen:item-card')).toBeTruthy();
+        fireEvent.keyDown(document.body, { key: 'Escape' });
+        expect(screen.queryByTestId('screen:item-card')).toBeNull();
+        unmount();
+      } finally {
+        Reflect.deleteProperty(window, 'matchMedia');
+      }
+    }
+  });
+
+  it('moves the focus to the card that opens beside its list, under its single h1, and back to its row once closed', async () => {
+    window.matchMedia = () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }) as unknown as MediaQueryList;
+    try {
+      function List() {
+        const navigate = useNavigate();
+        return (
+          <Screen id="item-list" title="Items">
+            <button type="button" data-bz="row:1" onClick={() => void navigate('/items/1')}>
+              row
+            </button>
+          </Screen>
+        );
+      }
+      renderWithBazis(
+        <Routes>
+          <Route path="/items" element={<ListCardLayout mode="split" list={<List />} />}>
+            <Route
+              path=":id"
+              element={
+                <Screen id="item-card" title="Item" parent={{ screen: 'item-list', label: 'Items', to: '/items' }}>
+                  card
+                </Screen>
+              }
+            />
+          </Route>
+        </Routes>,
+        new Backend(),
+        { route: '/items' },
+      );
+      // never on the first render
+      expect(document.activeElement).toBe(document.body);
+      const row = screen.getByTestId('row:1');
+      row.focus();
+      fireEvent.click(row);
+      const heading = screen.getByRole('heading', { level: 2, name: 'Item' });
+      expect(screen.getAllByRole('heading', { level: 1 }).map((it) => it.textContent)).toEqual(['Items']);
+      await waitFor(() => {
+        expect(document.activeElement).toBe(heading);
+      });
+      fireEvent.click(screen.getByTestId('action:close'));
+      expect(screen.queryByTestId('screen:item-card')).toBeNull();
+      expect(document.activeElement).toBe(screen.getByTestId('row:1'));
+    } finally {
+      Reflect.deleteProperty(window, 'matchMedia');
+    }
+  });
 
   for (const mode of ['split', 'pages'] as const) {
     it(`shows the list without an item (${mode})`, () => {

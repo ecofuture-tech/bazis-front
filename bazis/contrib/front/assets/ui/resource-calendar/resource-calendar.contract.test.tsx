@@ -118,6 +118,18 @@ describe('ResourceCalendar', () => {
     expect(request).toContain('page[limit]=500');
   });
 
+  it('gives a line to a field of the label with a value only', async () => {
+    renderWithBazis(
+      <ResourceCalendar path={ITEMS as never} entity="item" field="due" label={['title', 'until']} views={['week', 'month']} now={now} />,
+      new Backend()
+        .on('GET', `${ITEMS}schema_list/`, schema)
+        .on('GET', ITEMS, listDocument([item('a', { due: '2026-10-15', until: null }), item('b', { due: '2026-10-15', until: '2026-10-17' })])),
+    );
+    const day = await screen.findByTestId('day:2026-10-15');
+    expect(within(within(day).getByTestId('row:a')).queryByTestId('cell:until')).toBeNull();
+    expect(within(within(day).getByTestId('row:b')).getByTestId('cell:until')).toBeTruthy();
+  });
+
   it('shows a month at the width of a phone with the rows of the selected day only, each once', async () => {
     vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query, addEventListener() {}, removeEventListener() {} }));
     try {
@@ -310,10 +322,21 @@ describe('ResourceCalendar', () => {
     );
     const title = await screen.findByTestId<HTMLInputElement>('field:title');
     expect(screen.getByTestId('field:owner')).toBeTruthy();
+    // the filters a line, which they share at any width (never a column: `fields.spec.ts` of the playwright helpers)
+    expect(title.closest('[data-slot="filter-row"]')?.hasAttribute('data-line')).toBe(true);
+    // as wide as where the filters fold (28rem, 15rem a filter): beside the period or a line of the toolbar, never a column
+    const line = title.closest('[data-slot="filter-row"]')?.parentElement;
+    expect(line?.style.minWidth).toBe('min(100%, 28rem)');
+    expect(line?.style.maxWidth).toBe('30rem');
+    // the place of the reset is kept by the width of the line of the navigation, its container
+    const place = document.querySelector('[data-slot="reset-place"]');
+    expect(place?.closest('.\\@container')?.contains(screen.getByTestId('action:previous-period'))).toBe(true);
     fireEvent.change(title, { target: { value: 'plan' } });
     await waitFor(() => {
       expect(lists(server).some((it) => it.includes('title__$search=plan') && it.includes('at__gte='))).toBe(true);
     });
+    expect(await screen.findByTestId('action:reset-filters')).toBeTruthy();
+    expect(document.querySelector('[data-slot="reset-place"]')).toBeNull();
     // a text is no value of a new item; the related item of a filter is, for a field of the form
     fireEvent.click(await screen.findByTestId('action:add'));
     expect(onAdd).toHaveBeenLastCalledWith({ at: new Date(2026, 9, 15).toISOString() });

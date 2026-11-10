@@ -14,7 +14,8 @@
 
 // The rows of a list as a grid of cards: the list of `composition.list: cards`, and that of a
 // phone (`composition.list_phone`), where a table would scroll sideways; composed by `card` (its
-// cover, its rubric, its title, its figure and its muted values), else by its first column.
+// cover, its rubric, its title, its figure and its muted values), else by its first column, the
+// first column of an image a thumbnail beside it.
 
 import type { Tone } from '@/bazis/generated/theme';
 import { useLanguage } from '@/bazis/i18n';
@@ -22,16 +23,16 @@ import { alignsDigits, fieldValue, titleFromText, type ResourceObject } from '@/
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
-import { cell, FOCUS, opener, PageCheckbox, RowCheckbox, type BodyProps, type CardLayout } from './rows.js';
+import { cell, opener, PageCheckbox, RowCheckbox, type BodyProps, type CardLayout } from './rows.js';
 
-/** The colors of a highlighted card, by its tone. */
+/** The colors of a highlighted card, by its tone (without the light of the surface over them). */
 const CARD_TONES: Readonly<Record<Tone, string>> = {
-  neutral: 'border-neutral bg-neutral-soft',
-  primary: 'border-primary bg-primary-soft',
-  info: 'border-info bg-info-soft',
-  success: 'border-success bg-success-soft',
-  warning: 'border-warning bg-warning-soft',
-  danger: 'border-danger bg-danger-soft',
+  neutral: 'border-neutral bg-none bg-neutral-soft',
+  primary: 'border-tone-primary bg-none bg-tone-primary-soft',
+  info: 'border-info bg-none bg-info-soft',
+  success: 'border-success bg-none bg-success-soft',
+  warning: 'border-warning bg-none bg-warning-soft',
+  danger: 'border-danger bg-none bg-danger-soft',
 };
 
 /**
@@ -40,9 +41,14 @@ const CARD_TONES: Readonly<Record<Tone, string>> = {
  */
 const GRID = 'grid grid-cols-[minmax(0,1fr)] gap-4 @xl:grid-cols-2 @4xl:grid-cols-3';
 
-/** The roles of the columns in a card: those of `card` among the columns, else the first column as the title. */
+/**
+ * The roles of the columns in a card: those of `card` among the columns, else the first column as
+ * the title, beside it the first column of an image.
+ */
 interface Roles {
   media?: string | undefined;
+  /** The image beside the title of a card without `card` (a table on a phone). */
+  thumb?: string | undefined;
   eyebrow?: string | undefined;
   title?: string | undefined;
   figure?: string | undefined;
@@ -51,15 +57,19 @@ interface Roles {
   rest: readonly string[];
 }
 
-/** The column of each role of a card, by `card`; its defaults: the first column of an image is the cover, the first other one the title. */
+/**
+ * The column of each role of a card, by `card`; its defaults: the first column of an image is the
+ * cover, the first other one the title. Without `card` that image is a thumbnail beside the title.
+ */
 export function cardRoles(
   columns: readonly string[],
   display: BodyProps['display'],
   card: CardLayout | undefined,
 ): Roles {
   if (card === undefined) {
-    const [title, ...rest] = columns;
-    return { title, meta: [], rest };
+    const thumb = columns.find((name) => display[name] === 'image');
+    const [title, ...rest] = columns.filter((name) => name !== thumb);
+    return { thumb, title, meta: [], rest };
   }
   const shown = (name: string | undefined) => (name !== undefined && columns.includes(name) ? name : undefined);
   const media = card.media === undefined ? columns.find((name) => display[name] === 'image') : shown(card.media);
@@ -93,7 +103,7 @@ function empty(row: ResourceObject, name: string): boolean {
 export function CardsView(props: BodyProps) {
   const { rows, columns, fields, onOpen, selected, hidden, selection, icon: Icon } = props;
   const { t } = useLanguage();
-  const { media, eyebrow, title, figure, meta, rest } = cardRoles(columns, props.display, props.card);
+  const { media, thumb, eyebrow, title, figure, meta, rest } = cardRoles(columns, props.display, props.card);
   // a value without its label, which the readers of the screen hear before it
   const label = (name: string) => <span className="sr-only">{fields.title(name)}: </span>;
   return (
@@ -115,12 +125,12 @@ export function CardsView(props: BodyProps) {
                 data-tone={tone}
                 aria-description={tone && props.rowToneLabel(row)}
                 className={cn(
-                  'group flex w-full flex-col gap-4 rounded-2xl border bg-card p-(--space-card) text-card-foreground shadow-xs transition-[box-shadow,border-color]',
+                  'surface group flex w-full flex-col gap-4 rounded-2xl p-(--space-card) text-card-foreground transition-[box-shadow,border-color]',
                   tone && CARD_TONES[tone],
                   'data-[state=selected]:border-primary',
-                  onOpen && cn('cursor-pointer hover:border-primary/40 hover:shadow-md', FOCUS, 'focus-visible:ring-offset-0'),
+                  onOpen && 'cursor-pointer outline-none hover:shadow-(--shadow-lift-2) focus-visible:ring-focus',
                 )}
-                {...opener(row.id, onOpen)}
+                {...opener(row, onOpen)}
               >
                 {media !== undefined && (
                   <div
@@ -142,8 +152,13 @@ export function CardsView(props: BodyProps) {
                     )}
                   </div>
                 )}
-                {(title !== undefined || eyebrow !== undefined || selection) && (
-                  <div className="flex items-start gap-3">
+                {(title !== undefined || thumb !== undefined || eyebrow !== undefined || selection) && (
+                  <div className={cn('flex gap-3', thumb === undefined ? 'items-start' : 'items-center')}>
+                    {thumb !== undefined && (
+                      <div data-bz={`cell:${thumb}`} className={cn('shrink-0', hidden(thumb) && 'hidden')}>
+                        {cell(props, row, thumb)}
+                      </div>
+                    )}
                     <div className="grid min-w-0 flex-1 gap-1">
                       {eyebrow !== undefined && (
                         <p
@@ -200,12 +215,17 @@ export function CardsView(props: BodyProps) {
                 {rest.length > 0 && (
                   <dl className="grid grid-cols-[minmax(0,1fr)] gap-2 text-sm">
                     {rest.map((name) => (
-                      <div key={name} className={cn('flex items-center justify-between gap-4', hidden(name) && 'hidden')}>
+                      <div key={name} className={cn('flex items-baseline justify-between gap-4', hidden(name) && 'hidden')}>
                         <dt className="text-muted-foreground first-letter:uppercase">{fields.title(name)}</dt>
                         <dd
                           ref={titleFromText}
                           data-bz={`cell:${name}`}
-                          className={cn('min-w-0 truncate text-right', alignsDigits(fields.fields.get(name)) && 'tabular-nums')}
+                          // a text of several lines (the items of a booking) a line each, as in a table, at
+                          // most three
+                          className={cn(
+                            'line-clamp-3 min-w-0 text-right whitespace-pre-line wrap-anywhere',
+                            alignsDigits(fields.fields.get(name)) && 'tabular-nums',
+                          )}
                         >
                           {cell(props, row, name)}
                         </dd>
@@ -229,7 +249,7 @@ export function CardsSkeleton({ media = false }: { media?: boolean }) {
     <div className="@container" aria-hidden="true">
       <div className={GRID}>
         {[0, 1, 2].map((it) => (
-          <div key={it} className="grid gap-4 overflow-hidden rounded-2xl border bg-card p-(--space-card)">
+          <div key={it} className="surface grid gap-4 overflow-hidden rounded-2xl p-(--space-card)">
             {media && <Skeleton className="-mx-(--space-card) -mt-(--space-card) aspect-[4/3] rounded-none" />}
             <Skeleton className="h-5 w-3/4" />
             <Skeleton className="h-4 w-full" />

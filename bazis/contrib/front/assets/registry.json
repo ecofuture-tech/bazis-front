@@ -216,7 +216,8 @@
           "button",
           "state-panel",
           "sheet",
-          "dropdown-menu"
+          "dropdown-menu",
+          "tooltip"
         ]
       },
       "files": [
@@ -936,6 +937,11 @@
       "kind": "ui",
       "source": "ui/shadcn",
       "target": "src/components/ui",
+      "requires": {
+        "assets": [
+          "input"
+        ]
+      },
       "files": [
         "native-select.tsx"
       ]
@@ -963,6 +969,11 @@
       "kind": "ui",
       "source": "ui/shadcn",
       "target": "src/components/ui",
+      "requires": {
+        "assets": [
+          "input"
+        ]
+      },
       "files": [
         "select.tsx"
       ]
@@ -983,7 +994,8 @@
       "target": "src/components/ui",
       "requires": {
         "assets": [
-          "i18n"
+          "i18n",
+          "dialog"
         ]
       },
       "files": [

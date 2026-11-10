@@ -106,9 +106,36 @@
           "minLength": 1
         },
         "icon": {"$ref": "#/$defs/icon"},
-        "requires": {"$ref": "#/$defs/requires"}
+        "requires": {"$ref": "#/$defs/requires"},
+        "count": {
+          "description": "The number of the items of its list (a list screen, S070) that `filter` selects, with the filter of a report, beside the link once the user may view them; none at 0.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["filter"],
+          "properties": {"filter": {"$ref": "#/$defs/filter"}}
+        }
       }
     },
+    "filter": {
+      "description": "Each field equal to its value or compared with it, as `list.filter` of a screen (S008, S014).",
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
+      "additionalProperties": {
+        "anyOf": [
+          {"$ref": "#/$defs/filter_value"},
+          {"$ref": "#/$defs/filter_values"},
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["not"],
+            "properties": {"not": {"anyOf": [{"$ref": "#/$defs/filter_value"}, {"$ref": "#/$defs/filter_values"}]}}
+          }
+        ]
+      }
+    },
+    "filter_value": {"type": ["string", "number", "boolean"]},
+    "filter_values": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/filter_value"}},
     "requires": {
       "description": "What the backend must let the user do for a part to be shown: view the items of its entity, the default, or add one (S030).",
       "type": "object",
@@ -198,9 +225,9 @@
       "else": {"required": ["type"], "if": {"required": ["many"]}, "then": {"properties": {"type": {"const": "file"}}}}
     },
     "display": {
-      "description": "How the screens show the value of an attribute (the components take it, `display`): `plain`, a number without the separators of its thousands (a code of five digits or more; a number below 10,000, such as a year, has none without it); `{currency: <ISO 4217 code>}`, a sum in the currency (`fraction: auto`, the default: a whole sum without its zero cents, `3600 ₽`, `15 000 ₽` (grouped from five digits), `250,50 ₽`; `always`: `3600,00 ₽`), followed by ` / ` and the text `per` (`{currency: RUB, per: {en: day, ru: сутки}}`: `3600 ₽ / сутки`); `{unit: <text>}`, a quantity followed by its unit; `{bar: <maximum>}`, a number as a bar of its share of the maximum; `phone`, a phone number to call; `image`, a file as its picture only (a thumbnail in a table, larger in a card; an icon for a file that is not an image), which downloads it. `bazis_front check` checks it against the type of the field (S020): a number is `integer` or `number` (a sum or a quantity also a `string`, a DecimalField), a phone a `string`, an image a `file`.",
+      "description": "How the screens show the value of an attribute (the components take it, `display`): `plain`, a number without the separators of its thousands (a code of five digits or more; a number below 10,000, such as a year, has none without it); `{currency: <ISO 4217 code>}`, a sum in the currency (`fraction: auto`, the default: a whole sum without its zero cents, `3600 ₽`, `15 000 ₽` (grouped from five digits), `250,50 ₽`; `always`: `3600,00 ₽`), followed by ` / ` and the text `per` (`{currency: RUB, per: {en: day, ru: сутки}}`: `3600 ₽ / сутки`); `{unit: <text>}`, a quantity followed by its unit; `{bar: <maximum>}`, a number as a bar of its share of the maximum; `phone`, a phone number to call; `image`, a file as its picture only (a thumbnail in a table, larger in a card; an icon for a file that is not an image), which downloads it; `avatar`, a name after a circle of its initials (the first letters of its first two words, its parentheses left out) in one of five tints by the name; `chips`, the parts of a text separated by commas (`Tent ×2, Stove ×1`: a quantity after `×` in bold) or the related items of a to-many relationship, each a chip, those after the second (the first in the last items of a dashboard, all in a card) as `+<n>`. `bazis_front check` checks it against the type of the field (S020): a number is `integer` or `number` (a sum or a quantity also a `string`, a DecimalField), a phone or an avatar a `string`, an image a `file`, chips a `string` or a relationship with `many`.",
       "oneOf": [
-        {"enum": ["plain", "phone", "image"]},
+        {"enum": ["plain", "phone", "image", "avatar", "chips"]},
         {
           "type": "object", "additionalProperties": false, "required": ["currency"],
           "properties": {

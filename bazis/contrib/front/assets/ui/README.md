@@ -2,7 +2,7 @@
 
 The visual building blocks of the frontend of a product on
 [Bazis](https://github.com/ecofuture-tech/bazis): React components on shadcn/ui and
-Tailwind 4 over the hooks (`assets/react`). Status: pre-release.
+Tailwind 4 over the hooks (`assets/react`). Status: below 1.0.
 
 The components are not an npm package: `manage.py bazis_front add <component>...` copies
 them into the frontend of a product, to `frontend/src/bazis/ui/<component>/` (imported as
@@ -88,9 +88,9 @@ components: …" of `bazis/contrib/front/AGENTS.md`, generated from the sources)
 | Component | Exports | `data-bz` | Requires |
 |---|---|---|---|
 | `state-panel` | `StatePanel`; `errorState`, `queryState`, `SkeletonLines`; `toast`, `Toaster` | `state:<state>`, `action:retry` | |
-| `app-shell` | `AppShell`; `Brand` (the mark and the name of the product, also of the login screen); `Screen` (`parent`: the link back to the screen it was opened from); `ListCardLayout`, `useBesideCard`, `useBesideList`; `initColorMode`, `ColorModeToggle`, `setColorMode`; `LanguageToggle` (with more than one language); `useScreenPage`; `useWide` | `nav:<screen>` (also the link of `parent`), `nav:more` (the menu of the links that the top bar has no room for), `screen:<id>`, `action:logout`, `action:sign-in` (without a session), `action:language` (its code in `data-value`) | |
+| `app-shell` | `AppShell`; `Brand` (the mark and the name of the product, also of the login screen); `Screen` (`parent`: the link back to the screen it was opened from; `caption`: beside the title); `ListCardLayout`, `useBesideCard`, `useBesideList`; `initColorMode`, `ColorModeToggle`, `setColorMode`; `LanguageToggle` (with more than one language); `useScreenPage`; `useWide` | `nav:<screen>` (also the link of `parent`), `count:<screen>` (the number beside a link in `data-value`), `nav:more` (the menu of the links that the top bar has no room for), `screen:<id>`, `action:logout`, `action:sign-in` (without a session), `action:language` (its code in `data-value`) | |
 | `login-form` | `LoginForm` | `field:username`, `field:password`, `action:submit`, `action:login-<id>`, `state:error` | |
-| `resource-list` | `ResourceList`; `FilterBar`; `BulkAction` | `list:<entity>` (`aria-busy` until its rows are those of its search and page, their search in `data-search`), `row:<id>` (`data-tone` and `aria-description` when highlighted) with its cells `cell:<column>` and its checkbox `select:<id>` (`select:all`), `status:<id>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>`, `field:$search`, `action:<id>`, `action:view` (`menu:view` with `toggle:<column>` and `density:<density>`), `action:prev-page`, `action:next-page`; the bulk actions `bulk:<id>`, `action:clear-selection`, `action:confirm-bulk`, `error:bulk` | |
+| `resource-list` | `ResourceList`; `FilterBar`; `BulkAction` | `list:<entity>` (`aria-busy` until its rows are those of its search and page, their search in `data-search`), `row:<id>` (`data-tone` and `aria-description` when highlighted) with its cells `cell:<column>` and its checkbox `select:<id>` (`select:all`), `status:<id>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>`, `field:$search` (in `screen-tools` of the header with `toolbar="header"`), `screen-count` (`count`, its number in `data-value`), `action:<id>`, `action:view` (`menu:view` with `toggle:<column>` and `density:<density>`), `action:prev-page`, `action:next-page`; the bulk actions `bulk:<id>`, `action:clear-selection`, `action:confirm-bulk`, `error:bulk` | |
 | `empty-state` | `EmptyState` | `state:empty`, the `action:<id>` of its actions | |
 | `stat-card` | `StatCard` | `tile:<id>` (its number in `data-value`), `state:<loading\|loaded\|error\|forbidden>` | |
 | `dashboard` | `Dashboard`; `RecentList` | `screen:<id>` (`state:loaded`), the `tile:<id>` of `stat-card`, `link:<screen>`, `recent:<id>` with `row:<id>` and `cell:<field>`, `state:<loading\|empty\|loaded\|error\|forbidden>` of each list | |
@@ -117,9 +117,10 @@ only one: the forms and the payloads of the transits use it; the choices of a fi
 select of their labels; a decimal, `format: decimal` of a `DecimalField` in the contract,
 `contractFormat`, or a number or a string of Pydantic, is typed on one line with a point or
 a comma and given as its digits with a point, `'2.5'`), `FieldValue` (with `formatValue`: the value in the language of the
-interface, a choice by its label, a value by its `display`: `plain` without the separators
-of its thousands, `phone` a link to call it, `{currency}`, `{unit}`, `{bar}` a `meter` of its
-share; the `status` of an item of a statusy model by its name in the contract,
+interface, a choice by its label, a decimal by `formatDecimal`, a time its hours and minutes, a value by its `display`: `plain` without the separators
+of its thousands, `phone` a link to call it, `{currency}`, `{unit}` (after a no-break space, a whole quantity without its zeros), `{bar}` a `meter` of its
+share, `avatar` a name after the circle of its initials (its tint by the name), `chips` the parts
+of a text or the related items (two, then `+N`; all in a card), each cut with its title; the `status` of an item of a statusy model by its name in the contract,
 `statusName`; `choiceOptions`: the choices as options of a filter; `itemName`/`itemLabel`:
 the `label` attributes of the resource in the contract, the names of `LABELS` for a type
 that the contract does not label or an item without a value of them),
@@ -139,7 +140,8 @@ map of `MapProvider`), the files of bazis-uploadable (`FilesProvider`, which giv
 hooks with plain paths for the bodies of the components. `testing` is the support of the
 contract tests: a backend for the mocked `fetch` of the client (each request with the
 language it asked for, `calls[].language`), the documents and runtime schemas of Bazis,
-`renderWithBazis` (in English, or in the language of `testLanguages`), and `getByTestId`
+`renderWithBazis` (in English, or in the language of `testLanguages`), `setTheme` (the options of
+the theme that a test needs, over those of the product for its run), and `getByTestId`
 reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
 
 - **`state-panel`** is the only place where an error of the backend becomes a state: 401
@@ -149,7 +151,8 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   the filters from `route_filter_fields/` (a relation: the picker of the related resource; a
   date: a range; a string: `<field>__$search`; a boolean: a chip for each value, pressed
   again for every item, `aria-pressed`, in the group `field:<field>`; on a phone, below the breakpoint `sm`, each
-  filter is a row of the full width, its control taking the rest of it; `options` for choices such as the statuses,
+  filter is a row of the full width, its control at its end (the choice of a select by its arrow, a
+  picker as narrow as its text, an input taking the rest of it); `options` for choices such as the statuses,
   those of the list schema by their labels for a field with choices;
   no control for a field that the backend does not list for the user; the inline
   `state:error` when they cannot be read), the sort labels from
@@ -161,13 +164,16 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   Below the breakpoint `md` (`useWide` of `app-shell`) the rows are cards (`phoneLayout`,
   `composition.list_phone` of the theme), a table there scrolling sideways. A text of a cell
   (a string, the label of a related item) wraps in the width that the table gives its
-  column, at least 8rem (12rem the first), never a date, a time or a number: a long value
-  makes a row higher, not the table wider. The column `status` of an item of a statusy model is the
+  column, at least 8rem (12rem the first, 10rem an `avatar` or `chips`), never a date, a time or a number: a long value
+  makes a row higher, not the table wider; a text of several lines (an item a line) keeps
+  each line whole up to 12rem, and a table narrower than 56rem has closer cells. The column `status` of an item of a statusy model is the
   badge of its status (`status:<id>`, the tone of the theme). The menu of its view
   (`action:view`) hides the columns but the first (their cells stay, hidden, for the
   scenarios that find a row by them) and sets the density of the rows of the table
   (`data-density` of its scroll area, whose spacing of the cells the theme gives each
-  density; `density` of the theme by default). With
+  density; `density` of the theme by default). With `toolbar="header"` its search, its view
+  and its actions are in the header of its `Screen` beside the title (`screen-tools`), the
+  filters over the list; `count` puts the number of its items beside the title. With
   `onSelectionChange` each row has a checkbox (`select:<id>`, the rows of the page
   `select:all`, in the header of the table or above the cards), which never opens it; the ids of other pages stay selected. `filter` (the filter of the screen) is combined (AND) with
   those of the user; `rowTone(row)` highlights a row in a tone of the theme (`Tone` of the
@@ -215,8 +221,9 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   ISO text), the states of the list (the message of a 400 `ERR_AGGREGATE` as its error);
   `onOpen` makes the whole tile a button named by its label.
 - **`dashboard`** (`primitive: dashboard`, the home of the starters): its title in the header
-  of the screen, or as a hero (`data-slot="hero"`, the default of a portal), the tiles of
-  `stat-card` (a tile of a `value` takes the whole row of a phone, a count half of it), the
+  of the screen, the day of `today` beside it (`caption`), or as a hero with the day under it (`data-slot="hero"`, the default of a portal), the tiles of
+  `stat-card` (two a row, the last of an odd number the whole row; from `xl` at most four a
+  row, those of a shorter last row sharing it: never a hole), the
   links to the other screens of the navigation (`link:<screen>`, each once
   the backend allows what it `requires`; the numbers are those of the tiles), the
   charts it is given and the last items of route sets (`RecentList`, `recent:<id>`: a list
@@ -233,7 +240,7 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   `group=<field>:day|month`; the days folded into the weeks of the language; an average is a
   sum and a count, the group without a value never shown), drawn by recharts (`chart-view.tsx`,
   lazy) as a ring, bars or a line in the colors of the series of the theme (`--chart-1` …
-  `--chart-6`), a status in the color of its tone (`statuses` of the theme, that of its badge,
+  `--chart-6`; the scale in the language, as wide as its longest number), a status in the color of its tone (`statuses` of the theme, that of its badge,
   `--color-<tone>`; `tone` of a value of `Chart`); `chart:<id>` with the states of its list (`empty` when every value is 0, the message of a 400 `ERR_AGGREGATE` as its error) and
   each value as text, `value:<key>` with its number in `data-value` (the legend of a ring, a
   list for the screen readers under bars and a line).

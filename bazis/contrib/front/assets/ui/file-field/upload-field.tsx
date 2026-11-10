@@ -72,9 +72,12 @@ function typeNames(accept: string, { language, t }: Pick<LanguageContextValue, '
   return new Intl.ListFormat(language, { type: 'disjunction' }).format([...new Set(names)]);
 }
 
-/** Whether a field takes the images that are reduced to its limit (`fitImage`). */
+/**
+ * Whether a field names the images that are reduced to its limit (`fitImage`): one whose types
+ * are images; a field of any file (a price list) still reduces an image but does not say so.
+ */
 function reducesImages(accept: string | undefined): boolean {
-  return [
+  return !!accept && [
     ['a.jpg', 'image/jpeg'],
     ['a.png', 'image/png'],
     ['a.webp', 'image/webp'],
@@ -321,9 +324,9 @@ export default function UploadField({
       }}
       onDrop={drop}
       className={cn(
-        'rounded-md border border-dashed border-input px-3 py-2 transition-colors',
-        dragging && 'border-primary bg-primary/5',
-        control['aria-invalid'] && 'border-destructive',
+        // the colors of the line of a field: the field invalid, a file dragged over it
+        'rounded-md border border-dashed border-(--field-line) px-3 py-2 transition-colors hover:border-(--field-line-hover) has-aria-invalid:border-destructive',
+        dragging && 'border-(--field-line-focus) bg-primary/5',
         disabled && 'opacity-70',
       )}
     >

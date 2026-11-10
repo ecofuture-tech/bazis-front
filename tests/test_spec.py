@@ -798,13 +798,14 @@ CASES = [
         'S008',
         {CONTRACT: remove_labels},
         # the filter of the drafts (a report) is by the status too, and so are the tiles of the
-        # home, its chart by status, its last tasks and the columns of the board; its last tasks
-        # are sorted, as the public list
+        # home, its chart by status, its last tasks, the columns of the board and the number beside
+        # the link of the tasks; its last tasks are sorted, as the public list
         [('S008', f'{DRAFTS}#/list/filter/status'), ('S008', f'{DRAFTS}#/list/sort/0'),
          ('S008', f'{HOME}#/dashboard/tiles/0/filter/status'), ('S008', f'{HOME}#/dashboard/tiles/1/filter/status'),
          ('S008', f'{HOME}#/dashboard/tiles/2/filter/status'), ('S008', f'{HOME}#/dashboard/charts/0/by'),
          ('S008', f'{HOME}#/dashboard/recent/0/filter/status'), ('S008', f'{HOME}#/dashboard/recent/0/sort/0'), ('S008', f'{PUBLIC}#/list/sort/0'), ('S008', f'{BOARD}#/board/by'),
-         ('S008', f'{LIST}#/list/filters/0'), ('S008', f'{LIST}#/list/sort/0')],
+         ('S008', f'{LIST}#/list/filters/0'), ('S008', f'{LIST}#/list/sort/0'),
+         ('S008', f'{PRODUCT}#/navigation/1/items/0/count/filter/status')],
     ),
     ('S009', {LIST: lambda d: d['states'].remove('empty')}, [('S009', f'{LIST}#/states')]),
     (
@@ -1034,6 +1035,23 @@ CASES = [
         [('S020', f'{PRODUCT}#/entities/0/fields/9/display/fraction'), ('S020', f'{PRODUCT}#/entities/0/fields/9/display/per')],
     ),
     (
+        'S020',
+        # an avatar of a date, chips of a to-one relationship and of files
+        {PRODUCT: lambda d: [field(task(d), 'dt_created').update(display='avatar'),
+                             field(task(d), 'assignee').update(display='chips'),
+                             field(task(d), 'photos').update(display='chips')]},
+        [('S020', f'{PRODUCT}#/entities/0/fields/2/display'), ('S020', f'{PRODUCT}#/entities/0/fields/3/display'),
+         ('S020', f'{PRODUCT}#/entities/0/fields/10/display')],
+    ),
+    (
+        'S020',
+        # an avatar of a name, chips of a text and of a to-many relationship
+        {PRODUCT: lambda d: [field(task(d), 'title').update(display='avatar'),
+                             d['entities'][1]['fields'][0].update(display='chips'),
+                             field(task(d), 'watchers').update(display='chips')]},
+        [],
+    ),
+    (
         'S027',
         # what a sum is for is a text of the interface, in each language
         {PRODUCT: lambda d: d['entities'][1]['fields'][0].update(display={'currency': 'RUB', 'per': 'day'})},
@@ -1048,12 +1066,14 @@ CASES = [
     (
         'S021',
         # a chart by a text, a week of the statuses, and the statuses of an entity without a workflow
+        # (the chart of the weeks is in focus: by the status it has no current period, S067)
         {HOME: lambda d: [d['dashboard']['charts'][0].update(by='title'),
                           d['dashboard']['charts'][1].update(by='status'),
                           d['dashboard']['charts'].append({'id': 'users', 'entity': 'user', 'by': 'status',
                                                            'kind': 'donut', 'label': {'en': 'Users', 'ru': 'Пользователи'}})]},
         [('S021', f'{HOME}#/dashboard/charts/0/by'), ('S021', f'{HOME}#/dashboard/charts/1/bucket'),
-         ('S021', f'{HOME}#/dashboard/charts/1/last'), ('S021', f'{HOME}#/dashboard/charts/3/by')],
+         ('S021', f'{HOME}#/dashboard/charts/1/last'), ('S021', f'{HOME}#/dashboard/charts/3/by'),
+         ('S067', f'{HOME}#/dashboard/hero/chart')],
     ),
     (
         'S049',
@@ -1080,6 +1100,83 @@ CASES = [
          HOME: lambda d: d['dashboard']['tiles'][0].update(value={'sum': 'rank'})},
         [('S007', f'{HOME}#/dashboard/tiles/0/value/sum'), ('S050', f'{HOME}#/dashboard/tiles/4/value/sum'),
          ('S050', f'{HOME}#/dashboard/charts/2/value/sum')],
+    ),
+    (
+        'S067',
+        # the focus without its chart; a chart in focus that is not of the dashboard
+        {HOME: lambda d: [d['dashboard'].pop('hero')]},
+        [('S067', f'{HOME}#/dashboard/layout')],
+    ),
+    (
+        'S067',
+        {HOME: lambda d: d['dashboard']['hero'].update(chart='by-week')},
+        [('S067', f'{HOME}#/dashboard/hero/chart')],
+    ),
+    (
+        'S067',
+        # the chart in focus is by the status; the sum of the periods of an average
+        {HOME: lambda d: d['dashboard']['hero'].update(chart='by-status')},
+        [('S067', f'{HOME}#/dashboard/hero/chart')],
+    ),
+    (
+        'S067',
+        {HOME: lambda d: d['dashboard']['charts'][1].update(value={'avg': 'hours'})},
+        [('S067', f'{HOME}#/dashboard/hero/side/2')],
+    ),
+    (
+        'S067',
+        # a ring in focus: the periods are bars or a line under the value of the current one
+        {HOME: lambda d: d['dashboard']['charts'][1].update(kind='donut')},
+        [('S067', f'{HOME}#/dashboard/charts/1/kind')],
+    ),
+    (
+        'S067',
+        # a chart in focus of a dashboard laid out as a grid
+        {HOME: lambda d: d['dashboard'].update(layout='grid')},
+        [('S067', f'{HOME}#/dashboard/hero')],
+    ),
+    (
+        'S068',
+        # a distribution of the weeks, a distribution of an average of the statuses
+        {HOME: lambda d: [d['dashboard']['charts'][2].update(kind='distribution'),
+                          d['dashboard']['charts'][0].update(value={'avg': 'hours'})]},
+        [('S068', f'{HOME}#/dashboard/charts/0/value/avg'), ('S068', f'{HOME}#/dashboard/charts/2/kind')],
+    ),
+    (
+        'S069',
+        # the search in the header of a list without its search
+        {LIST: lambda d: d['list'].pop('search')},
+        [('S069', f'{LIST}#/header/search')],
+    ),
+    (
+        'S069',
+        # the number of the items alone in the header, of a list without a search: no issue
+        {LIST: lambda d: [d['list'].pop('search'), d.update(header={'count': True})]},
+        [],
+    ),
+    (
+        'S069',
+        # the tools of a list kept over it in the header (the theme putting them beside the title),
+        # whatever its search: no issue
+        {LIST: lambda d: [d['list'].pop('search'), d['header'].update(search=False)]},
+        [],
+    ),
+    (
+        'S070',
+        # the number beside the link of the board, which is no list; that of the drafts by a field
+        # that the tasks have not, and by a status out of the choices of the field
+        {PRODUCT: lambda d: [d['navigation'][2]['items'][0].update(count={'filter': {'status': 'done'}}),
+                             d['navigation'][1]['items'][1].update(count={'filter': {'rank': 1}}),
+                             d['navigation'][1]['items'][0].update(count={'filter': {'status__gte': 'draft'}})]},
+        [('S014', f'{PRODUCT}#/navigation/1/items/0/count/filter/status__gte'),
+         ('S007', f'{PRODUCT}#/navigation/1/items/1/count/filter/rank'),
+         ('S070', f'{PRODUCT}#/navigation/2/items/0/count')],
+    ),
+    (
+        'S002',
+        # the header of a list is of a list only
+        {BOARD: lambda d: d.update(header={'count': True})},
+        [('S002', BOARD)],
     ),
     (
         'S022',
@@ -2101,17 +2198,17 @@ CASES = [
     ('D008', {THEME: lambda d: d['statuses'].update(archived='neutral')}, [('D008', f'{THEME}#/statuses/archived')]),
     (
         'D009',
-        # a muted text too light: on the backgrounds, in the sidebar (its muted text by default),
-        # and the neutral badges mixed from it
+        # a muted text too light: on the backgrounds, in the sidebar (its muted text by default) and
+        # on the plate of its user, and the neutral badges mixed from it
         {TOKENS: lambda d: d['color']['muted-foreground'].update({'$value': 'oklch(0.8 0 0)'})},
-        [('D009', f'{TOKENS}#/color/muted-foreground')] * 5,
+        [('D009', f'{TOKENS}#/color/muted-foreground')] * 6,
     ),
     (
         'D009',
         # over a palette, at the token of tokens.json that loses the contrast
         {THEME: lambda d: d.update(palette='forest', fonts='inter', shape='soft'),
          TOKENS: lambda d: {'color': {'muted-foreground': {'$type': 'color', '$value': 'oklch(0.8 0 0)'}}}},
-        [('D009', f'{TOKENS}#/color/muted-foreground')] * 5,
+        [('D009', f'{TOKENS}#/color/muted-foreground')] * 6,
     ),
     (
         'D010',
@@ -2145,6 +2242,9 @@ CASES = [
     # the mark of the brand: an icon that lucide-react does not have, an image that frontend/public/ does not have
     ('D013', {THEME: lambda d: d.update(brand={'icon': 'mountain-tick'})}, [('D013', f'{THEME}#/brand/icon')]),
     ('D017', {THEME: lambda d: d.update(brand={'image': 'brand/mark.svg'})}, [('D017', f'{THEME}#/brand/image')]),
+    # the state of a sidebar under a top bar, which has none; under the sidebar, no issue
+    ('D018', {THEME: lambda d: d.update(navigation='topbar', shell={'sidebar': 'rail'})}, [('D018', f'{THEME}#/shell/sidebar')]),
+    ('D018', {THEME: lambda d: d.update(shell={'sidebar': 'rail'}, composition={'filters': 'row', 'list_tools': 'header'})}, []),
     (
         'D014',
         # the heading font of the default import of a family with optical sizes, and of a
@@ -3383,7 +3483,7 @@ def test_a_product_without_a_login_needs_no_test_users(root):
 
 def test_only_true_and_false_are_booleans(root):
     # `No` is the name of the product, not false; `yes` is not the boolean of `search`
-    for name, old, new in ((PRODUCT, 'name: Tasks', 'name: No'), (LIST, 'search: true', 'search: yes')):
+    for name, old, new in ((PRODUCT, 'name: Tasks', 'name: No'), (LIST, '  search: true', '  search: yes')):
         text = (root / name).read_text(encoding='utf-8')
         (root / name).write_text(text.replace(old, new), encoding='utf-8')
     assert issues(root) == [('S002', f'{LIST}#/list/search')]
@@ -3435,6 +3535,18 @@ def test_the_schemas_are_valid_and_shipped():
 def test_the_packages_are_the_capabilities():
     schema = json.loads(schema_files()['product.schema.json'].read_text(encoding='utf-8'))
     assert schema['properties']['packages']['items']['enum'] == sorted(capabilities.CAPABILITIES)
+
+
+def test_the_filter_of_the_count_of_a_link_is_that_of_a_list():
+    # each schema is a file of its own: the number beside a link of the navigation takes the
+    # filter of a list screen, whatever their descriptions
+    defs = {
+        name: json.loads(schema_files()[name].read_text(encoding='utf-8'))['$defs']
+        for name in ('product.schema.json', 'screen.schema.json')
+    }
+    for name in ('filter', 'filter_value', 'filter_values'):
+        product, screen = ({k: v for k, v in it[name].items() if k != 'description'} for it in defs.values())
+        assert product == screen, name
 
 
 PACKAGE = Path(__file__).resolve().parent.parent / 'bazis' / 'contrib' / 'front'
@@ -3501,7 +3613,17 @@ def test_the_colors_of_css():
     assert color.parse('hsl(0 0% 0%)') is None
     assert color.parse('var(--x)', {'--x': 'var(--y)', '--y': '#000'}) == (0.0, 0.0, 0.0)
     assert color.parse('var(--x)', {'--x': 'var(--x)'}) is None
+    # a mix with transparent: its part over an opaque color, as the browser composes it
+    assert color.parse('color-mix(in srgb, #000 30%, transparent)') is None
+    assert color.over('var(--x)', (1.0, 1.0, 1.0), {'--x': 'color-mix(in srgb, #000 30%, transparent)'}) == pytest.approx((0.7, 0.7, 0.7))
+    assert color.over('#000', (1.0, 1.0, 1.0)) == (0.0, 0.0, 0.0)
     assert color.parse('color-mix(in srgb, #fff 50%, #000)') == (0.5, 0.5, 0.5)
+    # mixed in OKLab: the lightness halfway, a grey of 0.125 in linear light; a color through it
+    assert color.parse('color-mix(in oklab, #fff 50%, #000)') == pytest.approx((0.3886,) * 3, abs=1e-3)
+    assert color.parse('color-mix(in oklab, oklch(0.6 0.15 30) 100%, #000)') == pytest.approx(
+        color.parse('oklch(0.6 0.15 30)'), abs=1e-6,
+    )
+    assert color.parse('color-mix(in oklab, #fff 50%, transparent)') is None
     assert round(color.contrast((1.0, 1.0, 1.0), (0.0, 0.0, 0.0)), 2) == 21.0
 
 

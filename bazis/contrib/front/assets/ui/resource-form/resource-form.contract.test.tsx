@@ -17,7 +17,8 @@
 // with all its items), the read-only fields, `action:submit` and `action:cancel`, no submit
 // while a file uploads. Keep it passing when the component is changed.
 
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { useState } from 'react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { Filter } from '@/bazis/client';
@@ -234,13 +235,32 @@ describe('ResourceForm', () => {
     });
   });
 
+  it('never sends an empty required field: marks it, focuses it, and sends once it is filled', async () => {
+    const backend = new Backend()
+      .on('GET', `${ITEMS}schema_create/`, schema)
+      .on('POST', ITEMS, { data: resource(ITEM_ID, { title: 'Report' }) }, 201);
+    renderWithBazis(<ResourceForm path={ITEMS as never} fields={['title']} />, backend);
+    fireEvent.click(await screen.findByTestId('action:submit'));
+    expect(screen.getByTestId('error:title').textContent).toBe('Fill in this field.');
+    expect(document.activeElement).toBe(screen.getByTestId('field:title'));
+    expect(backend.requests('POST')).toEqual([]);
+    fireEvent.change(screen.getByTestId('field:title'), { target: { value: 'Report' } });
+    expect(screen.queryByTestId('error:title')).toBeNull();
+    fireEvent.click(screen.getByTestId('action:submit'));
+    await waitFor(() => {
+      expect(backend.requests('POST')).toEqual([`POST ${ITEMS}`]);
+    });
+  });
+
   it('shows the errors of a 422 by field', async () => {
     const backend = new Backend()
       .on('GET', `${ITEMS}schema_create/`, schema)
       .on('POST', ITEMS, errors(422, { title: 'Field required' }), 422);
     renderWithBazis(<ResourceForm path={ITEMS as never} />, backend);
 
-    fireEvent.click(await screen.findByTestId('action:submit'));
+    // filled: an empty required field is never sent
+    fireEvent.change(await screen.findByTestId('field:title'), { target: { value: 'Report' } });
+    fireEvent.click(screen.getByTestId('action:submit'));
     expect(await screen.findByTestId('state:invalid')).toBeTruthy();
     expect(screen.getByTestId('error:title').textContent).toBe('Field required');
     expect(screen.getByTestId('field:title').getAttribute('aria-invalid')).toBe('true');
@@ -259,7 +279,9 @@ describe('ResourceForm', () => {
     );
     renderWithBazis(<ResourceForm path={ITEMS as never} />, backend);
 
-    fireEvent.click(await screen.findByTestId('action:submit'));
+    // filled: an empty required field is never sent
+    fireEvent.change(await screen.findByTestId('field:title'), { target: { value: 'Report' } });
+    fireEvent.click(screen.getByTestId('action:submit'));
     expect(await screen.findByTestId('state:invalid')).toBeTruthy();
     // the text of `validation.required`, not the English of Pydantic
     expect(screen.getByTestId('error:title').textContent).not.toMatch(/^(Field required|validation\.required|)$/);
@@ -285,7 +307,9 @@ describe('ResourceForm', () => {
       );
     renderWithBazis(<ResourceForm path={ITEMS as never} fields={['title']} />, backend);
 
-    fireEvent.click(await screen.findByTestId('action:submit'));
+    // filled: an empty required field is never sent
+    fireEvent.change(await screen.findByTestId('field:title'), { target: { value: 'Report' } });
+    fireEvent.click(screen.getByTestId('action:submit'));
     const state = await screen.findByTestId('state:invalid');
     expect(screen.getByTestId('error:title').textContent).toBe('Taken');
     expect(screen.getByTestId('field:title').getAttribute('aria-invalid')).toBe('true');
@@ -313,7 +337,9 @@ describe('ResourceForm', () => {
       );
     renderWithBazis(<ResourceForm path={ITEMS as never} fields={['title']} />, backend);
 
-    fireEvent.click(await screen.findByTestId('action:submit'));
+    // filled: an empty required field is never sent
+    fireEvent.change(await screen.findByTestId('field:title'), { target: { value: 'Report' } });
+    fireEvent.click(screen.getByTestId('action:submit'));
     expect((await screen.findByTestId('state:invalid')).textContent).toBe('Owner: Not yours Plan of the item: No plan is active Starts on: Too late');
   });
 
@@ -323,7 +349,9 @@ describe('ResourceForm', () => {
       .on('POST', ITEMS, { errors: [{ status: 422, code: 'ERR_ITEM_INVALID', detail: 'Overlaps another item', source: { pointer: '/data' } }] }, 422);
     renderWithBazis(<ResourceForm path={ITEMS as never} fields={['title']} />, backend);
 
-    fireEvent.click(await screen.findByTestId('action:submit'));
+    // filled: an empty required field is never sent
+    fireEvent.change(await screen.findByTestId('field:title'), { target: { value: 'Report' } });
+    fireEvent.click(screen.getByTestId('action:submit'));
     expect((await screen.findByTestId('state:invalid')).textContent).toBe('Overlaps another item');
     expect(screen.queryByTestId('error:title')).toBeNull();
   });
@@ -468,4 +496,101 @@ describe('FormSurface', () => {
       expect(onClose).toHaveBeenCalled();
     });
   }
+
+  it('focuses the first field of its form once it shows, and the button that opened it once closed', async () => {
+    const backend = new Backend().on('GET', `${ITEMS}schema_create/`, schema);
+    function Opener() {
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(true);
+            }}
+          >
+            New
+          </button>
+          <FormSurface
+            mode="dialog"
+            open={open}
+            title="New item"
+            onClose={() => {
+              setOpen(false);
+            }}
+          >
+            <ResourceForm path={ITEMS as never} fields={['title']} />
+          </FormSurface>
+        </>
+      );
+    }
+    renderWithBazis(<Opener />, backend);
+    const opener = screen.getByRole('button', { name: 'New' });
+    opener.focus();
+    fireEvent.click(opener);
+    const title = await screen.findByTestId('field:title');
+    await waitFor(() => {
+      expect(document.activeElement).toBe(title);
+    });
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(document.activeElement).toBe(opener);
+    });
+  });
+
+  it('asks before it closes a form that the user changed, never closed by a click beside it', async () => {
+    const onClose = vi.fn();
+    const backend = new Backend().on('GET', `${ITEMS}schema_create/`, schema);
+    renderWithBazis(
+      <FormSurface mode="dialog" open title="New item" onClose={onClose}>
+        <ResourceForm path={ITEMS as never} fields={['title']} />
+      </FormSurface>,
+      backend,
+    );
+    const title = await screen.findByTestId('field:title');
+    // not changed: closed at once
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+    fireEvent.change(title, { target: { value: 'Report' } });
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('state:discard').textContent).toContain('Close without saving?');
+    fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }));
+    expect(screen.queryByTestId('state:discard')).toBeNull();
+    expect(screen.getByTestId<HTMLInputElement>('field:title').value).toBe('Report');
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    fireEvent.click(screen.getByTestId('action:discard'));
+    expect(onClose).toHaveBeenCalledTimes(2);
+  });
+
+  it('drops its question once the form closes by another way: opened again, it does not ask', async () => {
+    const backend = new Backend().on('GET', `${ITEMS}schema_create/`, schema);
+    let setOpen: (open: boolean) => void = () => undefined;
+    function Host() {
+      const [open, set] = useState(true);
+      setOpen = set;
+      return (
+        <FormSurface mode="dialog" open={open} title="New item" onClose={vi.fn()}>
+          <ResourceForm path={ITEMS as never} fields={['title']} />
+        </FormSurface>
+      );
+    }
+    renderWithBazis(<Host />, backend);
+    fireEvent.change(await screen.findByTestId('field:title'), { target: { value: 'Report' } });
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    expect(screen.getByTestId('state:discard')).toBeTruthy();
+    // the screen closes it (a saved form, another route) and opens it again
+    act(() => {
+      setOpen(false);
+    });
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    act(() => {
+      setOpen(true);
+    });
+    await screen.findByTestId('field:title');
+    expect(screen.queryByTestId('state:discard')).toBeNull();
+  });
 });

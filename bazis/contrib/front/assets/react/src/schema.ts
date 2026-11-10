@@ -20,6 +20,8 @@
 // `{data: <identifier> | [<identifier>] | null}` whose identifier has the related type as
 // the default of `type` (the `relation` of the field in the contract).
 
+import type { ErrorObject } from '@/bazis/client';
+
 import type { JsonSchema } from './types.js';
 
 interface FieldBase {
@@ -310,6 +312,49 @@ export function objectFields(schema: JsonSchema): AttributeField[] {
   return Object.entries(props).map(([name, property]) =>
     attribute(name, resolve(property, schema), schema, required),
   );
+}
+
+/** The end of a range of days or of moments by the name of its start: `<x>_to` of `<x>_from`, `<x>_end` of `<x>_start`. */
+const RANGE_END = /^(.*_)?(to|end)$/;
+const RANGE_START: Readonly<Record<string, string>> = { to: 'from', end: 'start' };
+
+/**
+ * The errors that a form finds in the values of its fields before it sends them, by field, as
+ * the validation errors of the backend (`ERR_VALIDATE`, their text by `useErrorMessage`): an
+ * empty field that the schema requires, not read-only and without null allowed (`missing`), and
+ * the end of a range before its start, both dates or both dates and times (`date_before`). The
+ * backend still validates the rest.
+ */
+export function valueErrors(
+  fields: readonly FormField[],
+  values: Readonly<Record<string, unknown>>,
+  message: (error: ErrorObject) => string,
+): Record<string, string[]> {
+  const errors: Record<string, string[]> = {};
+  const byName = new Map(fields.map((it) => [it.name, it]));
+  for (const field of fields) {
+    if (field.readOnly) continue;
+    const value = values[field.name];
+    if (field.required && !field.nullable && (value === undefined || value === null || (value === '' && !(field.kind === 'attribute' && field.blank)))) {
+      errors[field.name] = [message({ code: 'ERR_VALIDATE', title: 'missing', detail: 'Field required' })];
+      continue;
+    }
+    const end = RANGE_END.exec(field.name);
+    const start = end && byName.get(`${end[1] ?? ''}${RANGE_START[end[2] ?? ''] ?? ''}`);
+    const from = start ? values[start.name] : undefined;
+    if (
+      start?.kind === 'attribute' &&
+      field.kind === 'attribute' &&
+      (field.format === 'date' || field.format === 'date-time') &&
+      start.format === field.format &&
+      typeof value === 'string' &&
+      typeof from === 'string' &&
+      Date.parse(value) < Date.parse(from)
+    ) {
+      errors[field.name] = [message({ code: 'ERR_VALIDATE', title: 'date_before', detail: 'The end is before the start' })];
+    }
+  }
+  return errors;
 }
 
 /** A schema with its `$ref` resolved, keeping the definitions for the nested ones. */

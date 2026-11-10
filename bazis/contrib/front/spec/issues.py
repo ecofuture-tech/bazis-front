@@ -99,7 +99,7 @@ CODES: dict[str, tuple[str, str]] = {
     'S017': (WARNING, 'a screen edits or filters a relationship with a picker, and the search fields of the related resource do not cover the fields that give the label of its items: a search by the label shown finds nothing'),
     'S018': (WARNING, 'the title of a field of an entity in the contract is its name: the backend gives the field no label (a calculated field without a title), or one that reads as its name'),
     'S019': (WARNING, 'the resource of an entity has no attribute that labels its items in the contract (`label`), and the entity has no `label`: the frontend shows an item by its id'),
-    'S020': (ERROR, 'the `display` of a field does not fit its type, or has `fraction` or `per` without `currency`'),
+    'S020': (ERROR, 'the `display` of a field does not fit its type (`avatar` is of a string, `chips` of a string or a to-many relationship), or has `fraction` or `per` without `currency`'),
     'S021': (ERROR, 'a chart of a dashboard is neither by the status of an entity with a workflow nor by a date or a date-time field, or has a bucket or a period without a date'),
     'S022': (ERROR, 'a board is of an entity without a workflow, has a column that is not a status of its workflow, or a badge that is not a boolean field'),
     'S023': (ERROR, 'a calendar is not by a date or a date-time field, or its tone is not by a boolean field'),
@@ -144,6 +144,10 @@ CODES: dict[str, tuple[str, str]] = {
     'S064': (ERROR, 'the cards of a list (`list.card`) do not fit it: a field of the card is not in `columns`, its `media` is not a file field with `display: image`, a field has two roles, or the list never shows cards (a table on a wide screen and on a phone, by its layouts or those of the composition of the theme)'),
     'S065': (ERROR, 'the summary of a card (`card.summary`) does not fit its fields: `range` is not two date or date-time fields, or `figure` is not a number, a decimal or a date'),
     'S066': (WARNING, 'a field is both in the summary of a card (`card.summary`) and in a section of it: the card shows it twice'),
+    'S067': (ERROR, 'the focus of a dashboard does not fit its charts: `layout: focus` without `hero` or `hero` without it, `hero.chart` is not a chart of the dashboard, not by a date (its value is that of the current period, the last one) or not bars or a line, or `hero.side` has the `total` of an average'),
+    'S068': (ERROR, 'a chart of a dashboard is a `distribution` (the shares of a whole) of something else than the statuses, or of an average'),
+    'S069': (ERROR, 'the header of a list has its search (`header.search`), and the list has none (`list.search`)'),
+    'S070': (ERROR, 'a link of the navigation counts the items of its screen (`count`), which is not a list'),
     'D001': (ERROR, 'a design file is not valid YAML or JSON'),
     'D002': (ERROR, 'spec/design/theme.yaml does not follow design.schema.json'),
     'D003': (ERROR, 'spec/design/tokens.json does not follow tokens.schema.json'),
@@ -161,6 +165,7 @@ CODES: dict[str, tuple[str, str]] = {
     'D015': (WARNING, 'the `subsets` listed for a font leave out a language of the product (`languages`) or the sign of a currency of `display.currency`: those letters are drawn in another font'),
     'D016': (WARNING, 'the stack of a font names `<Family> Fallback`, which the generator does not make: its `font` has no metrics of the fallback (`fallback`, or those of a starter)'),
     'D017': (WARNING, '`brand.image` of theme.yaml is not a file in frontend/public/'),
+    'D018': (ERROR, '`shell.sidebar` of theme.yaml under `navigation: topbar`: there is no sidebar to collapse'),
 }
 
 

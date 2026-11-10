@@ -18,7 +18,7 @@
 // so the scenarios find it either way.
 
 import { ArrowLeft } from 'lucide-react';
-import { useEffect, type ReactNode } from 'react';
+import { createContext, use, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 
 import { THEME } from '@/bazis/generated/theme';
@@ -37,6 +37,21 @@ export interface FormSurfaceProps {
   mode?: 'dialog' | 'page';
   /** The form: `ResourceForm`, a form of the screen. */
   children: ReactNode;
+}
+
+/** Whether the user changed the form in the surface around it (`ResourceFormBody`), read when it closes. */
+const DirtyContext = createContext<RefObject<boolean> | null>(null);
+
+/** Reports to the surface around it whether the user changed the form, once it renders; nothing outside one. */
+export function useReportDirty(dirty: boolean): void {
+  const changedRef = use(DirtyContext);
+  useLayoutEffect(() => {
+    if (!changedRef) return;
+    changedRef.current = dirty;
+    return () => {
+      changedRef.current = false;
+    };
+  }, [changedRef, dirty]);
 }
 
 function FormPage({ open, onClose, title, description, children }: Omit<FormSurfaceProps, 'mode'>) {
@@ -62,7 +77,7 @@ function FormPage({ open, onClose, title, description, children }: Omit<FormSurf
           {description !== undefined && <p className="text-muted-foreground">{description}</p>}
         </div>
       </div>
-      <div className="rounded-xl border bg-card p-(--space-card) text-card-foreground shadow-xs">{children}</div>
+      <div className="surface p-(--space-card) text-card-foreground">{children}</div>
     </div>
   );
   return page?.target ? createPortal(content, page.target) : content;
@@ -71,20 +86,69 @@ function FormPage({ open, onClose, title, description, children }: Omit<FormSurf
 /** A form in a dialog or as a page, as the theme composes the forms. */
 export function FormSurface({ mode = THEME.composition.forms, ...props }: FormSurfaceProps) {
   const { open, onClose, title, description, children } = props;
+  const { t } = useLanguage();
+  // a form that the user changed is not closed by a click beside it, and asks first when closed;
+  // the question goes once the form closes or opens, whatever closed it
+  const dirty = useRef(false);
+  const [asking, setAsking] = useState(false);
+  const [shown, setShown] = useState(open);
+  if (shown !== open) {
+    setShown(open);
+    setAsking(false);
+  }
   if (mode === 'page') return <FormPage {...props} />;
   return (
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        if (!next) onClose();
+        if (next) return;
+        if (dirty.current) setAsking(true);
+        else onClose();
       }}
     >
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg" {...(description === undefined ? { 'aria-describedby': undefined } : {})}>
-        <DialogHeader>
+      {/* the title set apart from the first field a little more than the fields from each other */}
+      <DialogContent
+        className="max-h-[calc(100dvh-2rem)] gap-8 overflow-y-auto sm:max-w-lg"
+        {...(description === undefined ? { 'aria-describedby': undefined } : {})}
+        onInteractOutside={(event) => {
+          if (dirty.current) event.preventDefault();
+        }}
+      >
+        {/* on a phone too at the start, as its fields */}
+        <DialogHeader className="text-left">
           <DialogTitle>{title}</DialogTitle>
           {description !== undefined && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
-        {children}
+        {asking && (
+          <div role="alert" data-bz="state:discard" className="grid gap-3 rounded-lg bg-warning-soft p-3 text-sm text-warning-ink">
+            <p>{t('form.discard_question')}</p>
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                autoFocus
+                onClick={() => {
+                  setAsking(false);
+                }}
+              >
+                {t('form.keep')}
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                data-bz="action:discard"
+                onClick={() => {
+                  setAsking(false);
+                  dirty.current = false;
+                  onClose();
+                }}
+              >
+                {t('form.discard')}
+              </Button>
+            </div>
+          </div>
+        )}
+        <DirtyContext value={dirty}>{children}</DirtyContext>
       </DialogContent>
     </Dialog>
   );

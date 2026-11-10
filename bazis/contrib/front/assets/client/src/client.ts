@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { dispositionName, fileMeta, type DownloadedFile } from './download.js';
-import { ApiError, errorFromResponse } from './errors.js';
+import { ApiError, errorFromResponse, OfflineError } from './errors.js';
 import type { Filter } from './filter.js';
 import type {
   ActionName,
@@ -377,7 +377,12 @@ function actionQueryString(query: ActionQuery = {}): string {
 /** Creates a client of a Bazis API: `createClient<paths>({ baseUrl, token })`. */
 export function createClient<Paths>(options: ClientOptions = {}): BazisClient<Paths> {
   const baseUrl = (options.baseUrl ?? '').replace(/\/+$/, '');
-  const fetcher: typeof fetch = options.fetch ?? ((input, init) => globalThis.fetch(input, init));
+  const transport: typeof fetch = options.fetch ?? ((input, init) => globalThis.fetch(input, init));
+  // a request that gets no response (`fetch` rejects with a TypeError; an abort stays itself)
+  const fetcher: typeof fetch = (input, init) =>
+    transport(input, init).catch((error: unknown) => {
+      throw error instanceof TypeError ? new OfflineError(error) : error;
+    });
 
   async function authorization(): Promise<string | null | undefined> {
     const { token } = options;
@@ -440,7 +445,7 @@ export function createClient<Paths>(options: ClientOptions = {}): BazisClient<Pa
       };
       xhr.onerror = () => {
         signal?.removeEventListener('abort', abort);
-        reject(new TypeError('The upload failed: the backend cannot be reached.'));
+        reject(new OfflineError());
       };
       xhr.onabort = () => {
         reject(signal ? abortError(signal) : new DOMException('The upload was aborted.', 'AbortError'));

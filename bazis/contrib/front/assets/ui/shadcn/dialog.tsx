@@ -72,31 +72,86 @@ function DialogOverlay({
   )
 }
 
+/** The fields of a form, which a dialog focuses first rather than its buttons. */
+const FIELDS =
+  "input:not([type=hidden]):not(:disabled), textarea:not(:disabled), select:not(:disabled), [role=combobox]:not(:disabled)"
+
+/**
+ * The focus of a dialog or a sheet (Bazis): on open the first element of `first` in it, also one
+ * that shows once its content loads while the focus is where the dialog put it; once closed back
+ * to the element that had it before, also when the state of a screen opened it (no trigger).
+ */
+function useDialogFocus(
+  first: string,
+  {
+    onOpenAutoFocus,
+    onCloseAutoFocus,
+  }: Pick<React.ComponentProps<typeof DialogPrimitive.Content>, "onOpenAutoFocus" | "onCloseAutoFocus">
+) {
+  const opener = React.useRef<HTMLElement | null>(null)
+  return {
+    onOpenAutoFocus: (event: Event) => {
+      opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+      onOpenAutoFocus?.(event)
+      const content = event.target
+      if (event.defaultPrevented || !(content instanceof HTMLElement)) return
+      const found = content.querySelector<HTMLElement>(first)
+      if (found) {
+        event.preventDefault()
+        found.focus()
+        return
+      }
+      let initial: Element | null = null
+      queueMicrotask(() => {
+        initial = document.activeElement
+      })
+      const observer = new MutationObserver(() => {
+        const shown = content.querySelector<HTMLElement>(first)
+        if (!shown) return
+        observer.disconnect()
+        if (document.activeElement === initial) shown.focus()
+      })
+      observer.observe(content, { childList: true, subtree: true })
+    },
+    onCloseAutoFocus: (event: Event) => {
+      onCloseAutoFocus?.(event)
+      const element = opener.current
+      if (event.defaultPrevented || !element?.isConnected || element === document.body) return
+      event.preventDefault()
+      element.focus()
+    },
+  }
+}
+
 function DialogContent({
   className,
   children,
   showCloseButton = true,
+  onOpenAutoFocus,
+  onCloseAutoFocus,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
 }) {
   const { t } = useLanguage()
+  const focus = useDialogFocus(FIELDS, { onOpenAutoFocus, onCloseAutoFocus })
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border bg-background p-6 shadow-lg duration-200 outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 sm:max-w-lg",
+          "fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 surface rounded-2xl p-6 shadow-(--shadow-lift-2) duration-200 outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 sm:max-w-lg",
           className
         )}
         {...props}
+        {...focus}
       >
         {children}
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"
-            className="absolute top-4 right-4 rounded-xs opacity-70 pointer-coarse:after:absolute pointer-coarse:after:-inset-3.5 ring-offset-background transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
+            className="absolute top-4 right-4 rounded-xs opacity-70 pointer-coarse:after:absolute pointer-coarse:after:-inset-3.5 transition-opacity hover:opacity-100 focus-visible:ring-focus outline-hidden disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
           >
             <XIcon />
             <span className="sr-only">{t("action.close")}</span>
@@ -182,4 +237,5 @@ export {
   DialogPortal,
   DialogTitle,
   DialogTrigger,
+  useDialogFocus,
 }

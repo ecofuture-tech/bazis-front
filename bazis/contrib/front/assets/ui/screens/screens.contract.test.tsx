@@ -966,6 +966,7 @@ describe('ActionForm', () => {
       />,
       backend,
     );
+    fireEvent.change(screen.getByTestId('field:title'), { target: { value: 'Report' } });
     fireEvent.click(screen.getByTestId('action:submit'));
     const done = await screen.findByTestId('state:done');
     expect(done.textContent).toContain('Order No. 52');
@@ -979,6 +980,7 @@ describe('ActionForm', () => {
       422,
     );
     renderWithBazis(<Suggesting fields={['title']} result={{ message: () => 'Done' }} />, backend);
+    fireEvent.change(screen.getByTestId('field:title'), { target: { value: 'Report' } });
     fireEvent.click(screen.getByTestId('action:submit'));
     expect((await screen.findByTestId('error:title')).textContent).toContain('Too short');
     expect(screen.getByTestId('state:invalid')).toBeTruthy();

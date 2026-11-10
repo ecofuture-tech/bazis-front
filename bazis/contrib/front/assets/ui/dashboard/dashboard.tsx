@@ -13,12 +13,14 @@
 // limitations under the License.
 
 // The dashboard of a product (`primitive: dashboard` of the specs, its home): the day of today
-// (`today`), the tiles of the numbers (`tile:<id>`), the links to the other screens of the navigation (`link:<screen>`,
+// (`today`, beside its title), the tiles of the numbers (`tile:<id>`), the links to the other screens of the navigation (`link:<screen>`,
 // once the backend allows them), the charts (`chart:<id>` of
 // `@/bazis/ui/charts`, an optional asset) and the last items of a route set
 // (`recent:<id>`, a row `row:<id>` with a cell `cell:<field>` each). Its title is the header of
 // a working screen, the hero of a portal (`preset` of the theme): never a path of the API or
-// the name of a resource. A tile, a chart or the last items of a route set that the backend
+// the name of a resource. Laid out in focus (`focus`, `layout: focus` of the specs), a chart is
+// large beside the tiles as a rail, the other charts and the last items in a row under them.
+// A tile, a chart or the last items of a route set that the backend
 // does not let the user view are not shown to him (`Viewable`): the money of a clinic on the
 // home of its receptionist, not on that of its doctor; with `requires: {can: 'add'}` a part is
 // shown to those who may add an item, as the link of the navigation is: the tile "New" of a
@@ -39,8 +41,20 @@ import { queryState, SkeletonLines, StatePanel } from '@/bazis/ui/state-panel';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
-const CARD = 'rounded-xl border bg-card text-card-foreground shadow-xs';
-const FOCUS = 'outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50';
+const CARD = 'surface text-card-foreground';
+/** A row of the focus: its parts one under the other, beside each other on a wide screen; hidden with none shown. */
+const ROW = 'flex flex-col gap-4 not-has-[>:not(:empty)]:hidden xl:flex-row xl:gap-5';
+/**
+ * The rail of the tiles, a row each with a line between the rows: one column beside the chart in
+ * focus on a wide screen, two otherwise (the last of an odd number of tiles taking its row).
+ */
+const RAIL = cn(
+  'surface grid min-w-0 grid-cols-2 py-2 empty:hidden xl:flex-1',
+  '*:border-line-6 *:not-first:border-t *:nth-2:border-t-0 *:last:odd:col-span-2',
+  'xl:[[data-slot=dashboard-focus]:not(:empty)+&]:auto-rows-fr xl:[[data-slot=dashboard-focus]:not(:empty)+&]:grid-cols-1',
+  'xl:[[data-slot=dashboard-focus]:not(:empty)+&]:*:nth-2:border-t xl:[[data-slot=dashboard-focus]:not(:empty)+&]:*:last:odd:col-span-1',
+);
+const FOCUS = 'outline-none focus-visible:ring-focus';
 
 /** What the backend must let the user do with the items of a part for it to be shown (`requires` of the specs). */
 type Requirement = 'view' | 'add';
@@ -86,7 +100,7 @@ export function Viewable({ path, can = 'view', children }: { path: ListPath; can
   return children;
 }
 
-/** The last items of a route set: a row each, its first field as its title. */
+/** The last items of a route set: a row each, its first field as its title, one chip of `chips`. */
 export function RecentList({
   id,
   path,
@@ -105,7 +119,7 @@ export function RecentList({
   const [first, ...rest] = columns;
   return (
     <section data-bz={`recent:${id}`} className={cn(CARD, 'grid grid-cols-[minmax(0,1fr)] content-start gap-3 p-(--space-card)', className)}>
-      <h2 className="text-sm font-medium text-muted-foreground">{label}</h2>
+      <h2 className="font-eyebrow text-muted-foreground">{label}</h2>
       <StatePanel
         inline
         state={queryState(list, rows.length === 0)}
@@ -118,20 +132,21 @@ export function RecentList({
               <>
                 {first !== undefined && (
                   <span data-bz={`cell:${first}`} className="min-w-0 flex-[1_1_12rem] font-medium wrap-anywhere">
-                    <ItemValue item={row} name={first} fields={fields} display={display[first]} />
+                    <ItemValue item={row} name={first} fields={fields} display={display[first]} chips={1} />
                   </span>
                 )}
                 {rest.map((name) => (
                   // a text of the item wraps, a word too long for the row breaks; a date stays whole
                   <span key={name} data-bz={`cell:${name}`} className="min-w-0 text-sm break-words text-muted-foreground">
-                    <ItemValue item={row} name={name} fields={fields} display={display[name]} />
+                    <ItemValue item={row} name={name} fields={fields} display={display[name]} chips={1} />
                   </span>
                 ))}
               </>
             );
-            const layout = 'flex w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-md px-2 py-2 text-left pointer-coarse:min-h-11';
+            const layout = 'flex min-h-14 w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-md px-2 py-2 text-left';
             return (
-              <li key={row.id} data-bz={`row:${row.id}`}>
+              // a line between the rows
+              <li key={row.id} data-bz={`row:${row.id}`} className="border-b border-line-6 last:border-b-0">
                 {onOpen ? (
                   <button
                     type="button"
@@ -159,9 +174,9 @@ function Today() {
   const { language } = useLanguage();
   const day = new Date().toLocaleDateString(language, { weekday: 'long', day: 'numeric', month: 'long' });
   return (
-    <p data-bz="today" className="-mt-3 text-sm font-medium text-muted-foreground first-letter:uppercase">
+    <span data-bz="today" className="inline-block first-letter:uppercase">
       {day}
-    </p>
+    </span>
   );
 }
 
@@ -175,7 +190,7 @@ function QuickLink({ item }: { item: NavItem }) {
       className={cn(
         CARD,
         FOCUS,
-        'group flex items-center gap-3 p-4 transition-[box-shadow,border-color] hover:border-primary/40 hover:shadow-md',
+        'group flex items-center gap-3 p-4 transition-shadow hover:shadow-(--shadow-lift-2)',
       )}
     >
       {Icon && (
@@ -205,7 +220,7 @@ export interface DashboardProps {
   actions?: ReactNode;
   /** The title, the description and the actions as a hero: a portal (`preset` of the theme) by default. */
   hero?: boolean;
-  /** The day of today before its parts (after the hero, `today`): `Monday, 2 November`. */
+  /** The day of today beside the title (`caption` of `Screen`; under it in a hero, `today`): `Monday, 2 November`. */
   today?: boolean;
   /** What the screen shows before its parts (after the hero and the day), such as the extension of a generated screen. */
   before?: ReactNode;
@@ -217,6 +232,12 @@ export interface DashboardProps {
   links?: readonly NavItem[];
   /** The charts: `StatusChart` and `TimeChart` of `@/bazis/ui/charts`, each in `Viewable`. */
   charts?: ReactNode;
+  /**
+   * The chart in focus (`layout: focus` of the specs, a `TimeChart` with `hero` in `Viewable`):
+   * large beside the tiles, a rail of rows (`layout="rail"` of `StatCard`), with the other
+   * charts in a column beside the last items under them; one column on a narrow screen.
+   */
+  focus?: ReactNode;
   recent?: readonly (RecentListProps & DashboardPart)[];
   /**
    * What the screen shows after its parts, such as the create forms of its actions: in the
@@ -225,7 +246,7 @@ export interface DashboardProps {
   children?: ReactNode;
 }
 
-/** The home of a product: the day, its numbers, its links, its charts and its last items, in this order. */
+/** The home of a product: its numbers, its links, its charts and its last items, in this order. */
 export function Dashboard({
   id = 'home',
   title,
@@ -237,6 +258,7 @@ export function Dashboard({
   tiles = [],
   links,
   charts,
+  focus,
   recent = [],
   children,
 }: DashboardProps) {
@@ -244,45 +266,79 @@ export function Dashboard({
   const linksId = useId();
   const navigation = useNavItems();
   const shown = (links ?? navigation).filter((it) => it.screen !== id);
-  const header = hero ? {} : { title, description, actions };
+  const day = today ? <Today /> : undefined;
+  const header = hero ? {} : { title, description, actions, caption: day };
+  const cards = (layout: 'card' | 'rail') =>
+    tiles.map(({ requires, ...it }) => (
+      <Viewable key={it.id} path={it.path} can={requires?.can}>
+        <StatCard {...it} layout={layout} />
+      </Viewable>
+    ));
+  const lists = recent.map(({ requires, ...it }) => (
+    <Viewable key={it.id} path={it.path} can={requires?.can}>
+      <RecentList {...it} />
+    </Viewable>
+  ));
   return (
     <Screen id={id} {...header}>
       {/* the dashboard is shown at once, its parts with the states of their lists: a screen of
           links only has a state too, which the scenarios wait for */}
       <div data-bz="state:loaded" className="contents">
-        {hero && (title !== undefined || description !== undefined || actions !== undefined) && (
+        {hero && (title !== undefined || description !== undefined || actions !== undefined || day !== undefined) && (
           <header
             data-slot="hero"
-            className="grid gap-4 rounded-2xl border bg-primary-soft/40 px-6 py-10 md:px-10 md:py-14"
+            className="surface grid gap-4 rounded-2xl bg-none bg-primary-soft/40 px-6 py-10 md:px-10 md:py-14"
           >
             {title !== undefined && (
               <h1 className="font-heading text-3xl md:text-4xl">{title}</h1>
             )}
+            {day !== undefined && <p className="-mt-2 text-sm font-medium text-muted-foreground">{day}</p>}
             {description !== undefined && <p className="max-w-2xl text-lg text-muted-foreground">{description}</p>}
             {actions !== undefined && <div className="flex flex-wrap gap-2">{actions}</div>}
           </header>
         )}
-        {today && <Today />}
         {before}
-        {tiles.length > 0 && (
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-            {tiles.map(({ requires, ...it }) => (
-              <Viewable key={it.id} path={it.path} can={requires?.can}>
-                {/* a sum or an average takes the row of a phone: two columns of it cut a sum */}
-                <StatCard {...it} className={cn(it.value && 'max-sm:col-span-2', it.className)} />
-              </Viewable>
-            ))}
+        {focus === undefined ? (
+          tiles.length > 0 && (
+            // two columns, the last tile of an odd number of them (those the user views) taking the
+            // row; from xl rows of four at most, the tiles of the last row sharing it: never a hole
+            <div className="grid grid-cols-2 gap-3 max-xl:*:last:odd:col-span-2 sm:gap-4 xl:flex xl:flex-wrap xl:*:min-w-0 xl:*:grow xl:*:basis-1/5">
+              {cards('card')}
+            </div>
+          )
+        ) : (
+          // two rows whose parts share the width (the chart in focus two thirds, the rail one; the
+          // charts one third, the last items two): a part that the user may not view is empty and
+          // hidden, and the others of its row take its place; a row with nothing shown is hidden
+          <div className="grid gap-4 xl:gap-5">
+            <div className={ROW}>
+              <div data-slot="dashboard-focus" className="grid min-w-0 empty:hidden xl:flex-[2]">
+                {focus}
+              </div>
+              {tiles.length > 0 && <div className={RAIL}>{cards('rail')}</div>}
+            </div>
+            <div className={ROW}>
+              {charts !== undefined && (
+                // as many columns of charts as their width takes: one beside the last items
+                <div className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,20rem),1fr))] content-start gap-4 empty:hidden xl:flex-1">
+                  {charts}
+                </div>
+              )}
+              {recent.length > 0 && <div className="grid min-w-0 content-start gap-4 empty:hidden xl:flex-[2]">{lists}</div>}
+            </div>
           </div>
         )}
         {shown.length > 0 && (
-          <nav aria-labelledby={linksId} className="grid gap-3">
-            <h2 id={linksId} className="text-sm font-medium text-muted-foreground">
+          <nav aria-labelledby={linksId} className="@container grid gap-3">
+            <h2 id={linksId} className="font-eyebrow text-muted-foreground">
               {t('dashboard.links')}
             </h2>
-            <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {/* as many in a row as the width of the screen beside the sidebar keeps their labels whole */}
+            <ul className="grid gap-3 @xl:grid-cols-2 @4xl:grid-cols-3">
               {shown.map((item) => (
                 <Allowed key={item.screen} requirement={item.requires}>
-                  <li className="grid">
+                  {/* one track no wider than the column: a long label is cut, never the page widened */}
+                  <li className="grid grid-cols-[minmax(0,1fr)]">
                     <QuickLink item={item} />
                   </li>
                 </Allowed>
@@ -290,15 +346,12 @@ export function Dashboard({
             </ul>
           </nav>
         )}
-        {charts !== undefined && <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2">{charts}</div>}
-        {recent.length > 0 && (
-          <div className={cn('grid grid-cols-[minmax(0,1fr)] gap-4', recent.length > 1 && 'xl:grid-cols-2')}>
-            {recent.map(({ requires, ...it }) => (
-              <Viewable key={it.id} path={it.path} can={requires?.can}>
-                <RecentList {...it} />
-              </Viewable>
-            ))}
-          </div>
+        {/* as many columns of charts as their width takes: a single chart the whole width, never beside a hole */}
+        {focus === undefined && charts !== undefined && (
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,28rem),1fr))] gap-4">{charts}</div>
+        )}
+        {focus === undefined && recent.length > 0 && (
+          <div className={cn('grid grid-cols-[minmax(0,1fr)] gap-4', recent.length > 1 && 'xl:grid-cols-2')}>{lists}</div>
         )}
       </div>
       {children}

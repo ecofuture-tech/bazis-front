@@ -19,8 +19,9 @@
 import { useCallback, useId, useState } from 'react';
 
 import type { Filter } from '@/bazis/client';
+import { useLanguage } from '@/bazis/i18n';
 import { choiceLabel, type AttributeField, type FormField } from '@/bazis/react';
-import { Input } from '@/components/ui/input';
+import { FIELD_BOX, FIELD_LINE, Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { cn } from '@/lib/utils';
@@ -56,10 +57,11 @@ export interface FieldInputProps {
 /** The filters of the pickers of the relationships of a form by their fields (`filters` of the specs). */
 export type FieldFilters = Readonly<Record<string, Filter>>;
 
-const TEXTAREA =
-  'min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-xs outline-none ' +
-  'placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 ' +
-  'disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive md:text-sm';
+const TEXTAREA = cn(
+  FIELD_LINE,
+  FIELD_BOX,
+  'h-auto min-h-20 py-2 placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50',
+);
 
 /** A JSON value (an object, an array) as text; kept as text while it is not valid JSON. */
 function JsonInput({ value, onChange, readOnly, disabled, control }: {
@@ -100,13 +102,15 @@ function AttributeControl({ field, value, onChange, disabled, control }: {
   disabled: boolean;
   control: ControlProps;
 }) {
+  const { t } = useLanguage();
   const { readOnly } = field;
   if (field.enum) {
     return (
       <NativeSelect
         {...control}
-        className="w-full"
         value={value === null || value === undefined ? '' : text(value)}
+        // none chosen: the invitation in the muted color of a placeholder
+        className={cn((value === null || value === undefined) && 'text-muted-foreground')}
         disabled={disabled || readOnly}
         aria-readonly={readOnly || undefined}
         onChange={(event) => {
@@ -114,7 +118,7 @@ function AttributeControl({ field, value, onChange, disabled, control }: {
           onChange(choice === undefined ? empty(field) : choice);
         }}
       >
-        <NativeSelectOption value="">—</NativeSelectOption>
+        <NativeSelectOption value="">{t('picker.placeholder')}</NativeSelectOption>
         {/* offered by its label (`enumDict` of the backend), sent as its value */}
         {field.enum.map((choice) => (
           <NativeSelectOption key={text(choice)} value={text(choice)}>
@@ -165,6 +169,7 @@ function AttributeControl({ field, value, onChange, disabled, control }: {
         <Input
           {...control}
           type="datetime-local"
+          // as wide as the other fields: one edge of the form
           className="tabular-nums"
           value={toLocalDateTime(value)}
           readOnly={readOnly}
@@ -271,6 +276,7 @@ export function FieldInput({
   path,
   filter,
 }: FieldInputProps) {
+  const { t } = useLanguage();
   const id = useId();
   const files = useFiles();
   const points = usePoints();
@@ -294,16 +300,13 @@ export function FieldInput({
     'data-bz': `field:${field.name}`,
   };
   return (
-    // the wrapper of a select of shadcn/ui fits its content: the field is as wide as the form
-    <div
-      className={cn(
-        'grid gap-2 [&>[data-slot=native-select-wrapper]]:w-full',
-        checkbox && 'grid-cols-[auto_1fr] items-center',
-      )}
-    >
+    <div className={cn('grid gap-2', checkbox && 'grid-cols-[auto_1fr] items-center')}>
       <Label htmlFor={id} className={cn(checkbox && 'order-2')}>
-        {field.title}
-        {required && <span aria-hidden="true">*</span>}
+        {/* the mark of a required field a space after its title, not the gap of a label */}
+        <span>
+          {field.title}
+          {required && <span aria-hidden="true">{' *'}</span>}
+        </span>
       </Label>
       {file && FileControl ? (
         <FileControl
@@ -329,6 +332,7 @@ export function FieldInput({
         field.many ? (
           <RelationListPicker
             {...control}
+            placeholder={t('picker.placeholder')}
             relation={field.relation}
             filter={filter}
             label={field.title}
@@ -340,6 +344,7 @@ export function FieldInput({
         ) : (
           <RelationPicker
             {...control}
+            placeholder={t('picker.placeholder')}
             relation={field.relation}
             filter={filter}
             label={field.title}

@@ -28,9 +28,10 @@ compiled into `frontend/src/bazis/generated/`:
   in `:root`), the spacing of the density (and that of the rows of a table whose density
   the user chooses, `data-density`), the Tailwind theme over them (`bg-primary`,
   `bg-success-soft text-success-ink`, `font-display`, `rounded-lg`, `shadow-md`) and the
-  base styles of the preset;
-- `theme.ts`, `THEME`: the options of the preset (navigation, density, composition, the
-  tones of the statuses, the icons of the entities, whether the user switches to a dark
+  base styles of the preset (with the glow of the paper and the gradient of the sidebar
+  once a layer defines their tokens);
+- `theme.ts`, `THEME`: the options of the preset (navigation, density, the state of the
+  sidebar, composition, the tones of the statuses, the icons of the entities, whether the user switches to a dark
   mode) that the components read.
 
 Without spec/design/ the theme is that of the starter of the preset `workspace` before the
@@ -107,20 +108,76 @@ SUBHEADING = {
     'font-weight': 'var(--font-weight-subheading)',
     'letter-spacing': 'var(--font-tracking-heading)',
 }
-
-#: the variables of the content that the sidebar replaces with its own inside it (the buttons,
-#: the toggles, the focus rings, the borders and the muted text of the components there)
-SIDEBAR = {
-    '--foreground': 'var(--sidebar-foreground)',
-    '--muted-foreground': 'var(--sidebar-muted-foreground)',
-    '--border': 'var(--sidebar-border)',
-    '--input': 'var(--sidebar-border)',
-    '--accent': 'var(--sidebar-accent)',
-    '--accent-foreground': 'var(--sidebar-accent-foreground)',
-    '--primary': 'var(--sidebar-primary)',
-    '--primary-foreground': 'var(--sidebar-primary-foreground)',
-    '--ring': 'var(--sidebar-ring)',
+#: the utility of the small capitals over a block: the title of a card or a chart, the label of
+#: a group (11 px, in the font of the text)
+EYEBROW = {
+    'font-size': '0.6875rem',
+    'line-height': '1rem',
+    'font-weight': '600',
+    'letter-spacing': '0.07em',
+    'text-transform': 'uppercase',
 }
+
+#: the shadow of an element as Tailwind composes it: the rings (`ring-*`, `ring-focus`) over its
+#: shadow (`--tw-shadow`, of `shadow-*`, `surface` and `control`), each nothing until it is set
+SHADOWS = ', '.join(
+    f'var(--tw-{it}, 0 0 #0000)' for it in ('inset-shadow', 'inset-ring-shadow', 'ring-offset-shadow', 'ring-shadow', 'shadow')
+)
+#: the utilities of a lifted block (a card, a panel, a menu) and of a lifted control (a button,
+#: a chip, a segment) on the tokens of the surface: the components take them instead of listing
+#: the classes, an exception is a class of the element (a dialog `shadow-(--shadow-lift-2)`)
+SURFACE = {
+    'background-color': 'var(--card)',
+    'background-image': 'var(--surface-card)',
+    'border': '1px solid var(--border-surface)',
+    '--tw-shadow': 'var(--shadow-lift-1)',
+    'box-shadow': SHADOWS,
+    'border-radius': 'calc(var(--radius) + 4px)',
+}
+CONTROL = {
+    'background-color': 'var(--control)',
+    'background-image': 'var(--surface-control)',
+    'border': '1px solid var(--border-control)',
+    '--tw-shadow': 'var(--shadow-lift-05)',
+    'box-shadow': SHADOWS,
+    'border-radius': 'calc(var(--radius) - 2px)',
+}
+#: the focus ring (`focus-visible:ring-focus`): `shadow.ring-focus` over the shadow of the element
+RING_FOCUS = {'--tw-ring-shadow': 'var(--shadow-ring-focus)', 'box-shadow': SHADOWS}
+
+#: the system asks for less motion: the animations and the transitions end at once (a dialog, a
+#: menu and a toast appear and go, a spinner stands still), the page scrolls without a glide
+REDUCED_MOTION = (
+    '  @media (prefers-reduced-motion: reduce) {\n'
+    '    *,\n    ::before,\n    ::after {\n'
+    '      animation-duration: 0.01ms !important;\n'
+    '      animation-iteration-count: 1 !important;\n'
+    '      transition-duration: 0.01ms !important;\n'
+    '      scroll-behavior: auto !important;\n'
+    '    }\n  }'
+)
+
+#: the glow of the paper, two radial lights at the top corners of the page under its content,
+#: only when a layer defines `color.glow-a` or `color.glow-b` (a design without them draws
+#: nothing over the page)
+GLOW = {
+    'content': "''",
+    'position': 'fixed',
+    'inset': '0',
+    'z-index': '-1',
+    'pointer-events': 'none',
+    'background': 'radial-gradient(900px 620px at 0% 0%, var(--glow-a), transparent 70%), '
+                  'radial-gradient(820px 520px at 100% 0%, var(--glow-b), transparent 70%)',
+}
+GLOW_TOKENS = ('color.glow-a', 'color.glow-b')
+
+#: the gradient of the sidebar and the glow of its top, when a layer defines `color.sidebar-to`
+#: or `color.sidebar-glow`; under the background color of the sidebar (`bg-sidebar`)
+SIDEBAR_SURFACE = {
+    'background-image': 'radial-gradient(460px 320px at 0% 0%, var(--sidebar-glow), transparent 70%), '
+                        'linear-gradient(180deg, var(--sidebar), var(--sidebar-to))',
+}
+SIDEBAR_SURFACE_TOKENS = ('color.sidebar-to', 'color.sidebar-glow')
 
 CSS_HEADER = (
     '/*\n'
@@ -151,6 +208,10 @@ export interface Theme {
   readonly preset: 'workspace' | 'portal';
   readonly navigation: 'sidebar' | 'topbar';
   readonly density: 'comfortable' | 'compact';
+  readonly shell: {
+    /** The sidebar until the user chooses: auto, expanded from the breakpoint lg and a rail below; expanded; or a rail, at every width. */
+    readonly sidebar: 'auto' | 'expanded' | 'rail';
+  };
   readonly composition: {
     /** A list as a table or a grid of cards. */
     readonly list: 'table' | 'cards';
@@ -160,6 +221,10 @@ export interface Theme {
     readonly list_card: 'split' | 'pages';
     /** Forms in a dialog, or in place of the content of the screen. */
     readonly forms: 'dialog' | 'page';
+    /** The row of the filters on a surface of its own (plate), or on the page (row). */
+    readonly filters: 'plate' | 'row';
+    /** The search, the view and the actions of a list over it (list), or in the header of its screen (header). */
+    readonly list_tools: 'list' | 'header';
   };
   readonly controls: {
     /** localized: a text as the language of the product writes a date, with a calendar; native: `<input type="date">`. */
@@ -189,8 +254,8 @@ def block(selector: str, values: dict[str, str], indent: str = '') -> str:
 
 def theme_mapping(defined: dict) -> dict[str, str]:
     """
-    The Tailwind theme over the variables: a color utility for every color token and tone,
-    the fonts, the radii, the shadows and the transitions.
+    The Tailwind theme over the variables: a color utility for every color token and derived
+    color, the fonts, the radii, the shadows and the transitions.
     """
     colors = sorted(
         {design.variable(name) for name, entry in defined.items() if entry.token['$type'] == 'color'}
@@ -205,10 +270,10 @@ def theme_mapping(defined: dict) -> dict[str, str]:
         '--radius-lg': 'var(--radius)',
         '--radius-xl': 'calc(var(--radius) + 4px)',
         '--radius-2xl': 'calc(var(--radius) + 8px)',
-        '--shadow-xs': 'var(--shadow-xs)',
-        '--shadow-sm': 'var(--shadow-sm)',
-        '--shadow-md': 'var(--shadow-md)',
-        '--shadow-lg': 'var(--shadow-lg)',
+        **{
+            design.variable(name): f'var({design.variable(name)})'
+            for name, (kind, _, _) in design.DEFAULTS.items() if kind == 'shadow'
+        },
         '--ease-standard': 'var(--motion-ease)',
         '--default-transition-duration': 'var(--motion-base)',
         '--default-transition-timing-function': 'var(--motion-ease)',
@@ -242,15 +307,32 @@ def render_preload(faces: list[fonts.Face]) -> str:
     ])
 
 
+#: the widest content of a screen under the top bar when no token gives `size.content`: that
+#: of 0.12, a page 72rem wide with its padding
+TOPBAR_CONTENT = 'calc(72rem - 2 * var(--space-page-x))'
+
+
+def values(settings: dict, defined: dict, dark: bool) -> dict[str, str]:
+    """The CSS variables of the tokens in a mode, without the derived colors, with the width of the content of the top bar."""
+    result = {k: v for k, v in design.variables(defined, dark=dark).items() if k not in design.DERIVED}
+    if settings['navigation'] == 'topbar' and 'size.content' not in defined:
+        result['--size-content'] = TOPBAR_CONTENT
+    return result
+
+
 def render_css(settings: dict, theme: dict | None, defined: dict) -> str:
     modes = design.modes(theme, defined)
     # `mode: light` or `dark`: the one mode, whatever the tokens have
     only = None if (theme or {}).get('mode', 'both') == 'both' else modes[0]
-    first = {k: v for k, v in design.variables(defined, dark=modes[0] == design.DARK).items() if k not in design.DERIVED}
+    first = values(settings, defined, modes[0] == design.DARK)
     night = {
-        k: v for k, v in design.variables(defined, dark=True).items()
-        if k not in design.DERIVED and first.get(k) != v
+        k: v for k, v in values(settings, defined, True).items() if first.get(k) != v
     } if len(modes) == 2 else None
+    named = {design.light_name(it) for it in defined}
+    surfaces = design.SURFACES if named.intersection(design.SURFACE_TOKENS) else design.SURFACES_FLAT
+    follows = [design.variable(it) for it in design.SIDEBAR_FOLLOWS]
+    # the tokens that follow the sidebar with another value in the dark mode
+    sidebar_night = {it: night[it] for it in follows if it in night} if night is not None else {}
     parts = [
         CSS_HEADER,
         f'/* The preset `{settings["preset"]}`, density {settings["density"]}'
@@ -259,7 +341,7 @@ def render_css(settings: dict, theme: dict | None, defined: dict) -> str:
         # the variant `dark:` of Tailwind: always on in a theme of the dark mode only
         f'@custom-variant dark ({"&:is(:root *)" if only == design.DARK else "&:is(.dark *)"});',
         '',
-        block(':root', {**first, **DENSITY[settings['density']]}),
+        block(':root', {**first, **surfaces, **DENSITY[settings['density']]}),
         '',
         '/* The density of the rows of a table that the user chooses: `data-density`. */',
         *(
@@ -283,6 +365,13 @@ def render_css(settings: dict, theme: dict | None, defined: dict) -> str:
         '/* The headings, the figures and the titles of the components; the headings of their sections. */',
         block('@utility font-heading', HEADING),
         block('@utility font-subheading', SUBHEADING),
+        '/* The small capitals over a block: the title of a card or a chart, the label of a group. */',
+        block('@utility font-eyebrow', EYEBROW),
+        '/* The lifted blocks and the lifted controls on the tokens of the surface. */',
+        block('@utility surface', SURFACE),
+        block('@utility control', CONTROL),
+        '/* The focus ring over the shadow of the element. */',
+        block('@utility ring-focus', RING_FOCUS),
         '',
         '@layer base {',
         '  * {\n    @apply border-border outline-ring/50;\n  }',
@@ -295,11 +384,29 @@ def render_css(settings: dict, theme: dict | None, defined: dict) -> str:
         ]
     parts += [
         '  body {\n    @apply bg-background font-sans text-foreground antialiased;\n  }',
+        *(
+            ['  /* the glow of the paper */', block('body::before', GLOW, '  ')]
+            if named.intersection(GLOW_TOKENS) else []
+        ),
         '  /* the components inside the sidebar and its drawer read the colors of the sidebar */',
-        block("[data-slot='sidebar']", SIDEBAR, '  '),
+        block("[data-slot='sidebar']", {**design.SIDEBAR, **{it: first[it] for it in follows}, **design.SURFACES_FLAT}, '  '),
+        *(
+            [
+                block(".dark [data-slot='sidebar']", sidebar_night, '  '),
+                '  @media (prefers-color-scheme: dark) {',
+                block(":root:not(.light) [data-slot='sidebar']", sidebar_night, '    '),
+                '  }',
+            ]
+            if sidebar_night else []
+        ),
+        *(
+            ['  /* the gradient and the glow of the sidebar */', block("[data-slot='sidebar']", SIDEBAR_SURFACE, '  ')]
+            if named.intersection(SIDEBAR_SURFACE_TOKENS) else []
+        ),
         '  h1,\n  h2,\n  h3 {\n    font-family: var(--font-heading);\n    font-weight: var(--font-weight-heading);\n'
         '    letter-spacing: var(--font-tracking-heading);\n  }',
         '  ::selection {\n    background-color: color-mix(in srgb, var(--primary) 22%, transparent);\n  }',
+        REDUCED_MOTION,
         *(f'  {it}' for it in PRESET_BASE[settings['preset']]),
         '}',
     ]

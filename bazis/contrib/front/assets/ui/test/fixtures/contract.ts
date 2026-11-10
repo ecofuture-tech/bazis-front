@@ -1109,13 +1109,6 @@ export const TRANSITS = {
     initial: "draft",
     statuses: [
       {
-        id: "done",
-        name: {
-          en: "Done",
-          ru: "Готово",
-        },
-      },
-      {
         id: "draft",
         name: {
           en: "Draft",
@@ -1127,6 +1120,13 @@ export const TRANSITS = {
         name: {
           en: "In progress",
           ru: "В работе",
+        },
+      },
+      {
+        id: "done",
+        name: {
+          en: "Done",
+          ru: "Готово",
         },
       },
     ],

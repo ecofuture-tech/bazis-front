@@ -52,6 +52,8 @@ CARD_EDIT = 'edit'
 
 #: the types of the fields of the days of a calendar and of the charts by date
 DATES = ('date', 'datetime')
+#: the kinds of the chart in focus of a dashboard: its periods under the value of the current one
+FOCUS_KINDS = ('bar', 'line')
 #: the types of the fields that the aggregates of the core sum and average; also a
 #: DecimalField, a `string` of the format `decimal` in the contract
 NUMBERS = ('integer', 'number')
@@ -75,6 +77,8 @@ DISPLAY_TYPES = {
     'bar': ('integer', 'number'),
     'phone': ('string',),
     'image': ('file',),
+    'avatar': ('string',),
+    'chips': ('string',),
 }
 
 
@@ -399,8 +403,9 @@ def _check_display(doc: Document, path: tuple, item: dict, issues: Issues) -> No
     """
     The `display` of a field fits its type: a number is `plain`, a `bar` (of an integer or
     a number), a sum in a `currency` or a quantity in a `unit` (also of a DecimalField, a
-    `string`); a `phone` is a string; an `image` is a file; a relationship has none; the
-    cents of a sum and what it is for (`fraction`, `per`) are of a currency.
+    `string`); a `phone` and an `avatar` are strings; an `image` is a file; `chips` are a
+    string or a to-many relationship, the only display of a relationship; the cents of a sum
+    and what it is for (`fraction`, `per`) are of a currency.
     """
     display = item['display']
     kind = display if isinstance(display, str) else next(it for it in display if it in DISPLAY_TYPES)
@@ -411,13 +416,14 @@ def _check_display(doc: Document, path: tuple, item: dict, issues: Issues) -> No
                 f'`{key}` of the field `{item["id"]}` is of a sum in a currency, not of a quantity in a unit.',
                 f'Remove `{key}`, or show the field as a sum: `{{currency: <ISO 4217 code>, {key}: …}}`.',
             )
-    if item.get('type') in DISPLAY_TYPES[kind]:
+    if item.get('type') in DISPLAY_TYPES[kind] or (kind == 'chips' and 'relation' in item and item.get('many')):
         return
-    declared = f'the type `{item["type"]}`' if 'type' in item else 'a relationship'
+    declared = f'the type `{item["type"]}`' if 'type' in item else 'a to-one relationship' if kind == 'chips' else 'a relationship'
+    fits = ' or '.join(f'`{it}`' for it in DISPLAY_TYPES[kind])
     issues.add(
         doc, path, 'S020',
         f'The display `{kind}` of the field `{item["id"]}` does not fit {declared}.',
-        f'Give `{kind}` to a field of the type {" or ".join(f"`{it}`" for it in DISPLAY_TYPES[kind])}, '
+        f'Give `{kind}` to a field of the type {fits}{" or to a relationship with `many`" if kind == "chips" else ""}, '
         'or remove it.',
     )
 
@@ -929,8 +935,8 @@ def check_navigation(
     allows on the items of the entity of its screen (one with an entity, not the form of a
     custom action, which requires its action; `can: add` of a resource with a create route in
     the contract), and each group is declared once (S030); their icons are
-    those of lucide-react (D013). A screen that does not follow its schema is accepted
-    unchecked.
+    those of lucide-react (D013); a link counts the items of a list (S070). A screen that does
+    not follow its schema is accepted unchecked.
     """
     if not doc.valid:
         return
@@ -953,6 +959,35 @@ def check_navigation(
             linked.add(link['screen'])
             if 'requires' in link:
                 _check_requires(doc, (*path, 'requires'), link, screens.get(link['screen']), product, contract, issues)
+            if 'count' in link:
+                _check_count(doc, (*path, 'count'), link, screens.get(link['screen']), product, contract, issues)
+
+
+def _check_count(
+    doc: Document, path: tuple, link: dict, screen: dict | None, product: Product | None, contract: dict | None,
+    issues: Issues,
+) -> None:
+    """
+    The number beside a link counts the items of a list screen (S070) by a filter of the fields of
+    its entity (S007) that its resource takes (S008, S014), as the filter of a list.
+    """
+    if screen is None:
+        return
+    if screen['primitive'] != 'list':
+        issues.add(
+            doc, path, 'S070',
+            f'The link of `{link["screen"]}` counts the items of its screen, a {screen["primitive"]}, not a list.',
+            'Count the items of a list screen of the entity, or remove `count`.',
+        )
+        return
+    entity = product.entities.get(screen['entity']) if product else None
+    if entity is None:
+        return
+    where = link['count']['filter']
+    _check_fields(doc, entity, [((*path, 'filter', key), filter_field(key)[0]) for key in where], issues)
+    resource = contract['project']['resources'].get(entity.data['resource']) if contract else None
+    if resource is not None:
+        _check_queries(doc, path, link['count'], entity, resource, issues)
 
 
 def check_anonymous_roles(doc: Document, screens: dict[str, dict | None], product: Product | None, issues: Issues) -> None:
@@ -1361,8 +1396,8 @@ def _check_dashboard(doc: Document, product: Product, screens: dict, contract: d
     """
     The parts of a dashboard, each of its own entity: the fields they reference (S007), the
     screens they open (S006), the field of a chart (S021), the field of the `value` of a tile
-    or a chart (S049); against the contract, their queries (S008, S014, S050) and the pickers
-    of the create forms (S012, S017).
+    or a chart (S049), the chart in focus (S067); against the contract, their queries (S008,
+    S014, S050) and the pickers of the create forms (S012, S017).
     """
     resources = contract['project']['resources'] if contract else {}
     parts = [
@@ -1398,12 +1433,57 @@ def _check_dashboard(doc: Document, product: Product, screens: dict, contract: d
         _check_queries(doc, path, part, entity, resource, issues)
         if key == 'actions':
             _check_pickers(doc, resource, form_fields(path, part, entity), contract, issues)
+    _check_focus(doc, issues)
+
+
+def _check_focus(doc: Document, issues: Issues) -> None:
+    """
+    The chart in focus of `layout: focus` (S067): a chart of the dashboard by a date, whose value
+    is that of the current period (the last one), as bars or a line; the sum of its periods is
+    not that of an average. A grid has no chart in focus.
+    """
+    dashboard = doc.data['dashboard']
+    hero = dashboard.get('hero')
+    hint = 'Name a chart of the dashboard by a date in `hero.chart`, or lay the dashboard out as a grid.'
+    if (dashboard.get('layout') == 'focus') != (hero is not None):
+        if hero is None:
+            issues.add(doc, ('dashboard', 'layout'), 'S067', 'The dashboard is laid out in focus without a chart in focus.', hint)
+        else:
+            issues.add(
+                doc, ('dashboard', 'hero'), 'S067', 'The dashboard is laid out as a grid: it has no chart in focus.',
+                'Lay the dashboard out in focus (`layout: focus`), or remove `hero`.',
+            )
+        return
+    if hero is None:
+        return
+    index, chart = next(((i, it) for i, it in enumerate(dashboard.get('charts', [])) if it['id'] == hero['chart']), (None, None))
+    if chart is None:
+        issues.add(doc, ('dashboard', 'hero', 'chart'), 'S067', f'`{hero["chart"]}` is not a chart of the dashboard.', hint)
+    elif chart['by'] == STATUS_FIELD:
+        issues.add(
+            doc, ('dashboard', 'hero', 'chart'), 'S067',
+            f'The chart `{chart["id"]}` is by the status: it has no current period.', hint,
+        )
+    elif chart['kind'] not in FOCUS_KINDS:
+        issues.add(
+            doc, ('dashboard', 'charts', index, 'kind'), 'S067',
+            f'The chart in focus is a `{chart["kind"]}`: its periods are drawn under the value of the current one '
+            'as bars or a line.',
+            'Draw the chart in focus as `bar` or `line`.',
+        )
+    elif 'avg' in chart.get('value', {}) and 'total' in hero.get('side', []):
+        issues.add(
+            doc, ('dashboard', 'hero', 'side', hero['side'].index('total')), 'S067',
+            f'The chart `{chart["id"]}` shows an average: the sum of its periods means nothing.',
+            'Remove `total` from `side`, or chart a sum.',
+        )
 
 
 def _check_chart(doc: Document, path: tuple, chart: dict, entity: Entity, issues: Issues) -> None:
     """
     A chart is by the status of an entity with a workflow or by a date or a date-time field
-    (S021, S007 for another field); a bucket and a period are those of the dates.
+    (S021, S007 for another field); a bucket and a period are those of the dates; a
+    distribution is of the statuses, of a count or a sum (S068).
     """
     by = chart['by']
     dated = entity.fields.get(by, {}).get('type') in DATES
@@ -1423,6 +1503,16 @@ def _check_chart(doc: Document, path: tuple, chart: dict, entity: Entity, issues
                 doc, (*path, key), 'S021', f'`{key}` is that of a chart by a date, not by `{by}`.',
                 f'Remove `{key}`, or chart by a date.',
             )
+    if chart['kind'] != 'distribution':
+        return
+    hint = 'Draw the statuses as a distribution, the periods of a date as bars or a line.'
+    if dated:
+        issues.add(doc, (*path, 'kind'), 'S068', f'A distribution shows the shares of the statuses, not the periods of `{by}`.', hint)
+    if 'avg' in chart.get('value', {}):
+        issues.add(
+            doc, (*path, 'value', 'avg'), 'S068', 'A distribution shows the shares of a whole: averages add up to none.',
+            'Count the items or sum a field, or draw the averages as bars.',
+        )
 
 
 def _check_value(doc: Document, path: tuple, value: dict, entity: Entity, resource: dict | None, issues: Issues) -> None:
@@ -1494,11 +1584,16 @@ def _check_card(doc: Document, entity: Entity, issues: Issues) -> None:
 
 def _check_list(doc: Document, entity: Entity, issues: Issues, composition: dict) -> None:
     """
-    A list without the contract: its highlight has a label; its map is by a point field of
-    the entity; its bulk actions run transitions of the workflow without a payload (S025),
-    and none is declared twice.
+    A list without the contract: the search of its header is that of the list (S069); its
+    highlight has a label; its map is by a point field of the entity; its bulk actions run
+    transitions of the workflow without a payload (S025), and none is declared twice.
     """
     lst = doc.data['list']
+    if doc.data.get('header', {}).get('search') and not lst.get('search'):
+        issues.add(
+            doc, ('header', 'search'), 'S069', 'The header has the search of the list, and the list has none.',
+            'Give the list its search, `list.search: true`, or remove `header.search`.',
+        )
     highlight = lst.get('highlight')
     if highlight is not None and 'label' not in highlight:
         issues.add(

@@ -512,10 +512,11 @@ def test_capabilities_are_read_from_the_database(sample_app, tmp_path):
 
     task = sections['statusy']['models']['tasks.task']
     assert task['initial'] == 'draft'
+    # in the order of the life of a task, that of its workflow
     assert task['statuses'] == [
-        {'id': 'done', 'name': {'en': 'Done', 'ru': 'Готово'}},
         {'id': 'draft', 'name': {'en': 'Draft', 'ru': 'Черновик'}},
         {'id': 'in_progress', 'name': {'en': 'In progress', 'ru': 'В работе'}},
+        {'id': 'done', 'name': {'en': 'Done', 'ru': 'Готово'}},
     ]
     finish, reopen, start = task['transits']
     assert start == {
@@ -549,12 +550,18 @@ def test_the_initial_status_is_that_of_the_model(monkeypatch):
         task = statusy.section()['models']['tasks.task']
         assert task['initial'] == 'in_progress'
         # no phantom status: the global initial status is not one of the model
-        assert [it['id'] for it in task['statuses']] == ['done', 'draft', 'in_progress']
+        assert [it['id'] for it in task['statuses']] == ['draft', 'in_progress', 'done']
 
         monkeypatch.setattr(statusy, 'initial_status', lambda model: None)
         task = statusy.section()['models']['tasks.task']
         assert task['initial'] == 'waiting'
         assert {'id': 'waiting', 'name': names} in task['statuses']
+
+    # without a declared workflow, from the initial status along the transits, the others by id
+    monkeypatch.setattr(statusy, 'declarations', list)
+    monkeypatch.setattr(statusy, 'initial_status', lambda model: 'in_progress')
+    task = statusy.section()['models']['tasks.task']
+    assert [it['id'] for it in task['statuses']] == ['in_progress', 'done', 'draft']
 
 
 @pytest.mark.django_db

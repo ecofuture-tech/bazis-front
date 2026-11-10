@@ -160,6 +160,24 @@ describe('TransitBar', () => {
     expect(screen.getByTestId('transit:start').getAttribute('data-variant')).toBe('outline');
   });
 
+  it('keeps an unavailable main transit the filled main button, disabled', async () => {
+    renderWithBazis(<TransitBar path={ITEMS as never} id={ITEM_ID} transits={[{ id: 'cancel' }, { id: 'start' }]} />, backend());
+    const main = await screen.findByTestId<HTMLButtonElement>('transit:cancel');
+    expect([main.disabled, main.getAttribute('data-variant')]).toEqual([true, 'default']);
+    expect(screen.getByTestId('transit:start').getAttribute('data-variant')).toBe('outline');
+  });
+
+  it('keeps its buttons on one line whatever is available: the reason of an unavailable one under all of them', async () => {
+    renderWithBazis(<TransitBar path={ITEMS as never} id={ITEM_ID} transits={[{ id: 'cancel' }, { id: 'start' }]} />, backend());
+    const main = await screen.findByTestId('transit:cancel');
+    const group = screen.getByRole('group');
+    expect([...group.children].map((it) => it.getAttribute('data-bz'))).toEqual(['transit:cancel', 'transit:start', 'transit:finish']);
+    const reason = screen.getByText('The task is paid');
+    expect(main.getAttribute('aria-describedby')).toBe(reason.id);
+    expect(group.contains(reason)).toBe(false);
+    expect(group.compareDocumentPosition(reason) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('asks to confirm a transit that the specs confirm, and runs it once confirmed', async () => {
     const server = backend().on('POST', `${ITEM}transit/`, { data: resource(ITEM_ID) });
     const onDone = vi.fn();
@@ -347,6 +365,16 @@ describe('TransitBar', () => {
     });
   });
 
+  it('never sends a payload without a required field: marks it and focuses it', async () => {
+    const server = backend();
+    renderWithBazis(<TransitBar path={ITEMS as never} id={ITEM_ID} />, server);
+    fireEvent.click(await screen.findByTestId('transit:finish'));
+    fireEvent.click(await screen.findByTestId('action:submit'));
+    expect(screen.getByTestId('error:report').textContent).toBe('Fill in this field.');
+    expect(document.activeElement).toBe(screen.getByTestId('field:report'));
+    expect(server.requests('POST')).toEqual([]);
+  });
+
   it('shows the errors that are not of a field of the payload with those of the fields', async () => {
     const server = backend().on(
       'POST',
@@ -362,7 +390,8 @@ describe('TransitBar', () => {
     );
     renderWithBazis(<TransitBar path={ITEMS as never} id={ITEM_ID} />, server);
     fireEvent.click(await screen.findByTestId('transit:finish'));
-    fireEvent.click(await screen.findByTestId('action:submit'));
+    fireEvent.change(await screen.findByTestId('field:report'), { target: { value: 'Done' } });
+    fireEvent.click(screen.getByTestId('action:submit'));
     expect((await screen.findByTestId('error:report')).textContent).toBe('Field required');
     const state = screen.getByTestId('state:invalid');
     expect(state.textContent).toContain('The task has no assignee');

@@ -183,7 +183,7 @@ export type Thumbnail = 'small' | 'large' | 'cover';
 const THUMBNAILS: Record<Thumbnail, string> = {
   small: 'size-14',
   large: 'size-40',
-  cover: 'flex aspect-[4/3] w-full rounded-none border-0',
+  cover: 'flex aspect-[4/3] w-full rounded-none border-0 shadow-none',
 };
 
 /**
@@ -200,7 +200,8 @@ export function FileView({ file, preview, onDownload, downloading = false, faile
       <FileText className="size-1/3 text-muted-foreground" aria-hidden="true" />
     );
     const box = cn(
-      'relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted align-middle',
+      // lifted as a control; a cover is a part of its card
+      'relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-md border border-border-surface bg-muted align-middle shadow-(--shadow-lift-05)',
       THUMBNAILS[thumbnail],
       failed && 'border-destructive',
     );
@@ -213,7 +214,7 @@ export function FileView({ file, preview, onDownload, downloading = false, faile
         aria-label={file.name}
         disabled={downloading}
         aria-busy={downloading || undefined}
-        className={cn(box, 'hover:ring-2 hover:ring-ring focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-70')}
+        className={cn(box, 'hover:ring-2 hover:ring-ring focus-visible:ring-focus disabled:opacity-70')}
         onClick={(event) => {
           event.stopPropagation();
           onDownload();

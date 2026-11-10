@@ -40,7 +40,7 @@ function markerIcon(kind: 'item' | 'selected' | 'me'): L.DivIcon {
     html: '',
     iconSize: [size, size],
     className: cn(
-      'rounded-full border-2 border-background shadow-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring',
+      'rounded-full border-2 border-background shadow-sm outline-none focus-visible:ring-focus',
       kind === 'me' ? 'bg-info' : 'bg-primary pointer-coarse:after:absolute pointer-coarse:after:-inset-4 pointer-coarse:after:rounded-full',
     ),
   });
@@ -162,7 +162,7 @@ export default function LeafletView({ markers, selected, onOpen, onPick, me, til
       // under the popovers and the dialogs of the screen; the zoom of Leaflet within reach of a
       // finger (important: the styles of Leaflet are outside the layers of Tailwind)
       className={cn(
-        'z-0 h-72 w-full overflow-hidden rounded-xl border bg-muted sm:h-96',
+        'surface z-0 h-72 w-full overflow-hidden bg-none bg-muted sm:h-96',
         'pointer-coarse:[&_.leaflet-bar_a]:size-11! pointer-coarse:[&_.leaflet-bar_a]:leading-11!',
         className,
       )}

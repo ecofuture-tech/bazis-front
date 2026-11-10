@@ -25,6 +25,7 @@ import {
   formatDateTime,
   formatDecimal,
   formatNumber,
+  formatTime,
   type LanguageContextValue,
 } from '@/bazis/i18n';
 import { choiceLabel, resourceSchema, type AttributeField, type FormField, type JsonSchema } from '@/bazis/react';
@@ -361,20 +362,11 @@ export function statusyModel(type: string): StatusyModel | undefined {
 }
 
 /**
- * The statuses of a statusy model in the order of its workflow (the contract sorts them by
- * id): the initial one, then those its transits reach, in the order of the transits; the
- * statuses no transit reaches last. None for a type that is not a statusy model.
+ * The statuses of a statusy model in the order of the life of an item, as the contract has
+ * them (that of `statusOptions` of status-badge too). None for a type that is not a statusy model.
  */
 export function workflowStatuses(type: string): readonly string[] {
-  const model = statusyModel(type);
-  if (!model) return [];
-  const order = model.initial ? [model.initial] : [];
-  for (let index = 0; index < order.length; index += 1) {
-    for (const transit of model.transits) {
-      if (transit.src === order[index] && transit.dst && !order.includes(transit.dst)) order.push(transit.dst);
-    }
-  }
-  return [...order, ...model.statuses.map((it) => it.id).filter((it) => !order.includes(it))];
+  return statusyModel(type)?.statuses.map((it) => it.id) ?? [];
 }
 
 /**
@@ -435,9 +427,9 @@ export function fromLocalDateTime(text: string): string | null {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
-/** Whether a field is a number: aligned to the right. */
+/** Whether a field is numeric: aligned to the right. */
 export function isNumeric(field: FormField | undefined): boolean {
-  return field?.kind === 'attribute' && (field.type === 'integer' || field.type === 'number');
+  return field?.kind === 'attribute' && (field.type === 'integer' || field.type === 'number' || field.format === 'decimal');
 }
 
 /**
@@ -445,7 +437,7 @@ export function isNumeric(field: FormField | undefined): boolean {
  * So in a cell, a value of a card and an input; a heading and a figure keep those of `font-heading`.
  */
 export function alignsDigits(field: FormField | undefined): boolean {
-  return isNumeric(field) || (field?.kind === 'attribute' && ['decimal', 'date', 'date-time'].includes(field.format ?? ''));
+  return isNumeric(field) || (field?.kind === 'attribute' && ['date', 'date-time'].includes(field.format ?? ''));
 }
 
 /** Whether a field is a long text (a string without a format and a maximal length). */
@@ -470,20 +462,27 @@ export function choiceOptions(field: FormField | undefined): { value: string; la
 
 /**
  * How the value of a field is shown (`display` of the field of an entity of the specs):
- * `plain`, a number without the separators of its thousands (a code of five digits or more:
- * a number below 10,000 has none anyway, a year as it is written); `phone`, a
- * phone number to call; `{currency}`, a sum in the currency (ISO 4217), a whole one without
- * its zero cents unless `fraction` is `always`, followed by ` / ` and the text of the key `per`
- * (`3600 ₽ / сутки`); `{unit}`, a quantity followed by its unit; `{bar}`, a number with a bar of
- * its share of the maximum; `image`, a file as its thumbnail only (`FileValue`).
+ * `plain`, a number without the separators of its thousands (a code, a year); `phone`, a
+ * phone number to call; `{currency}`, a sum in the currency (ISO 4217), without zero cents
+ * unless `fraction: always`, then ` / ` and the text of `per` (`3600 ₽ / сутки`); `{unit}`, a
+ * quantity, a no-break space and its unit; `{bar}`, a number with a bar of its share of the
+ * maximum; `image`, a file as its thumbnail; `avatar`, a name after its initials; `chips`, the
+ * parts of a text (by commas) or the related items.
  */
 export type FieldDisplay =
   | 'plain'
   | 'phone'
   | 'image'
+  | 'avatar'
+  | 'chips'
   | { currency: string; fraction?: 'auto' | 'always'; per?: string }
   | { unit: string }
   | { bar: number };
+
+/** `avatar` and `chips` as a text (a heading, a calendar). */
+export function inlineDisplay(display: FieldDisplay | undefined): FieldDisplay | undefined {
+  return display === 'avatar' || display === 'chips' ? undefined : display;
+}
 
 /**
  * A phone number written without separators (`+79161234567`, 7 to 15 digits) in groups
@@ -501,9 +500,9 @@ function formatPhone(value: string): string {
  * The text of the value of an attribute, in the language of the interface (`useLanguage()`;
  * English by default): a choice by its label (`enumDict` of the backend, the choices of an
  * array each), else by its type and format, the numbers, the sums, the quantities and the
- * phones as `display` says and the dates with `Intl`, a point (GeoJSON) as its coordinates
- * (`formatPoint`); `—` for no value. A number is grouped by thousands from five digits
- * (`formatNumber`: a year `2020`, `12,345`), never with `display: plain`.
+ * phones as `display` says, the decimals, dates and times with `Intl`, a point (GeoJSON) as its
+ * coordinates (`formatPoint`); `—` for no value. A number is grouped by thousands from five
+ * digits (`formatNumber`: a year `2020`, `12,345`), never with `display: plain`.
  */
 export function formatValue(
   field: FormField | undefined,
@@ -520,16 +519,18 @@ export function formatValue(
   if (typeof value === 'boolean') return t(value ? 'value.yes' : 'value.no');
   // a sum or a quantity: a number, or a DecimalField (its exact digits)
   if (typeof display === 'object' && !('bar' in display) && (typeof value === 'number' || typeof value === 'string')) {
-    if (!('currency' in display)) return `${formatDecimal(value, language)} ${display.unit}`;
-    // a whole sum without its zero cents (`3600 ₽`, `15 000 ₽`), unless they are always shown
-    const whole = display.fraction !== 'always' && /^-?\d+(\.0*)?$/.test(String(value).trim());
+    // a whole sum without its zero cents (`3600 ₽`, `15 000 ₽`), unless they are always shown, and
+    // a whole quantity without its zeros (`24 pcs` of a DecimalField `24.000`); else its digits
+    const always = 'currency' in display && display.fraction === 'always';
+    const whole = !always && /^-?\d+(\.0*)?$/.test(String(value).trim());
     const digits = whole ? { minimumFractionDigits: 0, maximumFractionDigits: 0 } : {};
+    if (!('currency' in display)) return `${formatDecimal(value, language, digits)}\u00a0${display.unit}`;
     let sum: string;
     try {
       sum = formatDecimal(value, language, { style: 'currency', currency: display.currency, ...digits });
     } catch {
       // a code that `Intl` refuses (not of ISO 4217): after the number, as a unit
-      sum = `${formatDecimal(value, language, whole ? digits : undefined)} ${display.currency}`;
+      sum = `${formatDecimal(value, language, whole ? digits : undefined)}\u00a0${display.currency}`;
     }
     return display.per === undefined ? sum : `${sum} / ${t(display.per)}`;
   }
@@ -541,6 +542,10 @@ export function formatValue(
     const format = field?.kind === 'attribute' ? field.format : null;
     if (format === 'date-time') return formatDateTime(value, language);
     if (format === 'date') return formatDate(value, language);
+    if (format === 'decimal') return formatDecimal(value, language, display === 'plain' ? { useGrouping: false } : undefined);
+    // a TimeField (`08:00:00`): its hours and minutes, read as that time wherever the user is
+    const time = format === 'time' ? /^(\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?$/.exec(value) : null;
+    if (time) return formatTime(new Date(2000, 0, 1, Number(time[1]), Number(time[2])), language);
     return value;
   }
   // a point (GeoJSON) as its coordinates

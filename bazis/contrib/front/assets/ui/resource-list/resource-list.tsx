@@ -14,7 +14,9 @@
 
 // A list of a resource over `useList`: the columns of the screen with the titles of the list
 // schema, search, filters, the view (the columns shown, the density of the rows) and the
-// actions in a toolbar, sort, pages and the actions the backend allows; a table or a grid of
+// actions in a toolbar (the search, the view and the actions in the header of its screen with
+// `toolbar="header"`, the number of its items beside its title with `count`), sort, pages and
+// the actions the backend allows; a table or a grid of
 // cards (`composition.list` of the theme), cards on a phone; the rows that the user selects.
 // Marked `list:<entity>` (`aria-busy` until its rows are those of its search and its page,
 // their search in `data-search`), its rows `row:<id>` (with `data-tone` and the label of the
@@ -23,21 +25,24 @@
 // loading one is the skeleton of the rows, the empty one with the creation of an item).
 
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, ChevronsUpDown, Search, SearchX } from 'lucide-react';
-import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useId, useState, type ComponentType, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 import { Filter, nextPage, pagination, prevPage, type CustomActionName } from '@/bazis/client';
 import { THEME, type Theme, type Tone } from '@/bazis/generated/theme';
-import { useLanguage } from '@/bazis/i18n';
+import { formatNumber, useLanguage } from '@/bazis/i18n';
 import type { FormField, ListPath } from '@/bazis/react';
-import { useBesideCard, useBesideList, useWide } from '@/bazis/ui/app-shell';
+import { useBesideCard, useBesideList, useScreenPage, useWide } from '@/bazis/ui/app-shell';
 import { EmptyState } from '@/bazis/ui/empty-state';
 import {
   alignsDigits,
   fieldValue,
+  isFile,
   isNumeric,
   permitted,
   resourceAt,
   useAnyList,
+  useFiles,
   useListFields,
   type FieldDisplay,
   type ResourceObject,
@@ -53,7 +58,7 @@ import { cn } from '@/lib/utils';
 import { BulkBar, type BulkAction } from './bulk.js';
 import { cardRoles, CardsSkeleton, CardsView } from './cards.js';
 import { ViewMenu } from './columns.js';
-import { EVERY, FilterBar, listFilters, type ListFilter } from './filters.js';
+import { EVERY, FilterBar, FilterField, FilterRow, filterWidth, listFilters, ResetFilters, type ListFilter } from './filters.js';
 import { cell, FOCUS, opener, PageCheckbox, RowCheckbox, type BodyProps, type CardLayout } from './rows.js';
 
 /**
@@ -108,6 +113,15 @@ export interface ResourceListProps {
   sort?: readonly string[];
   /** A search field (`field:$search`). */
   search?: boolean;
+  /**
+   * Where the search, the view and the actions are: in the toolbar over the list (`list`), or in
+   * the header of its `Screen` beside the title (`header`), the filters staying over the list;
+   * `composition.list_tools` of the theme by default for the list of a screen (`header.search` of
+   * the spec chooses), `list` for a list inside a part of it (`NestedLists`: a related section).
+   */
+  toolbar?: 'list' | 'header';
+  /** The number of the items (of the search and the filters) beside the title of its `Screen` (`header.count` of the spec). */
+  count?: boolean;
   pageSize?: number;
   /** Called with the id of the row the user opens. */
   onOpen?: (id: string) => void;
@@ -142,7 +156,8 @@ export interface ResourceListProps {
   phoneLayout?: 'table' | 'cards';
   /**
    * The composition of a card of the grid (`list.card` of the spec): its cover, its rubric, its
-   * title, its figure and its muted values; without it, the first column is the title.
+   * title, its figure and its muted values; without it, the first column is the title, the first
+   * column of an image a thumbnail beside it.
    */
   card?: CardLayout | undefined;
   /** The density of the rows of the table, which the user may change; that of the theme by default. */
@@ -185,42 +200,91 @@ const SEARCH_DELAY = 300;
  * checkboxes of the selection, a column of 2.5rem whatever the density, its `min-width`: a table
  * wider than its list gives a column no more than its content otherwise): the rows are opaque, the
  * hover mixed with the card, so that its cells take the color of their row (`bg-inherit`) over
- * the columns that scroll under them, and draw the focus ring of their row, which they cover;
- * the leftmost one draws the mark of a tone or of the selection of its row (`--row-mark`).
+ * the columns that scroll under them; the line under a row is that of each of its cells (a table
+ * of separate borders), which a sticky cell carries instead of covering it (`bg-clip-padding`); they
+ * draw the focus ring of their row, which they cover; the leftmost one draws the mark of a tone or of
+ * the selection of its row (`--row-mark`).
  */
-const ROW = 'bg-card hover:bg-[color-mix(in_oklab,var(--color-muted)_50%,var(--color-card))] has-aria-expanded:bg-[color-mix(in_oklab,var(--color-muted)_50%,var(--color-card))]';
-const STICKY = 'sticky z-[1] bg-inherit [tr:focus-visible>&]:shadow-[inset_0_3px_0_color-mix(in_oklab,var(--color-ring)_50%,transparent),inset_0_-3px_0_color-mix(in_oklab,var(--color-ring)_50%,transparent)]';
+const ROW = 'border-0 *:border-b *:border-line-6 last:*:border-b-0 bg-card hover:bg-[color-mix(in_oklab,var(--color-accent)_75%,var(--color-card))] has-aria-expanded:bg-[color-mix(in_oklab,var(--color-accent)_75%,var(--color-card))]';
+/** A cell of the header: on the card, set apart by a firmer line (a shadow: the cell is sticky). */
+const HEAD = 'sticky top-0 z-10 bg-card shadow-[inset_0_-1px_0_var(--color-line-16)]';
+const STICKY = 'sticky z-[1] bg-inherit bg-clip-padding';
+const RING =
+  '[tr:focus-visible>&]:shadow-[inset_0_3px_0_color-mix(in_oklab,var(--color-ring)_50%,transparent),inset_0_-3px_0_color-mix(in_oklab,var(--color-ring)_50%,transparent)]';
 const LEFTMOST =
   'shadow-[inset_3px_0_0_var(--row-mark,transparent)] [tr:focus-visible>&]:shadow-[inset_3px_0_0_color-mix(in_oklab,var(--color-ring)_50%,transparent),inset_0_3px_0_color-mix(in_oklab,var(--color-ring)_50%,transparent),inset_0_-3px_0_color-mix(in_oklab,var(--color-ring)_50%,transparent)]';
+
+/** The cross that clears the search, in the muted color of the text instead of that of the browser. */
+const CLEAR_SEARCH =
+  '[&::-webkit-search-cancel-button]:size-3.5 [&::-webkit-search-cancel-button]:cursor-pointer [&::-webkit-search-cancel-button]:appearance-none ' +
+  '[&::-webkit-search-cancel-button]:bg-muted-foreground ' +
+  '[&::-webkit-search-cancel-button]:[mask:url(data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20viewBox=%270%200%2024%2024%27%20fill=%27none%27%20stroke=%27black%27%20stroke-width=%272.4%27%20stroke-linecap=%27round%27%3E%3Cpath%20d=%27M6%206l12%2012M18%206L6%2018%27/%3E%3C/svg%3E)_center/contain_no-repeat]';
 
 /** The colors of a highlighted row of a table, by its tone: the soft colors of the theme. */
 const ROW_TONES: Readonly<Record<Tone, string>> = {
   neutral: 'bg-neutral-soft [--row-mark:var(--color-neutral)]',
-  primary: 'bg-primary-soft [--row-mark:var(--color-primary)]',
+  primary: 'bg-tone-primary-soft [--row-mark:var(--color-tone-primary)]',
   info: 'bg-info-soft [--row-mark:var(--color-info)]',
   success: 'bg-success-soft [--row-mark:var(--color-success)]',
   warning: 'bg-warning-soft [--row-mark:var(--color-warning)]',
   danger: 'bg-danger-soft [--row-mark:var(--color-danger)]',
 };
 
+/** The bounds of a column of names with their avatars and of chips, wider than those of a text. */
+const DISPLAY_WIDTHS: Readonly<Partial<Record<string, string>>> = { avatar: 'min-w-40 max-w-56', chips: 'min-w-40 max-w-72' };
+
+/** The length of the texts of a first column as wide as they are. */
+const SHORT_TEXT = 12;
+
 /** Whether the values of a field are short by their nature and never wrap: a number, a date, a time. */
 function isShort(field: FormField | undefined): boolean {
   return isNumeric(field) || (field?.kind === 'attribute' && ['date', 'date-time', 'time'].includes(field.format ?? ''));
 }
 
-function SortButton({ label, direction, onClick }: { label: ReactNode; direction: 'ascending' | 'descending' | undefined; onClick: () => void }) {
+/**
+ * Whether the content of a scrolled element goes on beyond its right edge: the element by the
+ * ref callback, updated as it scrolls and as it or its content is resized (`ResizeObserver`;
+ * without one, as in jsdom, never).
+ */
+function useMoreRight(): [(element: HTMLDivElement | null) => void, boolean] {
+  const [element, setElement] = useState<HTMLDivElement | null>(null);
+  const [more, setMore] = useState(false);
+  useEffect(() => {
+    if (element === null || typeof ResizeObserver !== 'function') return;
+    const update = () => {
+      setMore(element.scrollLeft + element.clientWidth < element.scrollWidth - 1);
+    };
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    if (element.firstElementChild) observer.observe(element.firstElementChild);
+    element.addEventListener('scroll', update, { passive: true });
+    return () => {
+      observer.disconnect();
+      element.removeEventListener('scroll', update);
+    };
+  }, [element]);
+  return [setElement, more];
+}
+
+/** The header of a column sorted by: the arrows after its label, before it over numbers (the label over their right edge). */
+function SortButton({ label, direction, numeric, onClick }: { label: ReactNode; direction: 'ascending' | 'descending' | undefined; numeric: boolean; onClick: () => void }) {
   const Icon = direction === 'ascending' ? ArrowUp : direction === 'descending' ? ArrowDown : ChevronsUpDown;
   return (
     <button
       type="button"
       className={cn(
-        '-mx-1 inline-flex items-center gap-1 rounded px-1 py-0.5 hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
-        direction && 'text-foreground',
+        'group/sort -mx-1 inline-flex items-center gap-1 rounded px-1 py-0.5 hover:text-foreground focus-visible:ring-focus focus-visible:outline-none',
+        numeric && 'flex-row-reverse',
+        direction && 'text-primary-ink hover:text-primary-ink',
       )}
       onClick={onClick}
     >
       <span className="first-letter:uppercase">{label}</span>
-      <Icon className={cn('size-3.5', !direction && 'opacity-40')} aria-hidden="true" />
+      {/* the arrows of a column not sorted by under the pointer over the header or the focus only */}
+      <Icon
+        className={cn('size-3.5', !direction && 'opacity-0 group-hover/head:opacity-40 group-focus-visible/sort:opacity-40')}
+        aria-hidden="true"
+      />
     </button>
   );
 }
@@ -239,12 +303,39 @@ function TableView(
 ) {
   const { rows, columns, fields, onOpen, selected, header, sorted, actionsColumn, hidden, selection } = props;
   const { t } = useLanguage();
+  const { resources } = useFiles();
+  // the texts of the first column short on the page (the number of a booking): as wide as they
+  // are, by their values (`data-short`, which the screenshots do not make long, V015)
+  const first = columns[0];
+  const shortFirst =
+    first !== undefined &&
+    rows.every((row) => {
+      const value = fieldValue(row, first);
+      return value === null || ((typeof value === 'string' || typeof value === 'number') && String(value).length <= SHORT_TEXT);
+    });
+  /** Whether the values of a column are as wide as they are, never wrapped: short values, files (their thumbnails), the short texts of the first column. */
+  const compact = (field: FormField | undefined, index: number) => isShort(field) || isFile(field, resources) || (index === 0 && shortFirst);
+  // the columns of texts of several lines on the page (an item a line: the items of a booking),
+  // each line kept whole where it can
+  const lined = new Set(
+    columns.filter((name) =>
+      rows.some((row) => {
+        const value = fieldValue(row, name);
+        return typeof value === 'string' && value.includes('\n');
+      }),
+    ),
+  );
   return (
-    <table data-slot="table" className="w-full caption-bottom text-sm">
+    // narrower than 56rem (a table beside the sidebar on a small laptop, beside a card), the
+    // cells closer: the room of the texts
+    <table
+      data-slot="table"
+      className="w-full caption-bottom border-separate border-spacing-0 text-sm @max-4xl:[--space-cell-x:0.75rem]"
+    >
       <TableHeader>
-        <TableRow className="hover:bg-transparent">
+        <TableRow className="group/head border-transparent hover:bg-transparent">
           {selection && (
-            <TableHead className="sticky top-0 left-0 z-20 w-10 min-w-10 bg-muted px-0 text-center">
+            <TableHead className={cn(HEAD, 'left-0 z-20 w-10 min-w-10 px-0 text-center')}>
               <PageCheckbox rows={rows} selection={selection} onSelect={props.onSelect} />
             </TableHead>
           )}
@@ -253,7 +344,8 @@ function TableView(
               key={name}
               aria-sort={sorted(name)}
               className={cn(
-                'sticky top-0 z-10 h-10 bg-muted px-(--space-cell-x) text-xs font-medium text-muted-foreground',
+                HEAD,
+                'h-10 px-(--space-cell-x) text-xs font-semibold text-foreground/75',
                 index === 0 && (selection ? 'left-10 z-20' : 'left-0 z-20'),
                 isNumeric(fields.fields.get(name)) && 'text-right',
                 hidden(name) && 'hidden',
@@ -263,7 +355,7 @@ function TableView(
             </TableHead>
           ))}
           {actionsColumn && (
-            <TableHead className="sticky top-0 z-10 bg-muted">
+            <TableHead className={HEAD}>
               <span className="sr-only">{t('list.actions')}</span>
             </TableHead>
           )}
@@ -281,13 +373,13 @@ function TableView(
               aria-description={tone && props.rowToneLabel(row)}
               aria-selected={selected === undefined ? undefined : row.id === selected}
               className={cn(
-                'border-border/70',
                 ROW,
                 tone && ROW_TONES[tone],
-                'data-[state=selected]:bg-primary-soft data-[state=selected]:[--row-mark:var(--primary)]',
+                // the soft color of the selected, its bar at the start
+                'data-[state=selected]:bg-primary-soft data-[state=selected]:[--row-mark:var(--selected)]',
                 onOpen && cn('cursor-pointer', FOCUS),
               )}
-              {...opener(row.id, onOpen)}
+              {...opener(row, onOpen)}
             >
               {selection && (
                 <TableCell className={cn('left-0 w-10 min-w-10 px-0 py-(--space-cell-y) text-center', STICKY, LEFTMOST)}>
@@ -296,26 +388,44 @@ function TableView(
               )}
               {columns.map((name, index) => {
                 const field = fields.fields.get(name);
+                const shown = props.display[name];
+                const fits = compact(field, index);
                 return (
                   <TableCell
                     key={name}
                     data-bz={`cell:${name}`}
+                    data-short={(index === 0 && shortFirst) || undefined}
                     className={cn(
                       'px-(--space-cell-x) py-(--space-cell-y)',
+                      // the first column, the name of a row, is at least 12rem but for a short value (a
+                      // number, a short text) or a file
                       index === 0
-                        ? cn('min-w-48 font-medium text-foreground', STICKY, selection ? 'left-10' : cn('left-0', LEFTMOST))
-                        : 'text-muted-foreground',
-                      // a text wraps in the width that the table gives its column, a long word too; the
-                      // table shares its width between the columns of texts by their bounds, not by the
-                      // length of their texts: while it has room, a long text does not narrow the column
-                      // of a short word (an e-mail) until the word breaks
-                      !isShort(field) && cn('whitespace-normal wrap-anywhere', index > 0 ? 'min-w-32 max-w-32' : 'max-w-48'),
+                        ? cn(!fits && 'min-w-48', 'font-medium text-foreground', STICKY, selection ? cn('left-10', RING) : cn('left-0', LEFTMOST))
+                        : 'text-foreground/80',
+                      // a short value as narrow as it is, its room left to the texts; a text wraps in the
+                      // width that the table gives its column, a long word too, at its own line breaks
+                      // (an item a line, each whole); the table shares its width between the columns of texts by
+                      // their bounds (8rem to 14rem), not by the length of their texts alone: a name or
+                      // an item of a list on one line where the table has room, a long text no wider
+                      // than 14rem, never narrowing the column of a short word (an e-mail) below 8rem
+                      fits
+                        ? 'w-px'
+                        : cn(
+                            'whitespace-pre-line wrap-anywhere',
+                            index > 0 ? ((typeof shown === 'string' && DISPLAY_WIDTHS[shown]) || 'min-w-32 max-w-56') : 'max-w-48',
+                          ),
                       isNumeric(field) && 'text-right',
                       alignsDigits(field) && 'tabular-nums',
                       hidden(name) && 'hidden',
                     )}
                   >
-                    {cell(props, row, name)}
+                    {lined.has(name) ? (
+                      // its lines whole up to 12rem: the column no narrower than its longest line
+                      // there, a longer line wrapping within it
+                      <span className="inline-block w-max max-w-48 align-top">{cell(props, row, name)}</span>
+                    ) : (
+                      cell(props, row, name)
+                    )}
                   </TableCell>
                 );
               })}
@@ -332,7 +442,7 @@ function TableView(
 function ListSkeleton({ layout, columns, media }: { layout: 'table' | 'cards'; columns: number; media: boolean }) {
   if (layout === 'cards') return <CardsSkeleton media={media} />;
   return (
-    <div className="overflow-hidden rounded-xl border bg-card shadow-xs" aria-hidden="true">
+    <div className="surface overflow-hidden" aria-hidden="true">
       <div className="h-10 border-b bg-muted/60" />
       {[0, 1, 2, 3, 4].map((row) => (
         <div key={row} className="flex items-center gap-6 border-b border-border/70 px-(--space-cell-x) py-(--space-cell-y) last:border-0">
@@ -345,6 +455,17 @@ function ListSkeleton({ layout, columns, media }: { layout: 'table' | 'cards'; c
   );
 }
 
+const Nested = createContext(false);
+
+/**
+ * The lists inside a part of a screen (a related section of a card, a list of a product beside the
+ * list of its screen): their search, view and actions stay over them, whatever
+ * `composition.list_tools` of the theme; the header of the screen is that of its own list.
+ */
+export function NestedLists({ children }: { children: ReactNode }) {
+  return <Nested value>{children}</Nested>;
+}
+
 /** A list of a resource, with its states, filters, sort, view, selection, pages and actions. */
 export function ResourceList({
   path,
@@ -354,6 +475,8 @@ export function ResourceList({
   filter: screenFilter,
   sort: initialSort = [],
   search: searchable = false,
+  toolbar: placed,
+  count: counted = false,
   pageSize = 20,
   onOpen,
   selected,
@@ -375,11 +498,17 @@ export function ResourceList({
   compactColumns = columns.slice(0, 2),
 }: ResourceListProps) {
   const besideCard = useBesideCard();
+  const nested = useContext(Nested);
+  const place = placed ?? (nested ? 'list' : THEME.composition.list_tools);
   const wide = useWide();
   // next to its list, a card is as narrow as a phone: a list in it takes the layout of a phone
   const besideList = useBesideList();
   const view = wide && !besideList ? layout : phoneLayout;
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const page = useScreenPage();
+  // the places in the header of the screen, none outside one
+  const header = place === 'header' ? (page?.tools ?? null) : null;
+  const caption = counted ? (page?.caption ?? null) : null;
   const [hiddenColumns, setHiddenColumns] = useState<ReadonlySet<string>>(new Set());
   const [rowDensity, setRowDensity] = useState(density);
   // the selection of the bulk actions, kept here when the screen does not keep it
@@ -389,6 +518,9 @@ export function ResourceList({
   const fields = useListFields(path);
   const order = orderLabels(path);
   const [filter, setFilter] = useState<Filter | undefined>();
+  // the filters of the user start again empty when he resets them
+  const [filterKey, setFilterKey] = useState(0);
+  const sortId = useId();
   const [sort, setSort] = useState<readonly string[]>(initialSort);
   const [offset, setOffset] = useState(0);
   // a new order of the screen (the distance from the point of a nearby list, known later)
@@ -400,6 +532,7 @@ export function ResourceList({
     setOffset(0);
   }
   const [searchText, setSearchText] = useState('');
+  const [setScroller, moreRight] = useMoreRight();
   const [search, setSearch] = useState('');
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -509,6 +642,69 @@ export function ResourceList({
         )),
   };
 
+  const searchField = searchable && (
+    // 15rem in a line of filters, whatever the tools beside it (the reset that comes and goes);
+    // in the header as wide as 18rem, down to 6rem beside the actions on a phone too
+    <div
+      className={cn(
+        'relative',
+        header === null ? 'w-full @3xl:w-60' : 'min-w-24 flex-1 sm:max-w-72',
+      )}
+    >
+      <Search className="pointer-events-none absolute top-1/2 left-0 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+      <Input
+        type="search"
+        aria-label={t('list.search')}
+        placeholder={t('list.search')}
+        data-bz="field:$search"
+        className={cn('pl-6', CLEAR_SEARCH)}
+        value={searchText}
+        onChange={(event) => {
+          setSearchText(event.target.value);
+        }}
+      />
+    </div>
+  );
+  function reset() {
+    setFilterKey((it) => it + 1);
+    setFilter(undefined);
+    setSearchText('');
+    setSearch('');
+    setOffset(0);
+  }
+  // at the end of the row of the filters (`tools` of `FilterRow`), or in the header of the screen
+  const tools = (
+    <>
+      <ResetFilters shown={filtered} onReset={reset} />
+      {viewMenu && (
+        <ViewMenu
+          columns={hideable}
+          title={fields.title}
+          hidden={hiddenColumns}
+          onHide={(name, hide) => {
+            const next = new Set(hiddenColumns);
+            if (hide) next.add(name);
+            else next.delete(name);
+            setHiddenColumns(next);
+          }}
+          density={view === 'table' ? rowDensity : undefined}
+          onDensity={setRowDensity}
+        />
+      )}
+      {toolbar.filter((action) => !creates.includes(action)).map(actionButton)}
+    </>
+  );
+  // the sort of the cards stays over them with the filters
+  const sorts = view === 'cards' && sortable.length > 0;
+  // the rows of the page among the items
+  const range = (
+    <span className="tabular-nums">
+      {count === undefined
+        ? t('list.range', { from: offset + 1, to: offset + rows.length })
+        : t('list.range_of', { from: offset + 1, to: offset + rows.length, count })}
+    </span>
+  );
+
   return (
     // busy until the rows are those of the search typed and of the page asked for; the
     // search they are of in `data-search` (the end-to-end tests wait for both)
@@ -518,27 +714,34 @@ export function ResourceList({
       aria-busy={list.isPlaceholderData || searchText.trim() !== search || undefined}
       className="grid grid-cols-[minmax(0,1fr)] gap-4"
     >
-      {(searchable || filterList.length > 0 || actions.length > 0 || viewMenu) && (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
-          {searchable && (
-            // as wide as 18rem, narrower (down to 10rem) rather than pushing the actions to a row of their own
-            <div className="relative w-full sm:w-auto sm:max-w-72 sm:min-w-40 sm:flex-1">
-              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-              <Input
-                type="search"
-                aria-label={t('list.search')}
-                placeholder={t('list.search')}
-                data-bz="field:$search"
-                className="bg-card pl-9"
-                value={searchText}
-                onChange={(event) => {
-                  setSearchText(event.target.value);
-                }}
-              />
-            </div>
-          )}
+      {header !== null &&
+        createPortal(
+          <>
+            {searchField}
+            <div className="flex gap-2">{tools}</div>
+          </>,
+          header,
+        )}
+      {caption !== null &&
+        count !== undefined &&
+        createPortal(
+          <span data-slot="screen-count" data-value={count}>
+            <span className="sr-only">{t('list.count')} </span>
+            {formatNumber(count, language)}
+          </span>,
+          caption,
+        )}
+      {(header === null ? searchable || filterList.length > 0 || actions.length > 0 || viewMenu : filterList.length > 0 || sorts) && (
+        // a plate with a search, the filters or the sort, not the tools alone
+        <FilterRow
+          plate={(header === null && searchable) || filterList.length > 0 || sorts}
+          line={nested}
+          tools={header === null ? tools : undefined}
+        >
+          {header === null && searchField}
           {filterList.length > 0 && (
             <FilterBar
+              resets={filterKey}
               path={path}
               filters={filterList}
               ready={fields.ready}
@@ -549,57 +752,39 @@ export function ResourceList({
               }}
             />
           )}
-          {view === 'cards' && sortable.length > 0 && (
-            <Select
-              value={sort[0] ?? EVERY}
-              onValueChange={(next) => {
-                setSort(next === EVERY ? [] : [next]);
-                setOffset(0);
-              }}
-            >
-              <SelectTrigger aria-label={t('list.sort')} className="bg-card">
-                <span aria-hidden="true" className="text-muted-foreground">
-                  {t('list.sort')}
-                </span>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent position="popper" align="start">
-                <SelectItem value={EVERY} data-value="">
-                  {t('list.sort_default')}
-                </SelectItem>
-                {sortable.flatMap((name) => {
-                  const label = order.get(name) ?? name;
-                  return [
-                    <SelectItem key={label} value={label}>
-                      {fields.title(name)} ↑
-                    </SelectItem>,
-                    <SelectItem key={`-${label}`} value={`-${label}`}>
-                      {fields.title(name)} ↓
-                    </SelectItem>,
-                  ];
-                })}
-              </SelectContent>
-            </Select>
-          )}
-          <div className="ml-auto flex gap-2">
-            {viewMenu && (
-              <ViewMenu
-                columns={hideable}
-                title={fields.title}
-                hidden={hiddenColumns}
-                onHide={(name, hide) => {
-                  const next = new Set(hiddenColumns);
-                  if (hide) next.add(name);
-                  else next.delete(name);
-                  setHiddenColumns(next);
+          {sorts && (
+            // as a filter of the row
+            <FilterField label={t('list.sort')} id={sortId} kind="select" filled={sort.length > 0}>
+              <Select
+                value={sort[0] ?? EVERY}
+                onValueChange={(next) => {
+                  setSort(next === EVERY ? [] : [next]);
+                  setOffset(0);
                 }}
-                density={view === 'table' ? rowDensity : undefined}
-                onDensity={setRowDensity}
-              />
-            )}
-            {toolbar.filter((action) => !creates.includes(action)).map(actionButton)}
-          </div>
-        </div>
+              >
+                <SelectTrigger id={sortId} className={cn(filterWidth('select'), sort.length === 0 && 'text-muted-foreground')}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent position="popper" align="start">
+                  <SelectItem value={EVERY} data-value="">
+                    {t('list.sort_default')}
+                  </SelectItem>
+                  {sortable.flatMap((name) => {
+                    const label = order.get(name) ?? name;
+                    return [
+                      <SelectItem key={label} value={label}>
+                        {fields.title(name)} ↑
+                      </SelectItem>,
+                      <SelectItem key={`-${label}`} value={`-${label}`}>
+                        {fields.title(name)} ↓
+                      </SelectItem>,
+                    ];
+                  })}
+                </SelectContent>
+              </Select>
+            </FilterField>
+          )}
+        </FilterRow>
       )}
       {bulk.length > 0 && selection.length > 0 && (
         <BulkBar actions={bulk} selection={selection} page={new Set(rows.map((it) => it.id))} meta={meta} onSelect={select} />
@@ -625,71 +810,85 @@ export function ResourceList({
             {view === 'cards' ? (
               <CardsView {...body} />
             ) : (
-              <div
-                data-slot="table-scroll"
-                data-density={rowDensity}
-                className="max-h-[calc(100dvh-var(--sticky-top)-var(--space-section))] overflow-auto rounded-xl border bg-card shadow-xs"
-              >
-                <TableView
-                  {...body}
-                  actionsColumn={rowActions.length > 0}
-                  sorted={direction}
-                  header={(name) =>
-                    order.has(name) ? (
-                      <SortButton
-                        label={fields.title(name)}
-                        direction={direction(name)}
-                        onClick={() => {
-                          toggle(name);
-                        }}
-                      />
-                    ) : (
-                      <span className="inline-block first-letter:uppercase">{fields.title(name)}</span>
-                    )
-                  }
+              <div className="relative">
+                <div
+                  ref={setScroller}
+                  data-slot="table-scroll"
+                  data-density={rowDensity}
+                  className="@container surface max-h-[calc(100dvh-var(--sticky-top)-var(--space-section))] overflow-auto"
+                >
+                  <TableView
+                    {...body}
+                    actionsColumn={rowActions.length > 0}
+                    sorted={direction}
+                    header={(name) =>
+                      order.has(name) ? (
+                        <SortButton
+                          label={fields.title(name)}
+                          direction={direction(name)}
+                          numeric={isNumeric(fields.fields.get(name))}
+                          onClick={() => {
+                            toggle(name);
+                          }}
+                        />
+                      ) : (
+                        <span className="inline-block first-letter:uppercase">{fields.title(name)}</span>
+                      )
+                    }
+                  />
+                </div>
+                {/* the table goes on to the right of its card, scrolled sideways: a shade at its edge */}
+                <div
+                  aria-hidden="true"
+                  data-slot="table-more"
+                  className={cn(
+                    'pointer-events-none absolute inset-y-px right-px w-8 rounded-r-xl bg-linear-to-l from-foreground/12 to-transparent transition-opacity',
+                    moreRight ? 'opacity-100' : 'opacity-0',
+                  )}
                 />
               </div>
             )}
           </div>
         </StatePanel>
       )}
-      {document && rows.length > 0 && (
-        <nav aria-label={t('list.pages')} className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
-          <span className="tabular-nums">
-            {count === undefined
-              ? t('list.range', { from: offset + 1, to: offset + rows.length })
-              : t('list.range_of', { from: offset + 1, to: offset + rows.length, count })}
-          </span>
-          <span className="flex gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              data-bz="action:prev-page"
-              disabled={offset === 0 || prevPage(document) === null}
-              onClick={() => {
-                setOffset(Math.max(0, prevPage(document)?.offset ?? 0));
-              }}
-            >
-              <ChevronLeft />
-              {t('list.previous')}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              data-bz="action:next-page"
-              disabled={nextPage(document) === null}
-              onClick={() => {
-                setOffset(nextPage(document)?.offset ?? offset);
-              }}
-            >
-              {t('list.next')}
-              <ChevronRight />
-            </Button>
-          </span>
-        </nav>
-      )}
+      {document &&
+        rows.length > 0 &&
+        (offset === 0 && nextPage(document) === null ? (
+          // one page: its range, without the buttons of the pages
+          <p className="text-sm text-muted-foreground">{range}</p>
+        ) : (
+          <nav aria-label={t('list.pages')} className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
+            {range}
+            <span className="flex gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                data-bz="action:prev-page"
+                disabled={offset === 0 || prevPage(document) === null}
+                onClick={() => {
+                  setOffset(Math.max(0, prevPage(document)?.offset ?? 0));
+                }}
+              >
+                <ChevronLeft />
+                {t('list.previous')}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                data-bz="action:next-page"
+                disabled={nextPage(document) === null}
+                onClick={() => {
+                  setOffset(nextPage(document)?.offset ?? offset);
+                }}
+              >
+                {t('list.next')}
+                <ChevronRight />
+              </Button>
+            </span>
+          </nav>
+        ))}
     </div>
   );
 }

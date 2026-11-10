@@ -35,6 +35,7 @@ import {
   FileValue,
   formatSize,
   formatValue,
+  inlineDisplay,
   itemLabel,
   itemName,
   parsePoint,
@@ -213,14 +214,18 @@ describe('FieldInput', () => {
     // the labels are `enumDict` of the runtime schema, in the language of the backend
     const onChange = vi.fn();
     const level = attribute('level', 'integer', { enum: [1, 2], labels: { '1': 'Low', '2': 'High' }, nullable: true });
-    render(<FieldInput field={level} value={1} onChange={onChange} />);
+    const { rerender } = render(<FieldInput field={level} value={null} onChange={onChange} />);
+    // none chosen: the invitation, muted as a placeholder
+    expect(screen.getByTestId('field:level').classList.contains('text-muted-foreground')).toBe(true);
+    rerender(<FieldInput field={level} value={1} onChange={onChange} />);
     const control = screen.getByTestId<HTMLSelectElement>('field:level');
     expect([...control.options].map((it) => [it.value, it.textContent])).toEqual([
-      ['', '—'],
+      ['', 'Choose…'],
       ['1', 'Low'],
       ['2', 'High'],
     ]);
     expect(control.value).toBe('1');
+    expect(control.classList.contains('text-muted-foreground')).toBe(false);
     fireEvent.change(control, { target: { value: '2' } });
     expect(onChange).toHaveBeenLastCalledWith(2);
     fireEvent.change(control, { target: { value: '' } });
@@ -609,6 +614,22 @@ describe('FieldValue', () => {
     expect(formatValue(undefined, null)).toBe('—');
     expect(formatValue(undefined, true)).toBe('Yes');
     expect(formatValue(attribute('dt', 'string', { format: 'date-time' }), 'oops')).toBe('oops');
+    // a decimal without a display in the language, its exact digits (never the text of the API, `12.000`)
+    const amount = attribute('amount', 'string', { format: 'decimal' });
+    expect(formatValue(amount, '12.000')).toBe('12.000');
+    expect(formatValue(amount, '12.000', { language: 'ru', t: (key) => key })).toBe('12,000');
+    expect(formatValue(amount, '45000.10', { language: 'ru', t: (key) => key })).toMatch(/^45\s000,10$/);
+    // `plain` without the separators of the thousands; a zero and a negative with their digits
+    expect(formatValue(amount, '45000.10', { language: 'ru', t: (key) => key }, 'plain')).toBe('45000,10');
+    expect(formatValue(amount, '18770.5', undefined, 'plain')).toBe('18770.5');
+    expect(formatValue(amount, '0.00', { language: 'ru', t: (key) => key })).toBe('0,00');
+    expect(formatValue(amount, '-12500.50', { language: 'ru', t: (key) => key })).toMatch(/^-12\s500,50$/);
+    // a TimeField: its hours and minutes, without its seconds; another text as it is
+    const opens = attribute('opens', 'string', { format: 'time' });
+    expect(formatValue(opens, '08:00:00', { language: 'ru', t: (key) => key })).toBe('08:00');
+    expect(formatValue(opens, '17:45:30.250000', { language: 'ru', t: (key) => key })).toBe('17:45');
+    expect(formatValue(opens, '08:00:00')).toBe('08:00 AM');
+    expect(formatValue(opens, 'soon')).toBe('soon');
     render(<FieldValue field={attribute('title', 'string')} value="Report" />);
     expect(screen.getByText('Report')).toBeTruthy();
   });
@@ -693,15 +714,120 @@ describe('FieldValue', () => {
     expect(formatValue(price, '250.50', russian, { currency: 'RUB', per: 'entities.tool.fields.price.display.per' })).toMatch(
       /^250,50\s₽ \/ сутки$/,
     );
-    expect(formatValue(attribute('copies', 'integer'), 12000, undefined, { unit: 'pcs' })).toBe('12,000 pcs');
-    expect(formatValue(attribute('copies', 'integer'), 1200, undefined, { unit: 'pcs' })).toBe('1200 pcs');
-    expect(formatValue(price, '2.50', undefined, { unit: 'kg' })).toBe('2.50 kg');
+    expect(formatValue(attribute('copies', 'integer'), 12000, undefined, { unit: 'pcs' })).toBe('12,000\u00a0pcs');
+    expect(formatValue(attribute('copies', 'integer'), 1200, undefined, { unit: 'pcs' })).toBe('1200\u00a0pcs');
+    expect(formatValue(price, '2.50', undefined, { unit: 'kg' })).toBe('2.50\u00a0kg');
+    // a whole quantity of a DecimalField without its zeros, in the language (`24,000` of three places was read as 24 thousand)
+    expect(formatValue(price, '24.000', undefined, { unit: 'pcs' })).toBe('24\u00a0pcs');
+    expect(formatValue(price, '24.000', russian, { unit: 'шт.' })).toBe('24\u00a0шт.');
+    expect(formatValue(price, '12000.500', russian, { unit: 'кг' })).toMatch(/^12\s000,500\u00a0кг$/);
     expect(formatValue(price, null, undefined, { unit: 'kg' })).toBe('—');
-    // a code that is not of ISO 4217: after the number, as a unit, never an error of the render
-    expect(formatValue(price, '45000.10', undefined, { currency: 'euro' })).toBe('45,000.10 euro');
-    expect(formatValue(price, '45000.00', undefined, { currency: 'euro' })).toBe('45,000 euro');
+    // a code that is not of ISO 4217: after the number, as a unit, never an error of the render;
+    // a unit after a no-break space, never alone at the start of a line
+    expect(formatValue(price, '45000.10', undefined, { currency: 'euro' })).toBe('45,000.10\u00a0euro');
+    expect(formatValue(price, '45000.00', undefined, { currency: 'euro' })).toBe('45,000\u00a0euro');
     render(<FieldValue field={price} value="12.5" display={{ currency: 'euro' }} />);
     expect(screen.getByText('12.5 euro')).toBeTruthy();
+  });
+
+  it('shows a name after the circle of its initials (`display: avatar`), its text the name alone', () => {
+    const client = attribute('client', 'string');
+    render(
+      <>
+        <span data-bz="field:one">
+          <FieldValue field={client} value="Anna Lee (VIP)" display="avatar" />
+        </span>
+        <span data-bz="field:two">
+          <FieldValue field={client} value="Anna Lee (VIP)" display="avatar" />
+        </span>
+        <span data-bz="field:none">
+          <FieldValue field={client} value="" display="avatar" />
+        </span>
+      </>,
+    );
+    const one = screen.getByTestId('field:one');
+    // the initials drawn by CSS, hidden from the readers of the screen: the text of the value is the name
+    const circle = one.querySelector('[data-initials]');
+    expect([circle?.getAttribute('data-initials'), circle?.getAttribute('aria-hidden'), one.textContent]).toEqual(['AL', 'true', 'Anna Lee (VIP)']);
+    expect(one.querySelector('[data-text]')?.textContent).toBe('Anna Lee (VIP)');
+    // the same tint for the same name
+    expect(screen.getByTestId('field:two').querySelector('[data-initials]')?.className).toBe(circle?.className);
+    expect(circle?.className).toMatch(/\bbg-avatar-[0-4]\b/);
+    // no name: no circle
+    expect(screen.getByTestId('field:none').querySelector('[data-initials]')).toBeNull();
+    // a choice by its label
+    const kind = attribute('kind', 'string', { enum: ['vip'], labels: { vip: 'Gold client' } });
+    render(
+      <span data-bz="field:kind">
+        <FieldValue field={kind} value="vip" display="avatar" />
+      </span>,
+    );
+    expect(screen.getByTestId('field:kind').querySelector('[data-initials]')?.getAttribute('data-initials')).toBe('GC');
+    expect(screen.getByTestId('field:kind').textContent).toBe('Gold client');
+  });
+
+  it('shows the parts of a text (`display: chips`) as chips, `+<n>` of the others, its text the value', () => {
+    const items = attribute('items', 'string');
+    const value = 'Tent ×2, Stove ×1, Lamp';
+    render(
+      <>
+        <span data-bz="field:list">
+          <FieldValue field={items} value={value} display="chips" />
+        </span>
+        <span data-bz="field:card">
+          <FieldValue field={items} value={value} display="chips" large />
+        </span>
+        <span data-bz="field:one">
+          <FieldValue field={items} value={value} display="chips" chips={1} />
+        </span>
+      </>,
+    );
+    const list = screen.getByTestId('field:list');
+    expect(list.textContent).toBe(value);
+    // the separators for the readers of the screen (absolute) stay in the chips, never out of the scroll of a table
+    expect(list.querySelector('[data-slot="chips"]')?.classList).toContain('relative');
+    expect([...list.querySelectorAll('[data-text]')].map((chip) => chip.textContent)).toEqual(['Tent ×2', 'Stove ×1']);
+    // the quantity in bold
+    expect(list.querySelector('[data-text] b')?.textContent).toBe('×2');
+    // the others: `+<n>` drawn by CSS, their text for the readers of the screen and in the title
+    const more = list.querySelector('[data-more]');
+    expect([more?.getAttribute('data-more'), more?.textContent]).toEqual(['+1', 'Lamp']);
+    // a card shows them all
+    const card = screen.getByTestId('field:card');
+    expect([card.querySelectorAll('[data-text]').length, card.querySelector('[data-more]'), card.textContent]).toEqual([3, null, value]);
+    // one chip of a row of the last items of a dashboard
+    expect(screen.getByTestId('field:one').querySelector('[data-more]')?.getAttribute('data-more')).toBe('+2');
+    // a choice: one chip of its label, its commas its own
+    const pay = attribute('pay', 'string', { enum: ['mixed'], labels: { mixed: 'Cash, card' } });
+    render(
+      <span data-bz="field:pay">
+        <FieldValue field={pay} value="mixed" display="chips" />
+      </span>,
+    );
+    const paid = screen.getByTestId('field:pay');
+    expect([[...paid.querySelectorAll('[data-text]')].map((chip) => chip.textContent), paid.querySelector('[data-more]')]).toEqual([['Cash, card'], null]);
+  });
+
+  it('shows the related items of a relationship with many (`display: chips`) as chips', () => {
+    const tags: FormField = { ...base, kind: 'relation', name: 'tags', title: 'Tags', relation: 'test.unknown', many: true };
+    renderWithBazis(
+      <span data-bz="field:tags">
+        <FieldValue field={tags} value={['7', '8', '9']} display="chips" />
+      </span>,
+      new Backend(),
+    );
+    const field = screen.getByTestId('field:tags');
+    expect([...field.querySelectorAll('[data-text]')].map((chip) => chip.textContent)).toEqual(['7', '8']);
+    expect([field.querySelector('[data-more]')?.getAttribute('data-more'), field.textContent]).toEqual(['+1', '7, 8, 9']);
+  });
+
+  it('shows an avatar and chips as a text where a value is a line of a text (`inlineDisplay`)', () => {
+    expect([inlineDisplay('avatar'), inlineDisplay('chips'), inlineDisplay('phone'), inlineDisplay(undefined)]).toEqual([
+      undefined,
+      undefined,
+      'phone',
+      undefined,
+    ]);
   });
 
   it('aligns the digits of a number, a decimal and a date, not those of a text or a time', () => {
@@ -810,10 +936,10 @@ describe('StatusLabel', () => {
 });
 
 describe('workflowStatuses', () => {
-  it('orders the statuses of a model by its workflow: the initial one, then those its transits reach', () => {
+  it('orders the statuses of a model as the contract, by its workflow: the initial one, then those its transits reach', () => {
     for (const [type, model] of Object.entries(STATUSY)) {
       const order = workflowStatuses(type);
-      expect([...order].sort()).toEqual(model.statuses.map((it) => it.id).sort());
+      expect(order).toEqual(model.statuses.map((it) => it.id));
       expect(order[0]).toBe(model.initial);
       // a status that a transit reaches comes after the source of one of its transits
       for (const status of order.slice(1)) {

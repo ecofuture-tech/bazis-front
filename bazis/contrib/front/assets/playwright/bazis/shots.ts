@@ -40,7 +40,7 @@ export const CODES = {
   V012: ['warning', 'an error written to the console (`console.error`: a warning of React, a failure that the page handles), also a failed connection of the socket of the page that is not open again within 2 s'],
   V013: ['error', 'a request of the page to the API failed or was answered with an error status, but the refusals that a screen shows as its state'],
   V014: ['error', 'the page scrolls sideways at the width of a desktop'],
-  V015: ['error', 'the page scrolls sideways once the texts of its items are long: a text of 120 characters with a word of 40 put in their cells and fields (`data-text`, not a date, a number or the label of a choice) for the check, then taken out'],
+  V015: ['error', 'the page scrolls sideways once the texts of its items are long: a text of 120 characters with a word of 40 put in their cells and fields (`data-text`, not a date, a number or the label of a choice, nor the short texts of a first column as wide as they are, `data-short`) for the check, then taken out'],
   V016: ['warning', 'a list, a board, a calendar or the last items of a dashboard show no item, but the list searched for nothing: the screenshot does not show them'],
   V017: ['warning', 'a text cut by an ellipsis to a few characters: its box is narrower than 4 em, too narrow to be read (the item of a narrow day of a calendar, a narrow column)'],
   V018: ['warning', 'a part of the page that scrolls sideways (a table) grows wider than it is once the texts of its items are long (the texts of V015): a column whose texts do not wrap'],
@@ -486,9 +486,10 @@ function audit(options: CheckOptions): Found[] {
     const long = `${'W'.repeat(40)} ${'and the words of a long value '.repeat(3)}`.slice(0, 120);
     const kept = new Map<Text, string>();
     // the texts of the items in their cells and fields (`data-text` of `FieldValue`), of any
-    // length; not a date, a number or the label of a choice, short by their nature; not a form
+    // length; not a date, a number or the label of a choice, short by their nature; not a form;
+    // not the texts of a column as wide as they are by their values on the page (`data-short`)
     for (const element of document.querySelectorAll('[data-bz^="cell:"] [data-text], [data-bz^="field:"] [data-text]')) {
-      if (element.closest('form, [aria-hidden="true"]')) continue;
+      if (element.closest('form, [aria-hidden="true"], [data-short]')) continue;
       const texts = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
       for (let node = texts.nextNode(); node !== null; node = texts.nextNode()) {
         if (node instanceof Text && !kept.has(node) && node.data.trim()) kept.set(node, node.data);

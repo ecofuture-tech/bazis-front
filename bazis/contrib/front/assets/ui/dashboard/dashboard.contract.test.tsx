@@ -22,7 +22,7 @@
 // dashboard of links only), what it is given before its parts, and its children in its screen
 // (where a form page takes the place of its parts). Keep it passing when the component is changed.
 
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { Filter } from '@/bazis/client';
@@ -88,7 +88,7 @@ describe('Dashboard', () => {
     expect(screen.getByTestId('chart:by-status')).toBeTruthy();
   });
 
-  it('gives a tile of an aggregate of a field the row of a phone, a count half of it', async () => {
+  it('gives the last of an odd number of tiles the row below xl, whatever its value, and the tiles of the last row their row from xl', async () => {
     renderWithBazis(
       <Dashboard
         hero={false}
@@ -102,10 +102,98 @@ describe('Dashboard', () => {
     await waitFor(() => {
       expect(screen.getByTestId('tile:paid').getAttribute('data-value')).toBe('20600');
     });
-    // a sum is not cut in a column of a phone; the class of the tile is kept
-    expect(screen.getByTestId('tile:paid').classList).toContain('max-sm:col-span-2');
+    // the grid spans its last child when it is odd (the tiles that the user views): no tile by
+    // its value; from xl rows that wrap, their tiles growing (a short last row shared, never a
+    // hole); the class of the tile is kept
+    const grid = screen.getByTestId('tile:paid').parentElement;
+    expect(grid?.classList).toContain('max-xl:*:last:odd:col-span-2');
+    expect(grid?.classList).toContain('xl:flex-wrap');
+    expect(grid?.classList).toContain('xl:*:grow');
     expect(screen.getByTestId('tile:paid').classList).toContain('xl:col-span-2');
-    expect(screen.getByTestId('tile:all').classList).not.toContain('max-sm:col-span-2');
+    expect(screen.getByTestId('tile:paid').classList).not.toContain('max-sm:col-span-2');
+  });
+
+  it('lays out in focus: the chart large beside the tiles as a rail, the other charts beside the last items under them', async () => {
+    const server = new Backend()
+      .on('GET', `${ITEMS}schema_list/`, schema)
+      .on('GET', ITEMS, listDocument([resource('a', { title: 'Alpha', count: 1 })], { meta: { aggregates: { count: 4 } } }));
+    renderWithBazis(
+      <Dashboard
+        hero={false}
+        links={[]}
+        focus={<div data-bz="chart:weeks" />}
+        tiles={[
+          { id: 'all', path: ITEMS as never, label: 'All' },
+          { id: 'mine', path: ITEMS as never, label: 'Mine' },
+        ]}
+        charts={<div data-bz="chart:by-status" />}
+        recent={[{ id: 'items', path: ITEMS as never, label: 'Items', columns: ['title'] }]}
+      />,
+      server,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('tile:mine').getAttribute('data-value')).toBe('4');
+    });
+    const recent = await screen.findByTestId('recent:items');
+    const parent = (it: HTMLElement) => it.parentElement as HTMLElement;
+    const focus = parent(screen.getByTestId('chart:weeks'));
+    const rail = parent(screen.getByTestId('tile:all'));
+    const charts = parent(screen.getByTestId('chart:by-status'));
+    const lists = parent(recent);
+    // two rows: the chart in focus and the rail, the charts and the last items, sharing the
+    // width by their parts (2 : 1, 1 : 2), not by a span of columns
+    expect(rail.previousElementSibling).toBe(focus);
+    expect(lists.previousElementSibling).toBe(charts);
+    expect([focus, rail, charts, lists].map((it) => [...it.classList].find((name) => name.startsWith('xl:flex-')))).toEqual([
+      'xl:flex-[2]',
+      'xl:flex-1',
+      'xl:flex-1',
+      'xl:flex-[2]',
+    ]);
+    // the tiles are the rows of one surface
+    expect(rail.classList).toContain('surface');
+    expect(screen.getByTestId('tile:all').classList).not.toContain('surface');
+  });
+
+  it('leaves the place of a part in focus that the user may not view to the others of its row', async () => {
+    const hidden = '/api/test/hidden/';
+    const server = new Backend()
+      .on('GET', `${ITEMS}schema_list/`, schema)
+      .on('GET', ITEMS, listDocument([resource('a', { title: 'Alpha', count: 1 })], { meta: { aggregates: { count: 4 } } }))
+      .on('GET', `${hidden}schema_list/`, errors(403), 403);
+    const parts = (hide: string) => ({
+      focus: (
+        <Viewable path={(hide === 'focus' ? hidden : ITEMS) as never}>
+          <div data-bz="chart:weeks" />
+        </Viewable>
+      ),
+      tiles: [{ id: 'all', path: (hide === 'tiles' ? hidden : ITEMS) as never, label: 'All' }],
+      charts: (
+        <Viewable path={(hide === 'charts' ? hidden : ITEMS) as never}>
+          <div data-bz="chart:by-status" />
+        </Viewable>
+      ),
+      recent: [{ id: 'items', path: (hide === 'recent' ? hidden : ITEMS) as never, label: 'Items', columns: ['title'] }],
+    });
+    for (const [hide, shown] of [
+      ['focus', 'tile:all'],
+      ['tiles', 'chart:weeks'],
+      ['charts', 'recent:items'],
+      ['recent', 'chart:by-status'],
+    ] as const) {
+      const { unmount } = renderWithBazis(<Dashboard hero={false} links={[]} {...parts(hide)} />, server);
+      const part = await screen.findByTestId(shown);
+      await waitFor(() => {
+        expect(screen.queryAllByTestId('state:loading')).toEqual([]);
+      });
+      // the part that the user may not view leaves its place empty, which hides it; its row hides
+      // with no part shown
+      const row = part.closest('.xl\\:flex-row') as HTMLElement;
+      expect([...row.children].filter((it) => it.childElementCount === 0)).toHaveLength(1);
+      expect([...row.children].every((it) => it.classList.contains('empty:hidden'))).toBe(true);
+      expect(row.classList).toContain('not-has-[>:not(:empty)]:hidden');
+      unmount();
+    }
   });
 
   it('links the other screens of the navigation, each once the backend allows it', async () => {
@@ -164,13 +252,13 @@ describe('Dashboard', () => {
     expect(within(home).queryByRole('navigation')).toBeNull();
   });
 
-  it('shows the day of today in the language of the product, before what it is given and its parts', async () => {
+  it('shows the day of today in the language of the product beside its title, under it in a hero, once', async () => {
     vi.useFakeTimers({ now: new Date(2026, 10, 2, 10, 0), toFake: ['Date'] });
     try {
-      const { unmount } = renderWithBazis(<Dashboard hero={false} title="Home" />, new Backend());
+      const none = renderWithBazis(<Dashboard hero={false} title="Home" />, new Backend());
       expect(screen.queryByTestId('today')).toBeNull();
-      unmount();
-      renderWithBazis(
+      none.unmount();
+      const plain = renderWithBazis(
         <Dashboard hero={false} title="Home" today before={<p data-bz="before">Before</p>} tiles={[{ id: 'all', path: ITEMS as never, label: 'All' }]} />,
         new Backend(),
         { language: testLanguages('ru') },
@@ -178,8 +266,22 @@ describe('Dashboard', () => {
       const today = screen.getByTestId('today');
       expect(today.textContent).toBe(new Date(2026, 10, 2).toLocaleDateString('ru', { weekday: 'long', day: 'numeric', month: 'long' }));
       expect(today.textContent).toContain('2 ноября');
+      // the caption of the header of the screen, after the title, never a line of its own again
+      expect(today.closest('header [data-slot="screen-caption"]')).not.toBeNull();
+      expect(screen.getByRole('heading', { level: 1 }).compareDocumentPosition(today)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
       expect(today.compareDocumentPosition(screen.getByTestId('before'))).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
       expect(today.compareDocumentPosition(await screen.findByTestId('tile:all'))).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+      expect(screen.getAllByTestId('today')).toHaveLength(1);
+      plain.unmount();
+      renderWithBazis(<Dashboard hero title="Home" today />, new Backend());
+      const hero = screen.getByTestId('today');
+      expect(hero.closest('[data-slot="hero"]')).not.toBeNull();
+      expect(screen.getByRole('heading', { level: 1 }).compareDocumentPosition(hero)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+      expect(screen.getAllByTestId('today')).toHaveLength(1);
+      cleanup();
+      // without a title: the header of the screen for the day alone
+      renderWithBazis(<Dashboard hero={false} today />, new Backend());
+      expect(screen.getByTestId('today').closest('header [data-slot="screen-caption"]')).not.toBeNull();
     } finally {
       vi.useRealTimers();
     }

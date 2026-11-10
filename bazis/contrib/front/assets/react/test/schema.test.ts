@@ -14,7 +14,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { choiceLabel, objectFields, relativeDay, resourceSchema, startValue } from '../src/schema.js';
+import { choiceLabel, objectFields, relativeDay, resourceSchema, startValue, valueErrors } from '../src/schema.js';
 import { transits } from '../src/statusy/transits.js';
 import { parentSchema } from './fixtures/parent.js';
 // the runtime schemas of `tasks.task` of the sample of bazis-front, as the backend returns them
@@ -362,5 +362,42 @@ describe('relativeDay', () => {
     expect(relativeDay('2028-02-01', 'date', now)).toBe('2028-02-01');
     expect(relativeDay('tomorrow', 'date', now)).toBe('tomorrow');
     expect(relativeDay('today', null, now)).toBe('today');
+  });
+});
+
+describe('valueErrors', () => {
+  const fields = objectFields({
+    type: 'object',
+    required: ['title', 'note', 'url', 'owner', 'code', 'ready'],
+    properties: {
+      title: { type: 'string', title: 'Title' },
+      note: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+      url: { anyOf: [{ type: 'string', format: 'uri' }, { type: 'string', maxLength: 0 }] },
+      owner: { type: 'string' },
+      code: { type: 'string', readOnly: true },
+      ready: { type: 'boolean' },
+      date_from: { type: 'string', format: 'date' },
+      date_to: { type: 'string', format: 'date' },
+      starts: { type: 'string', format: 'date-time' },
+      end: { type: 'string', format: 'date' },
+    },
+  });
+  const message = (error: { title?: string | null }) => String(error.title);
+
+  it('finds an empty required field, but one that allows null or the empty string, a read-only one and a boolean false', () => {
+    expect(valueErrors(fields, { title: '', note: null, url: '', owner: null, ready: false }, message)).toEqual({
+      title: ['missing'],
+      owner: ['missing'],
+    });
+    expect(valueErrors(fields, { title: 'A', owner: 'u1', ready: false, note: null, url: '' }, message)).toEqual({});
+  });
+
+  it('finds the end of a range of days before its start, by the names of its fields of one format', () => {
+    const filled = { title: 'A', owner: 'u1', note: null, url: '', ready: false };
+    expect(valueErrors(fields, { ...filled, date_from: '2026-11-20', date_to: '2026-11-10' }, message)).toEqual({ date_to: ['date_before'] });
+    expect(valueErrors(fields, { ...filled, date_from: '2026-11-20', date_to: '2026-11-20' }, message)).toEqual({});
+    // one of them empty, or not a pair (`end` of a date-time `starts`)
+    expect(valueErrors(fields, { ...filled, date_to: '2026-11-10' }, message)).toEqual({});
+    expect(valueErrors(fields, { ...filled, starts: '2026-11-20T10:00:00Z', end: '2026-11-10' }, message)).toEqual({});
   });
 });

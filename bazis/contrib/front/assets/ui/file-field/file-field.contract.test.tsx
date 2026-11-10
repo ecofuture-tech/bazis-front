@@ -736,7 +736,12 @@ describe('the images larger than the limit', () => {
     images();
     const backend = new Backend().on('POST', FILES, { data: uploaded(1, 'photo.jpg', 7680) }, 201);
     const field = spies();
-    renderWithBazis(<Field spies={field} maxSize={8000} />, backend);
+    const { unmount } = renderWithBazis(<Field spies={spies()} maxSize={8000} />, new Backend());
+    await screen.findByTestId('field:attachment');
+    // a field of any file does not speak of the images
+    expect(screen.getByTestId('upload:attachment').textContent).toMatch(/up to 7\.8 KB$/);
+    unmount();
+    renderWithBazis(<Field spies={field} accept="image/*" maxSize={8000} />, backend);
     await screen.findByTestId('field:attachment');
     expect(screen.getByTestId('upload:attachment').textContent).toContain('up to 7.8 KB, a larger image reduced to it');
     choose(sized(9000, 'photo.jpg', 'image/jpeg'));

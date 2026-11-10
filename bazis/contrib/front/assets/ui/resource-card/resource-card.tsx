@@ -18,18 +18,19 @@
 // screen (`FormSurface`, as the theme composes the forms). Its states are marked
 // `state:<state>` (the loading one is the skeleton of the card), its values `field:<name>`.
 
-import { Lock, Pencil } from 'lucide-react';
+import { Lock, Pencil, Trash2 } from 'lucide-react';
 import { Fragment, useState, type ReactNode } from 'react';
 
 import type { CustomActionName, PermitMeta } from '@/bazis/client';
 import { THEME } from '@/bazis/generated/theme';
 import { useLanguage } from '@/bazis/i18n';
 import type { ItemPath } from '@/bazis/react';
-import { useScreenPage } from '@/bazis/ui/app-shell';
+import { useBesideList, useScreenPage } from '@/bazis/ui/app-shell';
 import {
   alignsDigits,
   FieldValue,
   fieldValue,
+  inlineDisplay,
   isLongText,
   ITEM_META,
   itemLabel,
@@ -135,7 +136,7 @@ function CardSkeleton() {
         <Skeleton className="h-7 w-1/2" />
         <Skeleton className="h-5 w-16 rounded-full" />
       </div>
-      <div className="grid gap-5 rounded-xl border bg-card p-(--space-card) sm:grid-cols-2">
+      <div className="surface grid gap-5 p-(--space-card) sm:grid-cols-2">
         {[0, 1, 2, 3].map((it) => (
           <div key={it} className="grid gap-2">
             <Skeleton className="h-3 w-20" />
@@ -159,10 +160,12 @@ interface SectionsProps {
 
 /**
  * The card heads its screen, a screen without a title (`h1`; its sections and its related
- * lists `h2`); else it is under the title (`h2`, its parts `h3`).
+ * lists `h2`); else it is under the title (`h2`, its parts `h3`), beside its list too, whose
+ * title is the `h1` of the page.
  */
 export function useHeadsScreen(): boolean {
-  return useScreenPage()?.titled === false;
+  const beside = useBesideList();
+  return useScreenPage()?.titled === false && !beside;
 }
 
 /**
@@ -180,12 +183,13 @@ function Sections({ sections, item, fields, values, display, editable }: Section
       <section
         key={section.id}
         aria-label={typeof section.title === 'string' ? section.title : undefined}
-        className="rounded-xl border bg-card text-card-foreground shadow-xs"
+        className="surface text-card-foreground"
       >
         {section.title !== undefined && (
           <Title className="border-b px-(--space-card) py-3 text-sm font-subheading">{section.title}</Title>
         )}
-        <dl className="grid grid-cols-[minmax(0,1fr)] gap-x-8 gap-y-5 p-(--space-card) sm:grid-cols-2">
+        {/* a short field after a long one, which takes the row, fills the hole that it leaves */}
+        <dl className="grid grid-cols-[minmax(0,1fr)] gap-x-8 gap-y-5 p-(--space-card) sm:grid-cols-2 sm:grid-flow-row-dense">
           {names.map((name) => {
             const field = fields.fields.get(name);
             const readOnly = editable !== null && !editable(name);
@@ -227,7 +231,7 @@ function EditableSections({ path, id, ...props }: Omit<SectionsProps, 'editable'
 
 /**
  * The heading of an item without a name: the values of its fields of `names` that the user
- * sees and that have a value; its id when none has.
+ * sees and that have a value, as text (`inlineDisplay`); its id when none has.
  */
 function ItemHeading({
   item,
@@ -248,7 +252,7 @@ function ItemHeading({
   return shown.map((name, index) => (
     <Fragment key={name}>
       {index > 0 && ' · '}
-      <FieldValue field={fields.fields.get(name)} value={fieldValue(item, name)} type={item.type} display={display[name]} />
+      <FieldValue field={fields.fields.get(name)} value={fieldValue(item, name)} type={item.type} display={inlineDisplay(display[name])} />
     </Fragment>
   ));
 }
@@ -347,6 +351,8 @@ export function ResourceCard({
                 data-bz={`action:${action.id}`}
                 onClick={action.onClick}
               >
+                {/* a delete beside the edit, each a button with its sign */}
+                {action.permission === 'delete' && <Trash2 />}
                 {action.label}
               </Button>
             ))}

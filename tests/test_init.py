@@ -21,6 +21,7 @@ from django.core.management import CommandError, call_command
 from django.test import override_settings
 
 import pytest
+import yaml
 
 from bazis.contrib.front import __version__, capabilities
 from bazis.contrib.front.spec import create as spec_create
@@ -35,7 +36,7 @@ from bazis.contrib.front.vendor.lock import digest
 #: require
 INIT_COMPONENTS = [
     'state-panel', 'app-shell', 'login-form', 'dashboard', 'testing', 'button', 'card', 'input', 'label',
-    'sheet', 'dropdown-menu', 'skeleton', 'resource', 'stat-card', 'badge', 'native-select', 'popover',
+    'sheet', 'dialog', 'dropdown-menu', 'tooltip', 'skeleton', 'resource', 'stat-card', 'badge', 'native-select', 'popover',
 ]
 
 
@@ -106,7 +107,10 @@ def test_init_creates_the_frontend(product):
     }
     assert sorted(design['spec']) == ['spec/design/theme.yaml', 'spec/design/tokens.json', 'spec/product.yaml']
     assert sorted(design['generated']) == [theme.FONTS_CSS, theme.FONTS_TS, theme.THEME_CSS, theme.THEME_TS]
-    assert 'fonts' not in design
+    # the fonts of the starter that the frontend serves, Golos Text only, with their hashes
+    assert {path.split('/')[2] for path in design['fonts']} == {'golos-text-5.3.0'}
+    for path, value in design['fonts'].items():
+        assert digest((frontend / path).read_bytes()) == value
     for path, value in design['generated'].items():
         assert digest((frontend / path).read_bytes()) == value
     # the template as it is, without the stamp, with its pristine copy for the merge of the
@@ -179,6 +183,14 @@ def test_init_creates_the_specs(product):
     assert product_yaml.startswith('# yaml-language-server: $schema=./schema/product.schema.json\n')
     theme = (spec / 'design' / 'theme.yaml').read_text(encoding='utf-8')
     assert theme.startswith('# yaml-language-server: $schema=../schema/design.schema.json\n')
+    # the design of a new workspace: the cool paper, the lifted surfaces, one grotesque, whose
+    # files alone the frontend serves
+    assert {key: value for key, value in yaml.safe_load(theme).items() if key in ('palette', 'fonts', 'surface')} == {
+        'palette': 'frost', 'fonts': 'golos', 'surface': 'lifted',
+    }
+    # its lists with their search, view and actions in the header of their screens
+    assert yaml.safe_load(theme)['composition']['list_tools'] == 'header'
+    assert [it.name for it in (product / 'frontend' / 'public' / 'fonts').iterdir()] == ['golos-text-5.3.0']
     tokens = json.loads((spec / 'design' / 'tokens.json').read_text(encoding='utf-8'))
     assert tokens['$schema'] == '../schema/tokens.schema.json'
     # of the screens only the home, a dashboard at `/`: the agent writes the others
@@ -189,9 +201,15 @@ def test_init_creates_the_specs(product):
 
 def test_init_with_the_preset_portal(product):
     out, _ = init('--no-node', '--preset', 'portal')
-    # its pair of fonts, served by the frontend, loads the optical sizes of its headings
     assert 'D014' not in out
-    assert sorted(it.name.split('-')[0] for it in (product / 'frontend' / 'public' / 'fonts').iterdir()) == ['golos', 'literata']
+    # the design of a new portal: that of a new workspace with the round shape of the preset,
+    # Golos Text alone served by the frontend
+    theme_yaml = yaml.safe_load((product / 'spec' / 'design' / 'theme.yaml').read_text(encoding='utf-8'))
+    assert {key: theme_yaml[key] for key in ('palette', 'fonts', 'shape', 'surface')} == {
+        'palette': 'frost', 'fonts': 'golos', 'shape': 'round', 'surface': 'lifted',
+    }
+    assert theme_yaml['composition']['list_tools'] == 'list'
+    assert [it.name for it in (product / 'frontend' / 'public' / 'fonts').iterdir()] == ['golos-text-5.3.0']
 
     spec = product / 'spec'
     starters = spec_create.files(spec_create.__package__) / 'starters' / 'design' / 'portal'

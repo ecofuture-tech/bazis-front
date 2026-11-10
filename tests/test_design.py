@@ -21,7 +21,9 @@ the fonts, the defaults of a preset and the look of a design without layers, the
 the lock in a frontend, `--check` and `front.W005`.
 """
 
+import itertools
 import json
+import math
 import os
 import shutil
 from io import StringIO
@@ -34,7 +36,7 @@ import pytest
 import yaml
 
 from bazis.contrib.front.checks import check_design
-from bazis.contrib.front.spec import design, fonts, theme
+from bazis.contrib.front.spec import color, design, fonts, theme
 from bazis.contrib.front.spec.issues import Document, Issues
 from bazis.contrib.front.spec.lint import DESIGN_SCHEMA, TOKENS_SCHEMA, validator
 from bazis.contrib.front.spec.validate import Specs, validate
@@ -101,6 +103,19 @@ def test_the_theme_of_the_sample_is_the_fixture_of_the_components():
     if os.environ.get('BAZIS_FRONT_WRITE_FIXTURES') == '1':
         FIXTURE.write_text(text, encoding='utf-8', newline='\n')
     assert FIXTURE.read_text(encoding='utf-8') == text
+
+
+@pytest.mark.parametrize('surface, layers', [
+    ('lifted', {'palette': 'frost', 'fonts': 'golos', 'surface': 'lifted'}),
+    ('elevated', {'palette': 'indigo', 'fonts': 'inter', 'surface': 'elevated'}),
+])
+def test_the_themes_of_the_surfaces_in_a_browser(surface, layers):
+    # the page of the surfaces of `assets/playwright/test/shell.spec.ts` reads them
+    css = theme.render(Specs(theme={'spec': 'bazis-design/1', 'preset': 'workspace', 'shape': 'soft', **layers}))[theme.THEME_CSS]
+    path = FIXTURE.parent / f'theme-{surface}.css'
+    if os.environ.get('BAZIS_FRONT_WRITE_FIXTURES') == '1':
+        path.write_text(css, encoding='utf-8', newline='\n')
+    assert path.read_text(encoding='utf-8') == css
 
 
 def test_the_settings_of_the_sample():
@@ -211,12 +226,13 @@ def test_the_surface_gives_the_shadow_of_the_cards():
         css = theme.render(Specs(theme=data))[theme.THEME_CSS]
         assert root_block(css, '@theme inline')['--shadow-xs'] == 'var(--shadow-xs)'
         shadows[surface] = (root_block(css, ':root')['--shadow-xs'], root_block(css, '.dark').get('--shadow-xs'))
-    elevated = design.layer('surfaces', 'elevated')['shadow']['xs']['$value']
+    elevated, lifted = design.layer('surfaces', 'elevated'), design.layer('surfaces', 'lifted')
     assert shadows == {
         # the shadow of Tailwind, in both modes
         'bordered': (TAILWIND['--shadow-xs'], None),
         'flat': ('0 0 #0000', None),
-        'elevated': (elevated, design.layer('surfaces', 'elevated')['dark']['shadow']['xs']['$value']),
+        'elevated': (elevated['shadow']['xs']['$value'], elevated['dark']['shadow']['xs']['$value']),
+        'lifted': (lifted['shadow']['xs']['$value'], lifted['dark']['shadow']['xs']['$value']),
     }
 
 
@@ -248,6 +264,68 @@ def test_a_design_without_layers_keeps_its_look():
     mapping = root_block(css, '@theme inline')
     assert mapping['--shadow-md'] == 'var(--shadow-md)'
     assert mapping['--default-transition-duration'] == 'var(--motion-base)'
+    # the surfaces and the controls as the components drew them before their tokens: the borders,
+    # the background of an outline button and its hover, the focus ring of a field, the shadow of
+    # a card and of a popover, no shadow of the primary button; flat
+    # backgrounds; the line of a field of the muted text, about 2.7:1 at rest
+    ring = '0 0 0 3px color-mix(in srgb, var(--ring) 50%, transparent)'
+    assert {name: light[name] for name in (
+        '--border-surface', '--border-control', '--control', '--control-hover', '--surface-light', '--shade',
+        '--field-line', '--field-line-hover', '--field-line-focus', '--shadow-field-focus',
+        '--shadow-lift-05', '--shadow-lift-05-hover', '--shadow-lift-05-active',
+        '--shadow-lift-1', '--shadow-lift-2', '--shadow-lift-primary', '--shadow-ring-focus',
+        '--surface-card', '--surface-control',
+    )} == {
+        '--border-surface': 'var(--border)', '--border-control': 'var(--border)', '--control': 'var(--background)',
+        '--control-hover': 'var(--accent)', '--surface-light': 'var(--card)', '--shade': 'var(--foreground)',
+        '--field-line': 'color-mix(in srgb, var(--muted-foreground) 60%, transparent)',
+        '--field-line-hover': 'color-mix(in srgb, var(--muted-foreground) 85%, transparent)', '--field-line-focus': 'var(--ring)',
+        '--shadow-field-focus': ring,
+        '--shadow-lift-05': 'var(--shadow-xs)', '--shadow-lift-05-hover': 'var(--shadow-sm)',
+        '--shadow-lift-05-active': 'var(--shadow-xs)',
+        '--shadow-lift-1': 'var(--shadow-xs)', '--shadow-lift-2': 'var(--shadow-md)', '--shadow-lift-primary': '0 0 #0000',
+        # a gap of the page and a solid ring, seen on a filled button too
+        '--shadow-ring-focus': '0 0 0 2px var(--background), 0 0 0 4px var(--ring)',
+        '--surface-card': 'none', '--surface-control': 'none',
+    }
+    # no glow of the paper and no gradient of the sidebar; the current link of the sidebar on its
+    # accent, without a bar or a shadow
+    assert (light['--sidebar-to'], light['--glow-a']) == ('var(--sidebar)', 'transparent')
+    assert (light['--nav-active'], light['--nav-active-bar'], light['--shadow-nav-active']) == (
+        'var(--sidebar-accent)', 'transparent', '0 0 #0000',
+    )
+    assert 'body::before' not in css and 'background-image' not in css.split('\n@layer base {\n', 1)[1]
+    # a field is a line, never lifted
+    assert 'lift-field' not in css
+
+
+#: the controls of a design without the layers in the dark mode: those of shadcn/ui
+#: (`dark:bg-input/30 dark:border-input dark:hover:bg-input/50`)
+DARK_CONTROLS = {
+    '--border-control': 'var(--input)',
+    '--control': 'color-mix(in srgb, var(--input) 30%, transparent)',
+    '--control-hover': 'color-mix(in srgb, var(--input) 50%, transparent)',
+}
+
+
+def test_the_root_of_a_theme_of_0_12_only_gains_variables():
+    # the variables of the sample as 0.12 generated them keep their values, in both modes; the
+    # new ones are the tokens of 0.13 on their defaults and the flat backgrounds of the surfaces,
+    # and in the dark mode the controls of shadcn/ui translucent on the input
+    before = json.loads((REPOSITORY / 'tests' / 'fixtures' / 'theme' / 'sample-0.12.json').read_text(encoding='utf-8'))
+    css = rendered(REPOSITORY / 'sample')[theme.THEME_CSS]
+    light, dark = root_block(css, ':root'), root_block(css, '.dark')
+    assert dark == {**before['.dark'], **DARK_CONTROLS}
+    assert {name: light[name] for name in before[':root']} == before[':root']
+    assert set(light) - set(before[':root']) == {
+        '--sidebar-to', '--sidebar-glow', '--nav-active', '--nav-active-bar', '--glow-a', '--glow-b', '--shade',
+        '--surface-light', '--border-surface', '--border-control', '--control', '--control-hover', '--field-line',
+        '--field-line-hover', '--field-line-focus', '--shadow-lift-05', '--shadow-lift-05-hover',
+        '--shadow-lift-05-active', '--shadow-lift-1', '--shadow-lift-2', '--shadow-lift-primary',
+        '--shadow-lift-primary-hover', '--shadow-lift-primary-active', '--shadow-ring-focus', '--shadow-field-focus',
+        '--shadow-nav-active', '--surface-card', '--surface-control', '--tone-primary', '--selected',
+        '--size-sidebar', '--size-sidebar-rail', '--size-content',
+    }
 
 
 def test_the_layers_of_the_tokens():
@@ -276,6 +354,180 @@ def test_the_layers_of_the_tokens():
     assert 'h3 {\n    font-family: var(--font-heading);\n    font-weight: var(--font-weight-heading);' in css
 
 
+#: the design of the redesign: the frost paper, one grotesque, the lifted surfaces
+FROST = {'spec': 'bazis-design/1', 'preset': 'workspace', 'palette': 'frost', 'fonts': 'golos', 'shape': 'soft', 'surface': 'lifted'}
+
+
+def test_the_surfaces_lifted_on_the_frost_paper():
+    files = theme.render(Specs(theme=FROST))
+    css = files[theme.THEME_CSS]
+    light, dark = root_block(css, ':root'), root_block(css, '.dark')
+    frost, lifted = design.layer('palettes', 'frost'), design.layer('surfaces', 'lifted')
+    # no contour: the borders transparent, the shadows of the heights in the tone of the paper
+    assert (light['--border-surface'], light['--border-control'], light['--control']) == ('transparent', 'transparent', 'var(--card)')
+    assert light['--shade'] == frost['color']['shade']['$value']
+    assert light['--surface-light'] == 'oklch(1 0 0)'
+    for name in ('lift-05', 'lift-1', 'lift-2', 'lift-primary', 'ring-focus', 'field-focus'):
+        assert light[f'--shadow-{name}'] == lifted['shadow'][name]['$value']
+    # the gradients of the surfaces, since the palette defines their top: that of a control ends
+    # in the control
+    assert (light['--surface-card'], light['--surface-control']) == (
+        design.SURFACES['--surface-card'], 'linear-gradient(180deg, var(--surface-light) 0%, var(--control) 100%)',
+    )
+    # the fields are a bottom line of the muted text, of the primary when focused
+    assert (light['--field-line'], light['--field-line-hover'], light['--field-line-focus'], light['--shadow-field-focus']) == (
+        'color-mix(in srgb, var(--muted-foreground) 60%, transparent)', 'color-mix(in srgb, var(--muted-foreground) 85%, transparent)',
+        'var(--primary)', '0 1px 0 0 var(--primary)',
+    )
+    assert 'var(--shade)' in light['--shadow-lift-1'] and 'var(--primary)' in light['--shadow-lift-primary']
+    # black shadows in the dark mode, the same focus ring
+    assert dark['--shadow-lift-1'] == lifted['dark']['shadow']['lift-1']['$value']
+    assert 'rgb(0 0 0 /' in dark['--shadow-lift-1'] and '--shadow-ring-focus' not in dark
+    # the utilities of the heights and of the colors of the surfaces
+    mapping = root_block(css, '@theme inline')
+    assert mapping['--shadow-lift-1'] == 'var(--shadow-lift-1)'
+    assert mapping['--shadow-ring-focus'] == 'var(--shadow-ring-focus)'
+    assert mapping['--color-border-surface'] == 'var(--border-surface)'
+    assert mapping['--color-avatar-0'] == design.DERIVED['--avatar-0']
+    assert mapping['--color-line-6'] == 'color-mix(in srgb, var(--foreground) 6%, transparent)'
+    assert mapping['--color-line-16'] == 'color-mix(in srgb, var(--foreground) 16%, transparent)'
+    # the glow of the paper and the gradient of the sidebar, drawn since the palette defines them
+    base = css.split('\n@layer base {\n', 1)[1]
+    # inside the sidebar the tokens of the layer are computed again on its colors: the line of
+    # its muted text, the controls on the sidebar, flat; the dark lifts of the primary button,
+    # black literals, in its dark mode
+    sidebar = block_of(base, "[data-slot='sidebar']")
+    assert (sidebar['--field-line'], sidebar['--control'], sidebar['--surface-control']) == (
+        'color-mix(in srgb, var(--muted-foreground) 60%, transparent)', 'var(--card)', 'none',
+    )
+    lifts = ('lift-primary', 'lift-primary-hover', 'lift-primary-active')
+    assert block_of(base, ".dark [data-slot='sidebar']") == {
+        f'--shadow-{name}': lifted['dark']['shadow'][name]['$value'] for name in lifts
+    }
+    assert block_of(base, 'body::before') == theme.GLOW
+    assert block_of(base, "[data-slot='sidebar']", 2) == theme.SIDEBAR_SURFACE
+    assert base.index('body::before') < base.index("[data-slot='sidebar']")
+    assert (dark['--glow-a'], dark['--sidebar-to']) == (
+        frost['dark']['color']['glow-a']['$value'], frost['dark']['color']['sidebar-to']['$value'],
+    )
+    # the current link of the sidebar: a flat light fill with a bar of the honey of the sidebar,
+    # lifted by a black shadow on the dark sidebar of both modes
+    assert (light['--nav-active'], light['--nav-active-bar']) == (
+        'color-mix(in srgb, #fff 6.5%, var(--sidebar))', 'var(--sidebar-primary)',
+    )
+    assert light['--shadow-nav-active'] == lifted['shadow']['nav-active']['$value'] and '--shadow-nav-active' not in dark
+    assert mapping['--shadow-nav-active'] == 'var(--shadow-nav-active)'
+    # D009 computes the text of the current link on its mix with white, in both modes
+    defined = design.effective_tokens(FROST, None)
+    for dark in (False, True):
+        ratio = design.pair_contrast(design.variables(defined, dark=dark), '--sidebar-accent-foreground', '--nav-active')
+        assert ratio is not None and ratio >= 4.5
+    assert 'lift-field' not in json.dumps(lifted)
+
+
+@pytest.mark.parametrize('palette', ['frost', 'pine'])
+def test_the_controls_and_the_fields_read_on_the_sidebar(palette):
+    # lifted inside a dark sidebar, computed there: the text of the sidebar is read on a control at
+    # rest and under the pointer, the focused line of a field is seen on the sidebar
+    defined = design.effective_tokens({**FROST, 'palette': palette}, None)
+    for dark in (False, True):
+        inside = design.sidebar_scope(design.variables(defined, dark=dark))
+        assert inside['--control'] == 'var(--card)' and inside['--card'] == 'var(--sidebar)'
+        for text, background, minimum in design.SIDEBAR_CONTRAST:
+            assert design.pair_contrast(inside, text, background) >= minimum, (text, background, dark)
+    # literals of the product that the sidebar cannot read: D009 inside the sidebar in both modes,
+    # at the token of the text first (the palette for its foreground)
+    tokens = {'color': {
+        'control-hover': {'$type': 'color', '$value': '#ffffff'},
+        'field-line-focus': {'$type': 'color', '$value': 'oklch(0.3 0.05 168)'},
+    }}
+    issues = Issues()
+    design.check(
+        Document('design', 'spec/design/theme.yaml', FROST, True), Document('design', 'spec/design/tokens.json', tokens, True),
+        set(), None, issues,
+    )
+    assert sorted((it.code, it.path, it.message.split(' has ')[0]) for it in issues.items) == [
+        ('D009', '/color/field-line-focus', 'The color --field-line-focus on --sidebar inside the sidebar'),
+        ('D009', '/color/field-line-focus', 'The color --field-line-focus on --sidebar inside the sidebar'),
+        ('D009', '/palette', 'The color --sidebar-foreground on --control-hover inside the sidebar'),
+        ('D009', '/palette', 'The color --sidebar-foreground on --control-hover inside the sidebar'),
+    ]
+    assert sorted(it.message.split(' mode')[0].rsplit(' ', 1)[1] for it in issues.items) == ['dark', 'dark', 'light', 'light']
+
+
+def test_a_token_of_the_dark_mode_follows_the_sidebar_in_the_dark_mode():
+    # a product that gives the controls another color in the dark mode: the sidebar computes it
+    # again in the dark mode only, by the class and by the system
+    data = {**FROST, 'surface': 'elevated'}
+    tokens = {'dark': {'color': {'control': {'$type': 'color', '$value': 'var(--muted)'}}}}
+    base = theme.render(Specs(theme=data, tokens=tokens))[theme.THEME_CSS].split('\n@layer base {\n', 1)[1]
+    assert block_of(base, "[data-slot='sidebar']")['--control'] == 'var(--background)'
+    assert block_of(base, ".dark [data-slot='sidebar']") == {**DARK_CONTROLS, '--control': 'var(--muted)'}
+    media = base.split("  @media (prefers-color-scheme: dark) {\n    :root:not(.light) [data-slot='sidebar'] {\n", 1)[1]
+    assert '      --control: var(--muted);' in media.split('\n    }', 1)[0].splitlines()
+    # without it, the controls of the dark mode of the defaults
+    base = theme.render(Specs(theme=data))[theme.THEME_CSS].split('\n@layer base {\n', 1)[1]
+    assert block_of(base, ".dark [data-slot='sidebar']") == DARK_CONTROLS
+    # a layer that defines them in the light mode only (lifted) defines them in both
+    assert not set(DARK_CONTROLS) & set(root_block(theme.render(Specs(theme=FROST))[theme.THEME_CSS], '.dark'))
+
+
+def test_the_light_of_the_surfaces_of_one_mode_draws_the_gradients_of_both():
+    # a limit: `surface-light` of the dark mode only draws the gradients in both modes, the
+    # light one from the card (define it in `color` or in both modes)
+    data = {**FROST, 'palette': 'indigo', 'surface': 'elevated'}
+    tokens = {'dark': {'color': {'surface-light': {'$type': 'color', '$value': 'oklch(0.3 0.02 270)'}}}}
+    css = theme.render(Specs(theme=data, tokens=tokens))[theme.THEME_CSS]
+    light = root_block(css, ':root')
+    assert {name: light[name] for name in design.SURFACES} == design.SURFACES
+    assert light['--surface-light'] == 'var(--card)'
+
+
+def block_of(css: str, selector: str, occurrence: int = 1) -> dict[str, str]:
+    """
+    The declarations of an indented block of the CSS (the nth of the selector), by property.
+    """
+    body = css.split(f'  {selector} {{\n')[occurrence].split('\n  }', 1)[0]
+    return dict(line.strip().rstrip(';').split(': ', 1) for line in body.splitlines())
+
+
+def test_a_glow_defined_by_the_product_is_drawn():
+    # a token of tokens.json draws the glow over a palette that has none, in the dark mode only
+    # too; another surface keeps its look
+    data = {**FROST, 'palette': 'indigo', 'surface': 'elevated'}
+    assert 'body::before' not in theme.render(Specs(theme=data))[theme.THEME_CSS]
+    tokens = {'dark': {'color': {'glow-a': {'$type': 'color', '$value': 'color-mix(in srgb, var(--primary) 12%, transparent)'}}}}
+    css = theme.render(Specs(theme=data, tokens=tokens))[theme.THEME_CSS]
+    assert '  body::before {' in css and theme.SIDEBAR_SURFACE['background-image'] not in css
+
+
+def test_the_paper_of_frost_is_far_from_its_accent():
+    # the paper reads as white: a low chroma, and a hue away from that of the primary
+    colors = design.layer('palettes', 'frost')['color']
+
+    def lch(name: str) -> list[float]:
+        return [float(it) for it in colors[name]['$value'].removeprefix('oklch(').removesuffix(')').split()]
+
+    _, chroma, hue = lch('background')
+    distance = abs(hue - lch('primary')[2]) % 360
+    assert chroma <= 0.008 and min(distance, 360 - distance) >= 60
+
+
+def test_the_contrast_of_the_controls_of_the_product():
+    # a background of the controls that the text cannot be read on (in the light mode), once
+    # for each text color, at the text color as every pair (of the palette); with the default
+    # (the background) the pairs of the page are not reported twice
+    theme_doc = Document('design', 'spec/design/theme.yaml', FROST, True)
+    tokens = {'color': {'control': {'$type': 'color', '$value': 'oklch(0.3 0.02 270)'}}}
+    issues = Issues()
+    design.check(theme_doc, Document('design', 'spec/design/tokens.json', tokens, True), set(), None, issues)
+    assert sorted((it.code, it.path, it.message.split(' has ')[0]) for it in issues.items) == [
+        ('D009', '/palette', 'The text color --foreground on --control'),
+        ('D009', '/palette', 'The text color --muted-foreground on --control'),
+    ]
+    assert all('in the light mode' in it.message for it in issues.items)
+
+
 def test_a_family_of_google_fonts():
     data = {'spec': 'bazis-design/1', 'preset': 'portal', 'palette': 'ocean', 'fonts': {'google': 'Source Sans 3:wght@400..700'}}
     files = theme.render(Specs(theme=data))
@@ -299,6 +551,9 @@ def test_one_color_mode(mode):
     assert '.dark {' not in css and 'prefers-color-scheme' not in css
     assert f'html {{\n    color-scheme: {mode};\n  }}' in css
     assert f', the {mode} mode only. */' in css
+    # less motion when the system asks for it, in the base of every theme
+    assert theme.REDUCED_MOTION in css.split('@layer base {', 1)[1]
+    assert 'animation-duration: 0.01ms !important;' in theme.REDUCED_MOTION
     assert 'dark: false,' in files[theme.THEME_TS]
     # the variant `dark:` of Tailwind follows the mode
     variant = '&:is(:root *)' if mode == 'dark' else '&:is(.dark *)'
@@ -381,6 +636,45 @@ def test_every_combination_of_the_starters():
                             assert f"@import '{source}';" in css
                         for face in fonts_of_layer(pair):
                             assert f'font-family: "{face}";' in css
+
+
+def test_the_tones_of_the_statuses_differ_in_hue():
+    # in both modes of every starter palette the tones with a color are distinct hues: the dark
+    # primary of frost (honey) is not the warning, the primary of forest not the success
+    for palette in starters('palettes'):
+        defined = design.effective_tokens({'preset': 'workspace', 'palette': palette}, None)
+        for dark in (False, True):
+            values = design.variables(defined, dark=dark)
+            hues = {}
+            for tone, source in design.TONES.items():
+                _, a, b = color.to_oklab(color.parse(values[source], values))
+                if math.hypot(a, b) >= 0.04:
+                    hues[tone] = math.degrees(math.atan2(b, a))
+            assert 'neutral' not in hues and len(hues) == len(design.TONES) - 1, (palette, dark, hues)
+            for first, second in itertools.combinations(hues, 2):
+                apart = abs(hues[first] - hues[second]) % 360
+                assert min(apart, 360 - apart) >= design.TONE_HUES, (palette, dark, first, second)
+
+
+def test_the_soft_primary_of_the_interface_is_not_that_of_the_tone():
+    # a palette that gives the tone `primary` its own hue (forest, slate, the dark pine) colors only
+    # the statuses with it: the toggles, today and the sorted column keep the color of the selected,
+    # the primary but where the palette selects in another hue (the dark frost: cedar, not the honey
+    # of its primary button)
+    mapping = root_block(theme.render(Specs())[theme.THEME_CSS], '@theme inline')
+    assert mapping['--color-primary-soft'] == 'color-mix(in srgb, var(--selected) 13%, var(--card))'
+    assert mapping['--color-primary-ink'] == 'color-mix(in srgb, var(--selected) 72%, var(--foreground))'
+    assert mapping['--color-tone-primary-soft'] == 'color-mix(in srgb, var(--tone-primary) 13%, var(--card))'
+    assert mapping['--color-tone-primary-ink'] == 'color-mix(in srgb, var(--tone-primary) 72%, var(--foreground))'
+
+    def soft(palette: str, dark: bool, name: str):
+        values = design.variables(design.effective_tokens({'preset': 'workspace', 'palette': palette}, None), dark=dark)
+        return color.to_oklab(color.parse(values[name], values))
+
+    for palette, dark in (('forest', False), ('forest', True), ('slate', False), ('slate', True), ('pine', True)):
+        for part in ('soft', 'ink'):
+            assert soft(palette, dark, f'--primary-{part}') != soft(palette, dark, f'--tone-primary-{part}'), (palette, dark, part)
+    assert soft('frost', True, '--selected') == soft('frost', True, '--tone-primary') != soft('frost', True, '--primary')
 
 
 def test_a_token_of_the_product_is_a_variable_and_a_color():
@@ -474,16 +768,42 @@ def test_the_utilities_of_the_headings():
         'font-weight': 'var(--font-weight-subheading)',
         'letter-spacing': 'var(--font-tracking-heading)',
     }
+    # the small capitals of the titles of the blocks, in the font of the text
+    assert root_block(css, '@utility font-eyebrow') == theme.EYEBROW
+    assert 'font-family' not in theme.EYEBROW
+    # a lifted block and a lifted control on the tokens of the surface, with their radii, their
+    # shadow that of Tailwind (`--tw-shadow`) under its rings; the focus ring over it
+    shadows = (
+        'var(--tw-inset-shadow, 0 0 #0000), var(--tw-inset-ring-shadow, 0 0 #0000), '
+        'var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow, 0 0 #0000)'
+    )
+    assert root_block(css, '@utility surface') == {
+        'background-color': 'var(--card)', 'background-image': 'var(--surface-card)',
+        'border': '1px solid var(--border-surface)', '--tw-shadow': 'var(--shadow-lift-1)', 'box-shadow': shadows,
+        'border-radius': 'calc(var(--radius) + 4px)',
+    }
+    assert root_block(css, '@utility control') == {
+        'background-color': 'var(--control)', 'background-image': 'var(--surface-control)',
+        'border': '1px solid var(--border-control)', '--tw-shadow': 'var(--shadow-lift-05)', 'box-shadow': shadows,
+        'border-radius': 'calc(var(--radius) - 2px)',
+    }
+    assert root_block(css, '@utility ring-focus') == {'--tw-ring-shadow': 'var(--shadow-ring-focus)', 'box-shadow': shadows}
     # the utilities are top-level rules of Tailwind, after its theme
     assert css.index('\n@utility font-heading {') > css.index('\n@theme inline {')
 
 
 def test_the_sidebar_reads_its_own_colors():
-    # inside the sidebar (and its drawer) the components read the variables of the sidebar
+    # inside the sidebar (and its drawer) the components read the variables of the sidebar; the
+    # tokens of the surfaces, the fields and the primary lift are declared again with the values
+    # of :root, computed there on the colors of the sidebar, and the surfaces are flat
     css = rendered(REPOSITORY / 'sample')[theme.THEME_CSS]
     base = css.split('\n@layer base {\n', 1)[1]
-    scope = base.split("  [data-slot='sidebar'] {\n", 1)[1].split('\n  }', 1)[0]
-    assert dict(line.strip().rstrip(';').split(': ', 1) for line in scope.splitlines()) == {
+    light = root_block(css, ':root')
+    follows = [design.variable(it) for it in design.SIDEBAR_FOLLOWS]
+    assert block_of(base, "[data-slot='sidebar']") == {
+        **design.SIDEBAR, **{it: light[it] for it in follows}, **design.SURFACES_FLAT,
+    }
+    assert design.SIDEBAR == {
         '--foreground': 'var(--sidebar-foreground)',
         '--muted-foreground': 'var(--sidebar-muted-foreground)',
         '--border': 'var(--sidebar-border)',
@@ -493,7 +813,16 @@ def test_the_sidebar_reads_its_own_colors():
         '--primary': 'var(--sidebar-primary)',
         '--primary-foreground': 'var(--sidebar-primary-foreground)',
         '--ring': 'var(--sidebar-ring)',
+        '--background': 'var(--sidebar)',
+        '--card': 'var(--sidebar)',
+        '--card-foreground': 'var(--sidebar-foreground)',
+        '--surface-light': 'var(--sidebar-accent)',
     }
+    # the defaults follow the sidebar: a control on it, the border and the ring of the sidebar
+    assert (light['--control'], light['--border-control'], light['--field-line-focus']) == (
+        'var(--background)', 'var(--border)', 'var(--ring)',
+    )
+    assert block_of(base, ".dark [data-slot='sidebar']") == DARK_CONTROLS
 
 
 def test_the_mark_of_the_brand():
@@ -527,10 +856,64 @@ def test_the_colors_of_the_brand_keep_their_contrast():
     found = sorted({(it.code, it.path, it.message.split(' has ')[0]) for it in issues.items})
     assert found == [
         ('D009', '/color/brand', 'The text color --brand on --card'),
+        # on the sidebar, and on the plate of the user, which has the fill of the current link
+        ('D009', '/color/sidebar-muted-foreground', 'The text color --sidebar-muted-foreground on --nav-active'),
         ('D009', '/color/sidebar-muted-foreground', 'The text color --sidebar-muted-foreground on --sidebar'),
         # the mark in the primary foreground of the palette (the default of brand-foreground)
         ('D009', '/palette', 'The text color --brand-foreground on --brand'),
     ]
+
+
+def test_the_shell_and_the_composition_of_a_product():
+    # the base: the sidebar expanded, the filters on a plate, the tools of a list over it, the widths
+    # of the shell; theme.yaml and tokens.json change them
+    files = theme.render(Specs(theme={'spec': 'bazis-design/1', 'preset': 'workspace'}))
+    text = files[theme.THEME_TS]
+    for line in ('shell: {\n    sidebar: "auto",\n  },', 'filters: "plate",', 'list_tools: "list",'):
+        assert line in text
+    assert "readonly sidebar: 'auto' | 'expanded' | 'rail';" in text and "readonly list_tools: 'list' | 'header';" in text
+    light = root_block(files[theme.THEME_CSS], ':root')
+    assert (light['--size-sidebar'], light['--size-sidebar-rail'], light['--size-content']) == ('15rem', '4.25rem', '80rem')
+    data = {
+        'spec': 'bazis-design/1', 'preset': 'workspace', 'shell': {'sidebar': 'rail'},
+        'composition': {'filters': 'row', 'list_tools': 'header'},
+    }
+    tokens = {'size': {'sidebar': {'$type': 'dimension', '$value': '17rem'}}}
+    files = theme.render(Specs(theme=data, tokens=tokens))
+    for line in ('sidebar: "rail",', 'filters: "row",', 'list_tools: "header",', 'list: "table",'):
+        assert line in files[theme.THEME_TS]
+    light = root_block(files[theme.THEME_CSS], ':root')
+    assert (light['--size-sidebar'], light['--size-content']) == ('17rem', '80rem')
+
+
+def test_the_content_under_a_top_bar():
+    # as wide as in 0.12 (a page of 72rem with its padding) until size.content gives it, in both modes
+    data = {'spec': 'bazis-design/1', 'preset': 'workspace', 'navigation': 'topbar', 'palette': 'frost'}
+    css = theme.render(Specs(theme=data))[theme.THEME_CSS]
+    assert root_block(css, ':root')['--size-content'] == 'calc(72rem - 2 * var(--space-page-x))'
+    assert '--size-content' not in root_block(css, '.dark')
+    assert root_block(theme.render(Specs(theme={**data, 'preset': 'portal', 'navigation': 'sidebar'}))[theme.THEME_CSS], ':root')['--size-content'] == '80rem'
+    tokens = {'size': {'content': {'$type': 'dimension', '$value': '80rem'}}}
+    css = theme.render(Specs(theme=data, tokens=tokens))[theme.THEME_CSS]
+    assert root_block(css, ':root')['--size-content'] == '80rem'
+
+
+def test_the_state_of_a_sidebar_under_a_top_bar():
+    # the top bar of the preset portal has no sidebar to collapse
+    theme_doc = Document('design', 'spec/design/theme.yaml', {
+        'spec': 'bazis-design/1', 'preset': 'portal', 'palette': 'frost', 'fonts': 'golos', 'shape': 'round',
+        'shell': {'sidebar': 'expanded'},
+    }, True)
+    issues = Issues()
+    design.check(theme_doc, None, set(), None, issues)
+    assert [(it.code, it.severity, it.path) for it in issues.items] == [('D018', 'error', '/shell/sidebar')]
+    assert not validator(DESIGN_SCHEMA).is_valid({**theme_doc.data, 'shell': {'sidebar': 'hidden'}})
+    # every state of the sidebar under a sidebar, and none of them under a top bar
+    for state in ('auto', 'expanded', 'rail'):
+        assert validator(DESIGN_SCHEMA).is_valid({**theme_doc.data, 'shell': {'sidebar': state}})
+        issues = Issues()
+        design.check(Document('design', 'spec/design/theme.yaml', {**theme_doc.data, 'shell': {'sidebar': state}}, True), None, set(), None, issues)
+        assert [it.code for it in issues.items] == ['D018']
 
 
 @pytest.mark.django_db
@@ -578,6 +961,25 @@ def test_the_fonts_that_the_frontend_serves():
     assert '@font-face' not in files[theme.FONTS_CSS]
     assert 'FONT_PRELOAD: readonly string[] = [];' in files[theme.FONTS_TS]
     assert theme.font_files(Specs(theme={**PINE, 'fonts': 'inter'})) == {}
+
+
+def test_one_grotesque_for_the_text_and_the_headings():
+    # `golos`: the faces of Golos Text only, one variable file of the weights 400–900 for each
+    # subset (the 500, 600 and 650 of the components and the headings), no Literata
+    files = theme.render(Specs(theme=FROST, product=RUBLES))
+    css = files[theme.FONTS_CSS]
+    assert css.count('@font-face {') == 5
+    assert css.count("src: url('/fonts/golos-text-5.3.0/golos-text-") == 4
+    assert css.count('font-weight: 400 900;') == 4
+    assert 'Literata' not in css and 'Literata' not in files[theme.THEME_CSS]
+    light = root_block(files[theme.THEME_CSS], ':root')
+    assert light['--font-heading'] == 'var(--font-body)'
+    assert (light['--font-weight-heading'], light['--font-weight-subheading'], light['--font-tracking-heading']) == (
+        '650', '600', '-0.02em',
+    )
+    assert 'FONT_PRELOAD: readonly string[] = [\n  "/fonts/golos-text-5.3.0/golos-text-cyrillic-wght-normal.woff2",\n];' in files[theme.FONTS_TS]
+    sources = theme.font_files(Specs(theme=FROST, product=RUBLES))
+    assert {it.split('/')[2] for it in sources} == {'golos-text-5.3.0'} and len(sources) == 5
 
 
 @pytest.mark.parametrize(('product', 'subsets', 'preload'), [

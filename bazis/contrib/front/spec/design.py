@@ -66,12 +66,20 @@ PRESETS = {
     'workspace': {
         'navigation': 'sidebar',
         'density': 'comfortable',
-        'composition': {'list': 'table', 'list_phone': 'cards', 'list_card': 'split', 'forms': 'dialog'},
+        'shell': {'sidebar': 'auto'},
+        'composition': {
+            'list': 'table', 'list_phone': 'cards', 'list_card': 'split', 'forms': 'dialog',
+            'filters': 'plate', 'list_tools': 'list',
+        },
     },
     'portal': {
         'navigation': 'topbar',
         'density': 'comfortable',
-        'composition': {'list': 'cards', 'list_phone': 'cards', 'list_card': 'pages', 'forms': 'page'},
+        'shell': {'sidebar': 'auto'},
+        'composition': {
+            'list': 'cards', 'list_phone': 'cards', 'list_card': 'pages', 'forms': 'page',
+            'filters': 'plate', 'list_tools': 'list',
+        },
     },
 }
 
@@ -90,6 +98,7 @@ def options(theme: dict | None) -> dict:
         'preset': preset,
         'navigation': theme.get('navigation', defaults['navigation']),
         'density': theme.get('density', defaults['density']),
+        'shell': {**defaults['shell'], **theme.get('shell', {})},
         'composition': {**defaults['composition'], **theme.get('composition', {})},
         'controls': {**CONTROLS, **theme.get('controls', {})},
         'statuses': dict(theme.get('statuses', {})),
@@ -114,6 +123,13 @@ DEFAULTS = {
     'color.success': ('color', 'oklch(0.52 0.13 152)', 'oklch(0.74 0.14 152)'),
     'color.warning': ('color', 'oklch(0.58 0.13 65)', 'oklch(0.8 0.13 75)'),
     'color.info': ('color', 'oklch(0.52 0.15 245)', 'oklch(0.74 0.12 240)'),
+    # the tone `primary` of the statuses: the primary until a palette whose primary is near
+    # another tone in a mode (a honey primary of the dark mode, a warning) gives it a hue of its own
+    'color.tone-primary': ('color', 'var(--primary)', None),
+    # what is selected or active (a pressed toggle, today, the sorted column, the selected row, an
+    # item of a calendar), in the soft pair `primary-soft`, `primary-ink`: the primary until a
+    # palette keeps its primary for the actions (the dark honey of frost) and selects in another hue
+    'color.selected': ('color', 'var(--primary)', None),
     'color.sidebar': ('color', 'var(--background)', None),
     'color.sidebar-foreground': ('color', 'var(--foreground)', None),
     'color.sidebar-primary': ('color', 'var(--primary)', None),
@@ -126,6 +142,38 @@ DEFAULTS = {
     # (`[data-slot='sidebar']` of the theme): that of the content until a palette darkens the
     # sidebar
     'color.sidebar-muted-foreground': ('color', 'var(--muted-foreground)', None),
+    # the bottom of the gradient of the sidebar and the glow of its top: a plain sidebar until a
+    # layer defines one of them (`[data-slot='sidebar']` of the theme)
+    'color.sidebar-to': ('color', 'var(--sidebar)', None),
+    'color.sidebar-glow': ('color', 'transparent', None),
+    # the current link of the sidebar: its background and the bar at its start (none before the
+    # tokens); its shadow is `shadow.nav-active`
+    'color.nav-active': ('color', 'var(--sidebar-accent)', None),
+    'color.nav-active-bar': ('color', 'transparent', None),
+    # the glow of the paper (`body::before` of the theme, once a layer defines one of them)
+    'color.glow-a': ('color', 'transparent', None),
+    'color.glow-b': ('color', 'transparent', None),
+    # the color of the shadows of the lifted surfaces
+    'color.shade': ('color', 'var(--foreground)', None),
+    # the top of the gradient of a surface (`--surface-card`, `--surface-control`): the card, a
+    # plain surface
+    'color.surface-light': ('color', 'var(--card)', None),
+    # the borders of the surfaces (cards, tables, menus, dialogs) and of the controls (outline
+    # buttons, chips), the background of the controls at rest and under the pointer: those of the
+    # components before the tokens: an outline button of shadcn/ui, translucent on the input in
+    # the dark mode (`dark:bg-input/30 dark:border-input dark:hover:bg-input/50`)
+    'color.border-surface': ('color', 'var(--border)', None),
+    'color.border-control': ('color', 'var(--border)', 'var(--input)'),
+    'color.control': ('color', 'var(--background)', 'color-mix(in srgb, var(--input) 30%, transparent)'),
+    'color.control-hover': ('color', 'var(--accent)', 'color-mix(in srgb, var(--input) 50%, transparent)'),
+    # the bottom line of a field at rest, under the pointer and focused (`shadow.field-focus` the
+    # shadow of the focus): a cold grey pencil line of the muted text, about 2.7:1 on the card at
+    # rest in the light mode (3.6:1 in the dark one; the input of shadcn/ui was too pale for a line,
+    # the foreground too black), about 4.7:1 under the pointer; the ring of the fields before the
+    # tokens when focused
+    'color.field-line': ('color', 'color-mix(in srgb, var(--muted-foreground) 60%, transparent)', None),
+    'color.field-line-hover': ('color', 'color-mix(in srgb, var(--muted-foreground) 85%, transparent)', None),
+    'color.field-line-focus': ('color', 'var(--ring)', None),
     # the accent of the brand: its mark, the eyebrow of a card; never a button or a badge
     'color.brand': ('color', 'var(--primary)', None),
     'color.brand-foreground': ('color', 'var(--primary-foreground)', None),
@@ -153,10 +201,29 @@ DEFAULTS = {
     'shadow.sm': ('shadow', '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)', None),
     'shadow.md': ('shadow', '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)', None),
     'shadow.lg': ('shadow', '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)', None),
+    # the heights of the lifted elements: the controls at rest, under the pointer and pressed,
+    # the surfaces (cards), the menus and the dialogs, the primary button, the focus ring and the
+    # focus of a field; those of the components before the tokens
+    'shadow.lift-05': ('shadow', 'var(--shadow-xs)', None),
+    'shadow.lift-05-hover': ('shadow', 'var(--shadow-sm)', None),
+    'shadow.lift-05-active': ('shadow', 'var(--shadow-xs)', None),
+    'shadow.lift-1': ('shadow', 'var(--shadow-xs)', None),
+    'shadow.lift-2': ('shadow', 'var(--shadow-md)', None),
+    'shadow.lift-primary': ('shadow', '0 0 #0000', None),
+    'shadow.lift-primary-hover': ('shadow', '0 0 #0000', None),
+    'shadow.lift-primary-active': ('shadow', '0 0 #0000', None),
+    # a gap of the page between the control and a solid ring: seen on a filled button too
+    'shadow.ring-focus': ('shadow', '0 0 0 2px var(--background), 0 0 0 4px var(--ring)', None),
+    'shadow.field-focus': ('shadow', '0 0 0 3px color-mix(in srgb, var(--ring) 50%, transparent)', None),
+    'shadow.nav-active': ('shadow', '0 0 #0000', None),
     'motion.fast': ('duration', '100ms', None),
     'motion.base': ('duration', '150ms', None),
     'motion.slow': ('duration', '300ms', None),
     'motion.ease': ('cubicBezier', 'cubic-bezier(0.4, 0, 0.2, 1)', None),
+    # the widths of the shell: the sidebar expanded and as a rail, the content of a screen
+    'size.sidebar': ('dimension', '15rem', None),
+    'size.sidebar-rail': ('dimension', '4.25rem', None),
+    'size.content': ('dimension', '80rem', None),
 }
 
 #: the layers of the starters that theme.yaml names, from the lowest, and the directory of
@@ -175,22 +242,68 @@ EXTENSION = 'bazis'
 #: the stylesheet of a font of Google Fonts (`fonts: {google: <family>}`)
 GOOGLE_FONTS = 'https://fonts.googleapis.com/css2?family={family}&display=swap'
 
-#: the tones of the statuses (`statuses` of theme.yaml) and the variable of the color of each
+#: the tones of the statuses (`statuses` of theme.yaml) and the variable of the color of each;
+#: the hues of those with a color are at least `TONE_HUES` degrees apart in every mode of a
+#: starter palette (`tests/test_design.py`), so that two statuses never read as one
 TONES = {
     'neutral': '--muted-foreground',
-    'primary': '--primary',
+    'primary': '--tone-primary',
     'info': '--info',
     'success': '--success',
     'warning': '--warning',
     'danger': '--destructive',
 }
 
-#: the colors that the theme derives for each tone: a soft background and the text on it
-#: (`bg-<tone>-soft text-<tone>-ink`), mixed so that the text keeps its contrast in both modes
-DERIVED = {
-    **{f'--{tone}-soft': f'color-mix(in srgb, var({source}) 13%, var(--card))' for tone, source in TONES.items()},
-    **{f'--{tone}-ink': f'color-mix(in srgb, var({source}) 72%, var(--foreground))' for tone, source in TONES.items()},
+TONE_HUES = 15
+
+#: the soft colors (`bg-<name>-soft text-<name>-ink`) and the variable each derives from: those
+#: of each tone, `primary` as `tone-primary` (its own hue in a palette), and the soft primary of
+#: the interface (the toggles, today, the sorted column), which is that of `--selected`
+SOFT = {('tone-primary' if tone == 'primary' else tone): source for tone, source in TONES.items()} | {'primary': '--selected'}
+
+#: the tints of the avatars of the initials (`bg-avatar-<n> text-avatar-<n>-fg`), the variable
+#: of each and the parts of it in its background (over the card) and in its text (over the
+#: foreground); the last one's text is the foreground at 72 % over its background. Colors of the
+#: content, checked on it: never inside the sidebar, where the tones of the content stay and
+#: its foreground and card are those of the sidebar (the user there has `bg-sidebar-primary`)
+AVATARS = (('--primary', 16, 80), ('--brand', 20, 55), ('--info', 16, 70), ('--success', 16, 65), ('--muted-foreground', 18, None))
+
+
+def avatar(source: str, background: int, text: int | None) -> tuple[str, str]:
+    tint = f'color-mix(in oklab, var({source}) {background}%, var(--card))'
+    if text is None:
+        return tint, f'color-mix(in srgb, var(--foreground) 72%, {tint})'
+    return tint, f'color-mix(in oklab, var({source}) {text}%, var(--foreground))'
+
+
+#: the colors that the theme derives, each with the variable it derives from (where D009 reports
+#: it): for each of `SOFT` a soft background and the text on it (`bg-<name>-soft text-<name>-ink`),
+#: mixed so that the text keeps its contrast in both modes; the avatars; the lines between the
+#: rows of a surface (`border-line-6`, `line-10`; the bottom of the header of a table `line-16`).
+#: They are colors of the Tailwind theme, computed where they are used (inside the sidebar from
+#: its colors)
+DERIVED_FROM = {
+    **{f'--{name}-soft': (f'color-mix(in srgb, var({source}) 13%, var(--card))', source) for name, source in SOFT.items()},
+    **{f'--{name}-ink': (f'color-mix(in srgb, var({source}) 72%, var(--foreground))', source) for name, source in SOFT.items()},
+    **{
+        name: (value, source)
+        for number, (source, background, text) in enumerate(AVATARS)
+        for name, value in zip((f'--avatar-{number}', f'--avatar-{number}-fg'), avatar(source, background, text), strict=True)
+    },
+    **{f'--line-{part}': (f'color-mix(in srgb, var(--foreground) {part}%, transparent)', '--foreground') for part in (6, 10, 16)},
 }
+DERIVED = {name: value for name, (value, _) in DERIVED_FROM.items()}
+
+#: the background images of the surfaces (`bg-card bg-(image:--surface-card)`) and of the
+#: controls (over `bg-control`), variables of `:root`: gradients from `color.surface-light` to
+#: the card and to the control once a layer defines one of `SURFACE_TOKENS`; without such a layer
+#: the surfaces are flat (the look of 0.12)
+SURFACES = {
+    '--surface-card': 'linear-gradient(170deg, var(--surface-light) 0%, var(--card) 55%)',
+    '--surface-control': 'linear-gradient(180deg, var(--surface-light) 0%, var(--control) 100%)',
+}
+SURFACES_FLAT = {'--surface-card': 'none', '--surface-control': 'none'}
+SURFACE_TOKENS = ('color.surface-light',)
 
 #: the text colors and the background each is read on: their contrast is at least AA; a text
 #: color that a component makes translucent (`text-sidebar-foreground/80`) has its opacity, the
@@ -207,12 +320,60 @@ CONTRAST: list[tuple[str, str] | tuple[str, str, float]] = [
     ('--sidebar-foreground', '--sidebar'),
     ('--sidebar-foreground', '--sidebar', 0.8),
     ('--sidebar-accent-foreground', '--sidebar-accent'),
+    ('--sidebar-accent-foreground', '--nav-active'),
     ('--sidebar-muted-foreground', '--sidebar'),
+    # the detail of the user on his plate, which has the fill of the current link
+    ('--sidebar-muted-foreground', '--nav-active'),
     ('--sidebar-primary-foreground', '--sidebar-primary'),
     ('--brand-foreground', '--brand'),
     ('--brand', '--card'),
     ('--destructive', '--card'),
-    *((f'--{tone}-ink', f'--{tone}-soft') for tone in TONES),
+    ('--foreground', '--control'),
+    ('--muted-foreground', '--control'),
+    # the header and the cells of a table
+    ('--foreground', '--card', 0.75),
+    ('--foreground', '--card', 0.8),
+    *((f'--{name}-ink', f'--{name}-soft') for name in SOFT),
+    *((f'--avatar-{number}-fg', f'--avatar-{number}') for number in range(len(AVATARS))),
+]
+
+#: the variables of the content that the sidebar replaces with its own inside it (the buttons,
+#: the toggles, the focus rings, the borders and the muted text of the components there)
+SIDEBAR = {
+    '--foreground': 'var(--sidebar-foreground)',
+    '--muted-foreground': 'var(--sidebar-muted-foreground)',
+    '--border': 'var(--sidebar-border)',
+    '--input': 'var(--sidebar-border)',
+    '--accent': 'var(--sidebar-accent)',
+    '--accent-foreground': 'var(--sidebar-accent-foreground)',
+    '--primary': 'var(--sidebar-primary)',
+    '--primary-foreground': 'var(--sidebar-primary-foreground)',
+    '--ring': 'var(--sidebar-ring)',
+    # the surfaces of the sidebar: a control or a card inside it rests on the sidebar, its light
+    # on the accent
+    '--background': 'var(--sidebar)',
+    '--card': 'var(--sidebar)',
+    '--card-foreground': 'var(--sidebar-foreground)',
+    '--surface-light': 'var(--sidebar-accent)',
+}
+#: the tokens of the surfaces, the fields and the primary lift are expressions of the role colors:
+#: declared again inside the sidebar, they are computed on the colors of the sidebar (`SIDEBAR`),
+#: the value of a layer and the default alike (a `var()` of `:root` is computed there and
+#: inherited computed); a literal of a layer stays the same everywhere. `color.shade` is not one
+#: of them: the shadows inside the sidebar keep the dark tone of the content
+SIDEBAR_FOLLOWS = (
+    'color.border-surface', 'color.border-control', 'color.control', 'color.control-hover',
+    'color.field-line', 'color.field-line-hover', 'color.field-line-focus',
+    'shadow.ring-focus', 'shadow.field-focus',
+    'shadow.lift-primary', 'shadow.lift-primary-hover', 'shadow.lift-primary-active',
+)
+#: the colors read inside the sidebar, computed there (`sidebar_scope`), with their minimum
+#: contrast: its text on a control at rest and under the pointer, the focused line of a field (a
+#: line, not a text: 3:1)
+SIDEBAR_CONTRAST = [
+    ('--sidebar-foreground', '--control', color.AA),
+    ('--sidebar-foreground', '--control-hover', color.AA),
+    ('--field-line-focus', '--sidebar', 3.0),
 ]
 
 #: the group of the tokens of the dark mode
@@ -561,6 +722,18 @@ def check_brand(theme: Document, root: Path | None, issues: Issues) -> None:
         )
 
 
+def check_shell(theme: Document, issues: Issues) -> None:
+    """
+    The state of the sidebar (`shell.sidebar`) is given to a shell with a sidebar only (D018).
+    """
+    if 'sidebar' in theme.data.get('shell', {}) and options(theme.data)['navigation'] == 'topbar':
+        issues.add(
+            theme, ('shell', 'sidebar'), 'D018',
+            'There is no sidebar to collapse under `navigation: topbar`.',
+            'Remove `shell.sidebar`, or choose `navigation: sidebar`.',
+        )
+
+
 def check_hidden_layers(theme: Document, tokens: Document | None, issues: Issues) -> None:
     """
     tokens.json replaces no more than half of the tokens of a layer that theme.yaml names (a
@@ -598,13 +771,27 @@ def source(name: str, values: dict[str, str]) -> str:
 
 def pair_contrast(values: dict[str, str], text: str, background: str, alpha: float = 1) -> float | None:
     """
-    The contrast of the text color on its background (the text at `alpha` over it), None when
-    `color` cannot compute one of them.
+    The contrast of the text color on its background (the text at `alpha` over it; a translucent
+    background over the page), None when `color` cannot compute one of them.
     """
-    first, second = color.parse(values[text], values), color.parse(values[background], values)
+    page = color.parse(values['--background'], values) if '--background' in values else None
+    first, second = color.parse(values[text], values), color.over(values[background], page, values)
     if first is None or second is None:
         return None
     return color.contrast(tuple(alpha * a + (1 - alpha) * b for a, b in zip(first, second, strict=True)), second)
+
+
+def sidebar_scope(values: dict[str, str]) -> dict[str, str]:
+    """
+    The variables that a component inside the sidebar reads (`[data-slot='sidebar']` of the
+    theme): those of :root computed there and inherited as colors, under those that the sidebar
+    declares again (`SIDEBAR`, `SIDEBAR_FOLLOWS` with their values of :root).
+    """
+    inherited = {}
+    for name, value in values.items():
+        parsed = color.parse(value, values)
+        inherited[name] = value if parsed is None else 'rgb({} {} {})'.format(*(255 * it for it in parsed))
+    return {**inherited, **SIDEBAR, **{variable(it): values[variable(it)] for it in SIDEBAR_FOLLOWS}}
 
 
 def check_contrast(
@@ -612,28 +799,48 @@ def check_contrast(
 ) -> None:
     """
     The text colors have a contrast of at least 4.5:1 (WCAG AA) on their backgrounds, in
-    every mode of the theme; the colors that `color` cannot compute are not checked.
+    every mode of the theme, and the colors read inside the sidebar theirs there
+    (`SIDEBAR_CONTRAST`); the colors that `color` cannot compute are not checked.
     """
-    # the colors of a tone are reported at the token of the tone
-    owners = {key: TONES[key[2:].rsplit('-', 1)[0]] for key in DERIVED}
+    # a derived color is reported at the token it derives from
+    owners = {name: source for name, (_, source) in DERIVED_FROM.items()}
     by_variable = {variable(name): it for name, it in defined.items() if not name.startswith(f'{DARK}.')}
     dark = {variable(name): it for name, it in defined.items() if name.startswith(f'{DARK}.')}
+
+    def report(values: dict[str, str], mode: str, text: str, background: str, ratio: float, problem: str) -> None:
+        candidates = [source(owners.get(text, text), values), source(owners.get(background, background), values)]
+        places = [dark, by_variable] if mode == DARK else [by_variable]
+        entry = next((it[name] for name in candidates for it in places if name in it), None)
+        issues.add(
+            *(place(theme, tokens, entry) if entry is not None else (tokens or theme, ())), 'D009', problem,
+            'Make the text darker or lighter than its background (the lightness of oklch()).',
+        )
+
     for mode in modes(theme.data if theme is not None else None, defined):
         values = variables(defined, dark=mode == DARK)
+        # a pair whose colors are those of a pair before it (`--control` is the background by
+        # default) is reported once
+        seen = set()
         for text, background, *opacity in CONTRAST:
             alpha = opacity[0] if opacity else 1
-            ratio = pair_contrast(values, text, background, alpha)
-            if ratio is None or ratio >= color.AA:
+            colors = (source(text, values), source(background, values), alpha)
+            if colors in seen:
                 continue
-            candidates = [source(owners.get(text, text), values), source(owners.get(background, background), values)]
-            places = [dark, by_variable] if mode == DARK else [by_variable]
-            entry = next((it[name] for name in candidates for it in places if name in it), None)
-            issues.add(
-                *(place(theme, tokens, entry) if entry is not None else (tokens or theme, ())), 'D009',
-                f'The text color {text}{f" at {alpha:.0%}" if alpha < 1 else ""} on {background} has a contrast of {ratio:.2f}:1 in the '
-                f'{mode} mode, below {color.AA}:1 (WCAG AA).',
-                'Make the text darker or lighter than its background (the lightness of oklch()).',
-            )
+            seen.add(colors)
+            ratio = pair_contrast(values, text, background, alpha)
+            if ratio is not None and ratio < color.AA:
+                report(values, mode, text, background, ratio, (
+                    f'The text color {text}{f" at {alpha:.0%}" if alpha < 1 else ""} on {background} has a contrast of {ratio:.2f}:1 in the '
+                    f'{mode} mode, below {color.AA}:1 (WCAG AA).'
+                ))
+        inside = sidebar_scope(values)
+        for text, background, minimum in SIDEBAR_CONTRAST:
+            ratio = pair_contrast(inside, text, background)
+            if ratio is not None and ratio < minimum:
+                report(values, mode, text, background, ratio, (
+                    f'The color {text} on {background} inside the sidebar has a contrast of {ratio:.2f}:1 in the {mode} mode, '
+                    f'below {minimum}:1 (WCAG AA).'
+                ))
 
 
 def check(
@@ -660,6 +867,7 @@ def check(
     check_statuses(theme, contract, issues)
     check_icons(theme, entities, issues)
     check_brand(theme, root, issues)
+    check_shell(theme, issues)
     if not usable:
         return
     check_hidden_layers(theme, tokens, issues)

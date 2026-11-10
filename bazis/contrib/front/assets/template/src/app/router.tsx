@@ -19,7 +19,8 @@ import { lazyScreen } from '@/app/lazy';
 import { LOGIN_ENABLED, signOut, useToken } from '@/app/session';
 import { useLanguage } from '@/bazis/i18n';
 import { useApi } from '@/bazis/react';
-import { AppShell, type NavEntry } from '@/bazis/ui/app-shell';
+import { AppShell, Screen, type NavEntry } from '@/bazis/ui/app-shell';
+import { StatePanel } from '@/bazis/ui/state-panel';
 import { navigation } from '@/screens/generated/navigation';
 import { PRODUCT_NAME } from '@/screens/generated/product';
 import { GeneratedProviders } from '@/screens/generated/providers';
@@ -93,6 +94,16 @@ function RequireSession() {
   return <Outlet />;
 }
 
+/** A path of no screen: a screen with its title, the state under it. */
+function NotFound() {
+  const { t } = useLanguage();
+  return (
+    <Screen id="not-found" title={t('state.not_found.page')}>
+      <StatePanel state="not_found" />
+    </Screen>
+  );
+}
+
 export function AppRouter() {
   return (
     <GeneratedProviders>
@@ -112,8 +123,9 @@ export function AppRouter() {
             {/* the public screens (an anonymous role of the specs), with or without a session */}
             {PUBLIC_ROUTES}
             <Route element={<RequireSession />}>{SCREEN_ROUTES}</Route>
+            {/* a path of no screen: said so in the layout, never a silent jump home */}
+            <Route path="*" element={<NotFound />} />
           </Route>
-          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </GeneratedProviders>

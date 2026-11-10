@@ -212,6 +212,44 @@ def test_a_link_of_the_navigation_is_labelled_by_its_label_else_by_the_title_of_
     assert "label: t('screens.task-list.title')," in navigation
 
 
+def test_a_link_of_the_navigation_counts_the_items_of_its_list(tmp_path):
+    """
+    `count` of a link gives its item the route set of its list and the filter of the number: that of
+    the link, with the filter of a report; a day of the browser computed when the navigation is.
+    """
+    shutil.copytree(SAMPLE_SPEC, tmp_path / 'spec')
+    path = tmp_path / 'spec' / 'product.yaml'
+    data = yaml.safe_load(path.read_text(encoding='utf-8'))
+    data['navigation'][1]['items'][1]['count'] = {'filter': {'dt_created__gte': 'today'}}
+    path.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding='utf-8')
+
+    navigation = rendered(tmp_path)[f'{screens.GENERATED_DIR}/navigation.ts']
+    # the list of the sample counts its drafts
+    assert "count: { path: ENTITIES.task.path, filter: Filter.where('status', 'draft') }," in navigation
+    assert "import { relativeDay } from '@/bazis/react';\n" in navigation
+    report = navigation.split("screen: 'draft-tasks'")[1].split('},\n        {')[0]
+    assert (
+        "count:{path:ENTITIES.task.path,filter:Filter.and(Filter.where('status','draft'),"
+        "Filter.where('dt_created__gte',relativeDay('today','date-time')),),},"
+    ) in ''.join(report.split())
+
+
+def test_the_tools_of_a_list_where_its_header_puts_them_else_where_the_theme_does(tmp_path):
+    """
+    `header.search` puts the search, the view and the actions of a list beside the title, `false`
+    over the list; without it the list takes `composition.list_tools` of the theme, and its code is
+    that of 0.12 to the byte (the open of an item keeps its history in `ListCardLayout`).
+    """
+    shutil.copytree(SAMPLE_SPEC, tmp_path / 'spec')
+    edit_screen(tmp_path, 'task-list', lambda data: data['header'].update(search=False))
+    task_list = rendered(tmp_path)[f'{screens.GENERATED_DIR}/task-list.tsx']
+    assert "            search: true,\n            toolbar: 'list',\n            count: true,\n" in task_list
+    edit_screen(tmp_path, 'task-list', lambda data: data.pop('header'))
+    task_list = rendered(tmp_path)[f'{screens.GENERATED_DIR}/task-list.tsx']
+    fixture = (FIXTURES / 'task-list.tsx').read_text(encoding='utf-8')
+    assert task_list == fixture.replace("            toolbar: 'header',\n            count: true,\n", '')
+
+
 def test_the_transits_in_their_order_and_the_values_of_the_add_of_a_calendar(tmp_path):
     """
     The transits of a workflow in the order of the specs, those confirmed marked, with the

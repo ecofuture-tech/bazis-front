@@ -21,8 +21,9 @@
 // date-time on the day it starts, to its `end` on the same day: the start alone in a day of a
 // month, the range in its tooltip); a click on a day selects it, and
 // the list of the selected day (today at first) shows all its items, `row:<id>` again. A month
-// at the width of a phone has a dot on the days with items, which only the list of the day
-// shows: no hidden copy of a row is in the page. The filters of the user (`FilterBar` of
+// at the width of a phone, or where the days are too narrow for the labels of their items, has a
+// dot on the days with items, which only the list of the day shows (a week there is the list of
+// its days): no hidden copy of a row is in the page. The filters of the user (`FilterBar` of
 // resource-list, as those of a list) narrow the items. The
 // action that creates an item (`action:<id>`) is given the values its form starts with: the
 // field on the selected day (at the time of the add), its end after the duration of the add,
@@ -31,7 +32,7 @@
 // browser).
 
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useId, useState, type ComponentType, type ReactNode } from 'react';
+import { useEffect, useId, useState, type ComponentType, type ReactNode } from 'react';
 
 import { Filter, pagination } from '@/bazis/client';
 import type { Tone } from '@/bazis/generated/theme';
@@ -42,6 +43,7 @@ import {
   type FieldDisplay,
   type Fields,
   fieldValue,
+  inlineDisplay,
   itemLabel,
   ItemValue,
   permitted,
@@ -53,7 +55,7 @@ import {
   useAnyLists,
   useListFields,
 } from '@/bazis/ui/resource';
-import { FilterBar, listFilters, type FilterValues, type ListFilter } from '@/bazis/ui/resource-list';
+import { FilterBar, FilterRow, listFilters, ResetFilters, type FilterValues, type ListFilter } from '@/bazis/ui/resource-list';
 import { errorState, StatePanel, type ViewState } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -115,8 +117,32 @@ export interface ResourceCalendarProps {
 const LIMIT = 500;
 /** The items of a day of a month shown in its cell; the others in the list of the day. */
 const SHOWN = 3;
+
+/** The width of the days of a period under which they are too narrow for the labels of their items: 7 days of 5.7rem. */
+const NARROW = 640;
+
+/**
+ * Whether the days of a period are too narrow for the labels of their items: the element of the
+ * days by the ref callback, measured as it is resized (`ResizeObserver`; without one, as in
+ * jsdom, never).
+ */
+function useNarrow(): [(element: HTMLElement | null) => void, boolean] {
+  const [element, setElement] = useState<HTMLElement | null>(null);
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    if (element === null || typeof ResizeObserver !== 'function') return;
+    const observer = new ResizeObserver(() => {
+      setNarrow(element.clientWidth < NARROW);
+    });
+    observer.observe(element);
+    return () => {
+      observer.disconnect();
+    };
+  }, [element]);
+  return [setElement, narrow];
+}
 const META = ['pagination', 'for_create'];
-const FOCUS = 'outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50';
+const FOCUS = 'outline-none focus-visible:ring-focus';
 
 /** The local midnight of a day `YYYY-MM-DD`. */
 function parseDay(day: string): Date {
@@ -191,14 +217,15 @@ interface ItemProps {
 
 /**
  * An item, a button that opens it: its time and the first field of its label on a line, the
- * first field on a line of its own when they do not fit together, then each other field on a
- * line, each cut to the width of the item with its whole text in its title.
+ * first field on a line of its own when they do not fit together, then each other field with a
+ * value on a line, each cut to the width of the item with its whole text in its title.
  */
 function Item({ item, label, meta, display, tone, onOpen, time, range, className }: ItemProps) {
   const [first, ...others] = label;
+  // a line of a day has no room for an avatar or chips: their text
   const value = (name: string, look?: string) => (
     <span key={name} ref={titleFromText} data-bz={`cell:${name}`} className={cn('min-w-0 truncate', look)}>
-      <ItemValue item={item} name={name} fields={meta} display={display[name]} />
+      <ItemValue item={item} name={name} fields={meta} display={inlineDisplay(display[name])} />
     </span>
   );
   const content = (
@@ -217,11 +244,18 @@ function Item({ item, label, meta, display, tone, onOpen, time, range, className
           value(first, 'max-w-full font-medium')
         )}
       </span>
-      {others.map((name) => value(name))}
+      {/* a line of its own for a value, none for no value (a dash under a name) */}
+      {others
+        .filter((name) => {
+          const it = fieldValue(item, name);
+          return it !== null && it !== undefined && it !== '' && !(Array.isArray(it) && !it.length);
+        })
+        .map((name) => value(name))}
     </>
   );
   const look = cn(
-    'grid w-full min-w-0 content-start gap-0.5 rounded-md px-1.5 py-1 text-left pointer-coarse:min-h-11',
+    'grid w-full min-w-0 content-start gap-0.5 rounded-md px-1.5 py-1 text-left shadow-(--shadow-lift-05) pointer-coarse:min-h-11',
+    // an item without a tone: the soft color of the selected and the active
     tone ? SOFT_TONES[tone] : 'bg-primary-soft text-primary-ink',
     className,
   );
@@ -268,9 +302,14 @@ export function ResourceCalendar({
   const [anchor, setAnchor] = useState(today);
   const [selected, setSelected] = useState(today);
   const wide = useWide();
+  const [setDays, narrow] = useNarrow();
+  // the days without the labels of their items: a phone, or a period too narrow for them
+  const compact = !wide || narrow;
   const meta = useListFields(path);
   const filterList = listFilters(filters, meta);
   const [userFilter, setUserFilter] = useState<{ filter: Filter | undefined; equal: FilterValues }>({ filter: undefined, equal: {} });
+  // the filters of the user start again empty when he resets them
+  const [filterKey, setFilterKey] = useState(0);
   const filter = screenFilter && userFilter.filter ? Filter.and(screenFilter, userFilter.filter) : (screenFilter ?? userFilter.filter);
   const firstDay = weekStart(language);
   const days = periodDays(parseDay(anchor), view, firstDay);
@@ -365,19 +404,26 @@ export function ResourceCalendar({
     const isSelected = key === selected;
     const outside = view === 'month' && day.getMonth() !== month;
     const shown = view === 'month' ? dayItems.slice(0, SHOWN) : dayItems;
-    // a month at the width of a phone: a dot, the items in the list of the day
-    const dot = view === 'month' && !wide;
+    // a compact month: a dot, the items in the list of the day
+    const dot = view === 'month' && compact;
     return (
+      // a click anywhere on the day selects it (its button for the keyboard), on an item opens it too
       <div
         key={key}
         data-bz={`day:${key}`}
         data-count={dayItems.length}
         className={cn(
           'grid min-w-0 content-start gap-1 bg-card',
-          // a week at the width of a phone is a list of its days: a day without items is low
-          dot ? 'min-h-16 p-0.5' : view === 'month' ? 'min-h-28 p-1.5' : 'p-1.5 sm:min-h-40',
-          outside && 'bg-muted text-muted-foreground',
+          // a compact week is a list of its days: a day without items is low; a wide week down to
+          // the bottom of the window
+          dot ? 'min-h-16 p-0.5' : view === 'month' ? 'min-h-28 p-1.5' : cn('p-1.5', !compact && 'min-h-[max(10rem,calc(100dvh-20rem))]'),
+          // a day of another month on the card as the others, the month one field: its number
+          // muted, its items neutral
+          outside && 'text-muted-foreground',
         )}
+        onClick={() => {
+          setSelected(key);
+        }}
       >
         <div className="flex items-center gap-1.5">
           {view === 'week' && (
@@ -388,23 +434,23 @@ export function ResourceCalendar({
           <button
             type="button"
             aria-pressed={isSelected}
+            aria-current={key === today ? 'date' : undefined}
             aria-label={fullDay.format(day)}
             aria-controls={listId}
             className={cn(
               FOCUS,
-              // a month at the width of a phone: the whole day is the button, with the dot of its items
+              // a compact month: the whole day is the button, with the dot of its items
               dot ? 'grid w-full justify-items-center gap-1 rounded-md py-1' : 'flex size-7 items-center justify-center rounded-full pointer-coarse:size-11',
               'text-sm tabular-nums',
             )}
-            onClick={() => {
-              setSelected(key);
-            }}
           >
+            {/* today filled, the selected day in a ring */}
             <span
               className={cn(
                 'flex size-7 items-center justify-center rounded-full transition-colors hover:bg-muted',
-                key === today && 'font-semibold text-primary',
-                isSelected && 'bg-primary text-primary-foreground hover:bg-primary',
+                key === today && 'bg-primary font-semibold text-primary-foreground hover:bg-primary',
+                isSelected && 'ring-2 ring-primary',
+                isSelected && key === today && 'ring-offset-2 ring-offset-card',
               )}
             >
               {day.getDate()}
@@ -420,8 +466,18 @@ export function ResourceCalendar({
         </div>
         {dot ? null : (
           <div className="grid min-w-0 gap-1 text-xs">
+            {/* a line of a month: the first field of the label */}
             {shown.map((item) => (
-              <Item key={item.id} item={item} label={labels} meta={meta} display={display} tone={toneOf(item)} onOpen={onOpen} {...timesOn(item, key, view === 'month')} />
+              <Item
+                key={item.id}
+                item={item}
+                label={view === 'month' ? labels.slice(0, 1) : labels}
+                meta={meta}
+                display={display}
+                tone={outside ? 'neutral' : toneOf(item)}
+                onOpen={onOpen}
+                {...timesOn(item, key, view === 'month')}
+              />
             ))}
             {dayItems.length > shown.length && (
               <button
@@ -443,7 +499,9 @@ export function ResourceCalendar({
 
   return (
     <div data-bz={`calendar:${entity}`} data-from={from} data-to={to} className="grid grid-cols-[minmax(0,1fr)] gap-4">
-      <div className="flex flex-wrap items-center gap-2">
+      {/* the line of the navigation: the period, its filters, the views; on the bottom of the
+          controls of the filters, under their labels; the container of the place of the reset */}
+      <div className="@container flex flex-wrap items-end gap-2">
         <div className="flex items-center gap-1">
           <Button
             type="button"
@@ -482,16 +540,49 @@ export function ResourceCalendar({
             {t('calendar.today')}
           </Button>
         </div>
-        <h2 aria-live="polite" className="min-w-0 flex-1 text-lg font-subheading first-letter:uppercase max-sm:order-first max-sm:basis-full">
+        {/* the period in the text of the toolbar, under the title of the screen: never a heading as
+            heavy as it */}
+        <h2 aria-live="polite" className="min-w-0 py-1.5 text-base font-medium first-letter:uppercase max-sm:order-first max-sm:basis-full">
           {title}
         </h2>
+        {filterList.length > 0 && (
+          // no plate of their own: about 15rem a filter, never narrower than 28rem (where they fold
+          // behind their button) beside the period: with less room they wrap with the toolbar, a
+          // line of filters, folded on a phone only
+          <div
+            className="@container flex-1 sm:ml-4"
+            style={{ minWidth: `min(100%, ${String(Math.min(filterList.length * 15, 28))}rem)`, maxWidth: `${String(filterList.length * 15)}rem` }}
+          >
+            <FilterRow plate={false} line>
+              <FilterBar
+                resets={filterKey}
+                path={path}
+                filters={filterList}
+                ready={meta.ready}
+                title={meta.title}
+                onFilter={(next, equal) => {
+                  setUserFilter({ filter: next, equal });
+                }}
+              />
+            </FilterRow>
+          </div>
+        )}
+        {filterList.length > 0 && (
+          <ResetFilters
+            shown={userFilter.filter !== undefined}
+            onReset={() => {
+              setFilterKey((it) => it + 1);
+              setUserFilter({ filter: undefined, equal: {} });
+            }}
+          />
+        )}
         {views.length > 1 && (
-          <div role="group" aria-label={t('calendar.view')} className="flex rounded-md border p-0.5">
+          <div role="group" aria-label={t('calendar.view')} className="ml-auto flex gap-1.5">
             {views.map((it) => (
               <Button
                 key={it}
                 type="button"
-                variant={it === view ? 'secondary' : 'ghost'}
+                variant="outline"
                 size="sm"
                 data-bz={`view:${it}`}
                 aria-pressed={it === view}
@@ -518,19 +609,6 @@ export function ResourceCalendar({
           </Button>
         )}
       </div>
-      {filterList.length > 0 && (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
-          <FilterBar
-            path={path}
-            filters={filterList}
-            ready={meta.ready}
-            title={meta.title}
-            onFilter={(next, equal) => {
-              setUserFilter({ filter: next, equal });
-            }}
-          />
-        </div>
-      )}
       {state === 'loaded' || state === 'empty' ? (
         <div data-bz={`state:${state}`} className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 xl:grid-cols-[minmax(0,1fr)_18rem]">
           <div className="grid min-w-0 gap-2">
@@ -540,9 +618,9 @@ export function ResourceCalendar({
                 {t('calendar.truncated', { count: formatNumber(rows.length, language) })}
               </p>
             )}
-            <div className="overflow-hidden rounded-xl border">
+            <div ref={setDays} className="surface overflow-hidden">
               {view === 'month' && (
-                <div aria-hidden="true" className="grid grid-cols-7 border-b bg-muted/60 text-xs text-muted-foreground">
+                <div aria-hidden="true" className="grid grid-cols-7 border-b text-xs text-muted-foreground">
                   {days.slice(0, 7).map((day) => (
                     <span key={isoDate(day)} className="truncate px-2 py-1.5 first-letter:uppercase">
                       {weekday.format(day)}
@@ -550,12 +628,12 @@ export function ResourceCalendar({
                   ))}
                 </div>
               )}
-              <div className={cn('grid gap-px bg-border', view === 'month' ? 'grid-cols-7' : 'grid-cols-1 sm:grid-cols-7')}>
+              <div className={cn('grid gap-px bg-border', view === 'month' || !compact ? 'grid-cols-7' : 'grid-cols-1')}>
                 {days.map((day) => cell(day))}
               </div>
             </div>
           </div>
-          <section id={listId} aria-label={fullDay.format(parseDay(selected))} className="grid grid-cols-[minmax(0,1fr)] content-start gap-3 rounded-xl border bg-card p-(--space-card)">
+          <section id={listId} aria-label={fullDay.format(parseDay(selected))} className="surface grid grid-cols-[minmax(0,1fr)] content-start gap-3 p-(--space-card)">
             <h3 className="font-medium first-letter:uppercase">{fullDay.format(parseDay(selected))}</h3>
             {selectedItems.length === 0 ? (
               <p className="text-sm text-muted-foreground">{t('calendar.no_items')}</p>

@@ -14,7 +14,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { ApiError, createClient } from '../src/index.js';
+import { ApiError, createClient, OfflineError } from '../src/index.js';
 import type { paths } from './fixtures/schema.js';
 import { BASE } from './support.js';
 
@@ -175,7 +175,7 @@ describe('upload', () => {
     const uploading = api.upload(FILES, FILE).catch((error: unknown) => error);
     await opened();
     xhr.onerror?.();
-    expect(await uploading).toBeInstanceOf(TypeError);
+    expect(await uploading).toBeInstanceOf(OfflineError);
   });
 
   it('aborts the request with the signal', async () => {

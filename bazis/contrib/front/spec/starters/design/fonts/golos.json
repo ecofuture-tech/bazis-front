@@ -1,0 +1,10 @@
+{
+  "$schema": "../../../schemas/tokens.schema.json",
+  "$description": "Golos Text alone, a grotesque without serifs for the text, the headings and the figures (the headings heavier and tight): one variable file of every weight for each subset, nothing else to load. Served by the frontend itself (OFL), with a fallback face of the same metrics.",
+  "font": {
+    "body": {"$type": "fontFamily", "$value": ["Golos Text", "Golos Text Fallback", "ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", "Roboto", "Arial", "sans-serif"], "$extensions": {"bazis": {"font": {"starter": "golos-text"}}}},
+    "heading": {"$type": "fontFamily", "$value": "{font.body}"},
+    "weight-heading": {"$type": "fontWeight", "$value": 650},
+    "tracking-heading": {"$type": "dimension", "$value": "-0.02em"}
+  }
+}

@@ -34,10 +34,9 @@ export function LoginScreen() {
   const name = t(PRODUCT_NAME);
   const from = (location.state as { from?: string } | null)?.from ?? '/';
   return (
-    <main
-      data-bz="screen:login"
-      className="flex min-h-dvh flex-col items-center justify-center gap-8 bg-[radial-gradient(ellipse_at_top,var(--color-primary-soft),transparent_65%)] p-4"
-    >
+    // on the page of the theme (its light, `color.glow-a`, `-b`, where a layer gives one), no
+    // gradient of its own
+    <main data-bz="screen:login" className="flex min-h-dvh flex-col items-center justify-center gap-8 p-4">
       {/* the mark of the brand of the theme, as in the shell */}
       <Brand title={name} large />
       <LoginForm

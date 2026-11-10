@@ -14,20 +14,25 @@
 
 // The layout of the application: the navigation (a sidebar, a drawer on a phone, or a top
 // bar, as `navigation` of spec/design/theme.yaml), its links `nav:<screen>` (those that
-// require a permission shown once the backend allows it; those that the top bar has no room
-// for in its menu `nav:more`), the session (the user and the
-// logout, `action:logout`; without one, the sign-in `action:sign-in`), the language
+// require a permission shown once the backend allows it, the number of the items of a list
+// beside a link `count:<screen>`; those that the top bar has no room for in its menu
+// `nav:more`; the sidebar collapsed to a rail of icons, by default on a narrow screen or with
+// `shell.sidebar: rail` of the theme, the choice of the user kept in the storage of the browser;
+// its widths and that of the content of a screen the tokens `size.*`),
+// the session (the user and the logout, `action:logout`; without one, the sign-in
+// `action:sign-in`), the language
 // (`action:language`, with more than one language), the color mode, the tools of the product
 // (the notifications), the toasts, and the screens, each wrapped in `Screen` (`screen:<id>`)
 // with its title, its actions and the link back to the screen it was opened from
 // (`nav:<screen>`).
 
 import type { UseQueryResult } from '@tanstack/react-query';
-import { ArrowLeft, ChevronRight, Ellipsis, LogIn, LogOut, Menu } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Ellipsis, LogIn, LogOut, Menu, PanelLeftClose, PanelLeftOpen, UserRound, X } from 'lucide-react';
 import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useId,
   useLayoutEffect,
   useMemo,
@@ -36,13 +41,15 @@ import {
   useSyncExternalStore,
   type ComponentProps,
   type ComponentType,
+  type ReactElement,
   type ReactNode,
 } from 'react';
-import { Link, NavLink, useLocation } from 'react-router';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router';
 
+import { aggregateValues, type Filter } from '@/bazis/client';
 import { THEME, type BrandMark } from '@/bazis/generated/theme';
-import { useLanguage } from '@/bazis/i18n';
-import { useCan, useFilterFields, type Can } from '@/bazis/react';
+import { formatNumber, useLanguage } from '@/bazis/i18n';
+import { useCan, useFilterFields, useList, type Can, type QueryOptions } from '@/bazis/react';
 import { Toaster } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
 import {
@@ -54,10 +61,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 import { ColorModeToggle } from './color-mode.js';
 import { LanguageToggle } from './language.js';
+import { useBesideList } from './list-card.js';
 
 /** A link of the navigation to a screen of the specs: `nav:<screen>`. */
 export interface NavItem {
@@ -72,6 +81,11 @@ export interface NavItem {
   requires?: NavRequirement;
   /** The link of a public screen (an anonymous role of the specs), also shown without a session. */
   public?: boolean;
+  /**
+   * The number beside the link (`count` of the link in the specs): the items of the route set
+   * (`ROUTES` of the contract) that the filter selects, once the link is shown; none at 0.
+   */
+  count?: { path: string; filter: Filter };
 }
 
 /** Links of the navigation under a heading, shown while the backend allows the user one of them. */
@@ -145,8 +159,10 @@ export interface NavRequirement {
 
 /** The session of the user; null without a login (no bazis-users), or before the user logs in. */
 export interface ShellSession {
-  /** Who is logged in. */
+  /** Who is logged in: in the sidebar, a plate with the circle of his initials. */
   user?: ReactNode;
+  /** Under his name in the sidebar, smaller: his role, his organization. */
+  detail?: ReactNode;
   onLogout: () => void;
 }
 
@@ -177,17 +193,45 @@ export interface AppShellProps {
   children: ReactNode;
 }
 
+/** The key of the storage of the browser that keeps the choice of the user: the sidebar collapsed to a rail or expanded. */
+const RAIL = 'bazis-sidebar';
+
+/** Whether the user collapsed the sidebar to a rail; null when he did not choose (or the storage is not available). */
+function storedRail(): boolean | null {
+  try {
+    const stored = window.localStorage.getItem(RAIL);
+    return stored === null ? null : stored === 'collapsed';
+  } catch {
+    return null;
+  }
+}
+
+function storeRail(collapsed: boolean): void {
+  try {
+    window.localStorage.setItem(RAIL, collapsed ? 'collapsed' : 'expanded');
+  } catch {
+    // a storage that is not available: the choice lasts until the page is reloaded
+  }
+}
+
 /** The width from which the sidebar is shown: the breakpoint `md` of Tailwind. */
 const WIDE = '(min-width: 48rem)';
+/** The width from which the sidebar is expanded until the user collapses it, a rail below (`shell.sidebar: auto`): the breakpoint `lg`. */
+const ROOMY = '(min-width: 64rem)';
 
-function subscribeWide(listener: () => void) {
-  if (typeof window.matchMedia !== 'function') return () => undefined;
-  const query = window.matchMedia(WIDE);
-  query.addEventListener('change', listener);
-  return () => {
-    query.removeEventListener('change', listener);
+function subscriber(media: string) {
+  return (listener: () => void) => {
+    if (typeof window.matchMedia !== 'function') return () => undefined;
+    const query = window.matchMedia(media);
+    query.addEventListener('change', listener);
+    return () => {
+      query.removeEventListener('change', listener);
+    };
   };
 }
+
+const subscribeWide = subscriber(WIDE);
+const subscribeRoomy = subscriber(ROOMY);
 
 /**
  * Whether the screen is at least the breakpoint `md` of Tailwind wide: the sidebar is shown,
@@ -197,8 +241,26 @@ export function useWide(): boolean {
   return useSyncExternalStore(subscribeWide, () => typeof window.matchMedia !== 'function' || window.matchMedia(WIDE).matches);
 }
 
+/** The id of the content of the page, which the first link of the page skips to. */
+const CONTENT = 'content';
+
+/** The first link of the page for the keyboard, shown once focused (its padding then: `sr-only` has none): past the navigation to the content. */
+function SkipLink() {
+  const { t } = useLanguage();
+  return (
+    <a
+      href={`#${CONTENT}`}
+      className="sr-only rounded-md bg-background text-sm font-medium text-foreground shadow-(--shadow-lift-2) focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:px-3 focus:py-2 focus-visible:ring-focus"
+    >
+      {t('shell.skip')}
+    </a>
+  );
+}
+
 const ShellContext = createContext<Navigation | null>(null);
 const ItemsContext = createContext<readonly NavItem[]>([]);
+/** Whether the links are those of a rail, only their icons seen: their labels in tooltips at their side (`RailLabel`). */
+const RailContext = createContext(false);
 
 /** The links of the navigation of the layout (`items` of `AppShell`, those of its groups in their place), none outside it. */
 export function useNavItems(): readonly NavItem[] {
@@ -243,6 +305,7 @@ export function Brand({ title, mark = THEME.brand, large = false }: BrandProps) 
         </span>
       )}
       <span
+        data-slot="brand-name"
         title={typeof title === 'string' ? title : undefined}
         // the leading after the size: `cn` drops a leading that a size follows
         className={cn('line-clamp-2 font-heading', large ? 'text-xl' : 'text-base', 'leading-tight')}
@@ -258,6 +321,7 @@ const useAnyCan = useCan as unknown as (path: string, action: Can) => boolean | 
 const useAnyFilterFields = useFilterFields as unknown as (
   path: string,
 ) => UseQueryResult<{ fields: readonly { name: string }[] }>;
+const useAnyList = useList as unknown as (path: string, query: QueryOptions) => UseQueryResult<Parameters<typeof aggregateValues>[0]>;
 
 /**
  * Its children once the backend allows the user what a link requires (`requires` of a
@@ -490,6 +554,7 @@ function MoreLink({ item }: { item: NavItem }) {
           <span title={typeof item.label === 'string' ? item.label : undefined} className="truncate">
             {item.label}
           </span>
+          {item.count && <NavCount screen={item.screen} count={item.count} vertical={false} />}
         </NavLink>
       </DropdownMenuItem>
     </Allowed>
@@ -503,13 +568,21 @@ function NavGroupEntry({ group, vertical, onNavigate, copy = false }: EntryProps
     <AnyAllowed requirements={group.items.map((it) => it.requires)}>
       <li
         data-nav-group=""
-        className={cn('flex gap-1', vertical ? 'flex-col pt-3' : 'items-center')}
+        className={cn(
+          'flex gap-1',
+          // a group of a rail: a line over its links instead of its heading
+          vertical
+            ? 'flex-col pt-3 group-data-[state=collapsed]/sidebar:mx-2 group-data-[state=collapsed]/sidebar:mt-2 group-data-[state=collapsed]/sidebar:border-t group-data-[state=collapsed]/sidebar:border-sidebar-border group-data-[state=collapsed]/sidebar:pt-2'
+            : 'items-center',
+        )}
       >
         <span
           id={heading}
           className={cn(
-            'truncate text-xs font-medium',
-            vertical ? 'px-3 pb-1 text-sidebar-foreground/80' : 'pl-2 text-muted-foreground',
+            'truncate',
+            vertical
+              ? 'px-3 pb-1.5 font-eyebrow text-sidebar-muted-foreground group-data-[state=collapsed]/sidebar:sr-only'
+              : 'pl-2 text-xs font-medium text-muted-foreground',
           )}
         >
           {group.label}
@@ -524,53 +597,115 @@ function NavGroupEntry({ group, vertical, onNavigate, copy = false }: EntryProps
   );
 }
 
-/** A link of the navigation outside the groups right after a group: set apart from its links by a line. */
+/** A link of the navigation outside the groups right after a group: set apart from its links (in the top bar by a line). */
 const AFTER_GROUP = {
-  vertical: '[[data-nav-group]+&]:mt-2 [[data-nav-group]+&]:border-t [[data-nav-group]+&]:border-sidebar-border [[data-nav-group]+&]:pt-2',
+  vertical: '[[data-nav-group]+&]:mt-3',
   horizontal: '[[data-nav-group]+&]:ml-1 [[data-nav-group]+&]:border-l [[data-nav-group]+&]:border-border [[data-nav-group]+&]:pl-2',
 };
 
 /** A link of the navigation, also the button of the menu of the top bar. */
 const LINK = {
-  base: 'group flex items-center gap-3 text-sm font-medium transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
-  vertical: 'rounded-md px-3 py-2 text-sidebar-foreground/80 pointer-coarse:min-h-11 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground',
+  base: 'group flex items-center gap-3 text-sm font-medium transition-colors outline-none focus-visible:ring-focus',
+  vertical:
+    'relative rounded-md px-3 py-2 text-sidebar-foreground/80 pointer-coarse:min-h-11 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground group-data-[state=collapsed]/sidebar:justify-center',
   horizontal: 'rounded-full px-3.5 py-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground',
 };
 
-/** The current link. */
+/** The current link: in the sidebar a lifted fill with a bar at its start (`color.nav-active`, `-bar`, `shadow.nav-active`). */
 const CURRENT = {
-  vertical: 'bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent',
+  vertical:
+    'bg-nav-active text-sidebar-accent-foreground shadow-(--shadow-nav-active) hover:bg-nav-active before:absolute before:inset-y-[11px] before:left-0 before:w-0.5 before:rounded-r-full before:bg-nav-active-bar',
   horizontal: 'bg-accent text-accent-foreground',
 };
+
+/** The label of a link of a rail, only the icon of which is seen: a tooltip at its side under the pointer and the focus. */
+function RailLabel({ label, children }: { label: ReactNode; children: ReactElement }) {
+  if (label === undefined) return children;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent side="right" sideOffset={8}>
+        {label}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
 /** A link of the navigation, `nav:<screen>`, shown once the backend allows what it requires. */
 function NavLinkEntry({ item, vertical, onNavigate, copy = false }: EntryProps & { item: NavItem }) {
   const Icon = item.icon;
+  const rail = useContext(RailContext);
+  const label = typeof item.label === 'string' ? item.label : undefined;
   return (
     <Allowed requirement={item.requires}>
       <li data-nav-entry={copy ? item.screen : undefined} className={vertical ? AFTER_GROUP.vertical : AFTER_GROUP.horizontal}>
-        <NavLink
-          to={item.to}
-          end={item.end}
-          data-bz={copy ? undefined : `nav:${item.screen}`}
-          onClick={onNavigate}
-          className={({ isActive }) =>
-            cn(
-              LINK.base,
-              vertical ? LINK.vertical : LINK.horizontal,
-              isActive && (vertical ? CURRENT.vertical : CURRENT.horizontal),
-            )
-          }
-        >
-          {Icon && (
-            <Icon className="size-4 shrink-0 opacity-70 group-aria-[current=page]:text-primary group-aria-[current=page]:opacity-100" />
-          )}
-          <span title={typeof item.label === 'string' ? item.label : undefined} className="truncate">
-            {item.label}
-          </span>
-        </NavLink>
+        <RailLabel label={rail ? item.label : undefined}>
+          <NavLink
+            to={item.to}
+            end={item.end}
+            data-bz={copy ? undefined : `nav:${item.screen}`}
+            onClick={onNavigate}
+            className={({ isActive }) =>
+              cn(
+                LINK.base,
+                vertical ? LINK.vertical : LINK.horizontal,
+                isActive && (vertical ? CURRENT.vertical : CURRENT.horizontal),
+              )
+            }
+          >
+            {Icon && (
+              <Icon
+                className={cn(
+                  'size-4 shrink-0 opacity-70 group-aria-[current=page]:opacity-100',
+                  // in the sidebar a thinner stroke, the current one in the color of its text
+                  vertical ? '[stroke-width:1.75]' : 'group-aria-[current=page]:text-primary',
+                )}
+              />
+            )}
+            <span title={label} className="truncate group-data-[state=collapsed]/sidebar:sr-only">
+              {item.label}
+            </span>
+            {item.count && <NavCount screen={copy ? undefined : item.screen} count={item.count} vertical={vertical} />}
+          </NavLink>
+        </RailLabel>
       </li>
     </Allowed>
+  );
+}
+
+/**
+ * The number of the items that a link counts (`count` of `NavItem`), `count:<screen>` with the
+ * number in `data-value`, at the end of the link; nothing until it is loaded, at 0, on an error.
+ * In the sidebar on the current link in its primary; a dot in a rail. The query is that of a
+ * tile counting the same items (`StatCard`), whose answer it shares.
+ */
+function NavCount({
+  screen,
+  count,
+  vertical,
+}: {
+  /** None in the copy of the row of the top bar, which is not marked for the tests. */
+  screen: string | undefined;
+  count: NonNullable<NavItem['count']>;
+  vertical: boolean;
+}) {
+  const { language } = useLanguage();
+  const list = useAnyList(count.path, { filter: count.filter, page: { limit: 1 }, meta: ['aggregates'], aggregate: ['count'] });
+  const value = Number((list.data && aggregateValues(list.data)?.count) ?? 0);
+  if (!value) return null;
+  return (
+    <span
+      data-bz={screen === undefined ? undefined : `count:${screen}`}
+      data-value={value}
+      className={cn(
+        'ml-auto inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[11px] font-semibold tabular-nums',
+        vertical
+          ? 'bg-sidebar-accent text-sidebar-accent-foreground group-aria-[current=page]:bg-sidebar-primary group-aria-[current=page]:text-sidebar-primary-foreground group-data-[state=collapsed]/sidebar:absolute group-data-[state=collapsed]/sidebar:top-1.5 group-data-[state=collapsed]/sidebar:right-1.5 group-data-[state=collapsed]/sidebar:size-2 group-data-[state=collapsed]/sidebar:min-w-0 group-data-[state=collapsed]/sidebar:bg-sidebar-primary group-data-[state=collapsed]/sidebar:p-0 group-data-[state=collapsed]/sidebar:text-[0px]'
+          : 'bg-muted text-muted-foreground',
+      )}
+    >
+      {formatNumber(value, language)}
+    </span>
   );
 }
 
@@ -585,9 +720,52 @@ function initials(user: ReactNode): string | null {
     .join('');
 }
 
+/**
+ * The session: in the sidebar and its drawer the plate of the user (the circle of his initials,
+ * his name and its `detail`, the logout as an icon), in the top bar his name and the logout;
+ * without his name the logout alone. In a rail the plate is the circle over the logout.
+ */
 function Session({ session, compact = false }: { session: ShellSession; compact?: boolean }) {
   const { t } = useLanguage();
   const letters = initials(session.user);
+  if (!compact && session.user !== undefined) {
+    return (
+      <div
+        data-slot="sidebar-user"
+        className="grid grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-2.5 rounded-xl bg-nav-active py-2 pr-2 pl-2.5 shadow-(--shadow-nav-active) group-data-[state=collapsed]/sidebar:grid-cols-[2rem] group-data-[state=collapsed]/sidebar:justify-center group-data-[state=collapsed]/sidebar:px-1"
+      >
+        <span
+          aria-hidden="true"
+          className="flex size-8 items-center justify-center rounded-full bg-sidebar-primary text-xs font-semibold text-sidebar-primary-foreground"
+        >
+          {letters ?? <UserRound className="size-4" />}
+        </span>
+        <span className="grid min-w-0 group-data-[state=collapsed]/sidebar:sr-only">
+          <span
+            title={typeof session.user === 'string' ? session.user : undefined}
+            className="truncate text-[13px] font-semibold text-sidebar-accent-foreground"
+          >
+            {session.user}
+          </span>
+          {session.detail !== undefined && (
+            <span className="truncate text-xs text-sidebar-muted-foreground">{session.detail}</span>
+          )}
+        </span>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          data-bz="action:logout"
+          title={t('shell.logout')}
+          className="text-sidebar-foreground/80"
+          onClick={session.onLogout}
+        >
+          <LogOut />
+          <span className="sr-only">{t('shell.logout')}</span>
+        </Button>
+      </div>
+    );
+  }
   return (
     <div className="flex min-w-0 items-center gap-2 text-sm">
       {session.user !== undefined && (
@@ -610,11 +788,13 @@ function Session({ session, compact = false }: { session: ShellSession; compact?
         variant="ghost"
         size="sm"
         data-bz="action:logout"
+        // its name in a rail, where only its icon is seen
+        title={t('shell.logout')}
         className={cn('text-muted-foreground', !compact && 'ml-auto')}
         onClick={session.onLogout}
       >
         <LogOut />
-        {t('shell.logout')}
+        <span className="group-data-[state=collapsed]/sidebar:sr-only">{t('shell.logout')}</span>
       </Button>
     </div>
   );
@@ -626,9 +806,16 @@ function Account({ session, signIn, compact = false }: { session: ShellSession |
   if (session) return <Session session={session} compact={compact} />;
   if (!signIn) return null;
   return (
-    <Button type="button" size="sm" data-bz="action:sign-in" className={cn(!compact && 'w-full')} onClick={signIn}>
+    <Button
+      type="button"
+      size="sm"
+      data-bz="action:sign-in"
+      title={t('shell.sign_in')}
+      className={cn(!compact && 'w-full')}
+      onClick={signIn}
+    >
       <LogIn />
-      {t('shell.sign_in')}
+      <span className="group-data-[state=collapsed]/sidebar:sr-only">{t('shell.sign_in')}</span>
     </Button>
   );
 }
@@ -694,10 +881,16 @@ export function AppShell({
 }: AppShellProps) {
   const wide = useWide();
   const links = useMemo(() => navLinks(items), [items]);
+  const [chosen, setChosen] = useState(storedRail);
+  const roomy = useSyncExternalStore(subscribeRoomy, () => typeof window.matchMedia !== 'function' || window.matchMedia(ROOMY).matches);
+  // the choice of the user, else the state of the theme: a rail, expanded, or expanded where there is room
+  const collapsed = chosen ?? (THEME.shell.sidebar === 'auto' ? !roomy : THEME.shell.sidebar === 'rail');
+  const { t } = useLanguage();
   if (navigation === 'topbar') {
     return (
       <ShellContext value={navigation}>
         <div className="flex min-h-dvh flex-col [--bleed:1rem] [--sticky-top:4rem] md:[--bleed:var(--space-page-x)]">
+          <SkipLink />
           <header className="sticky top-0 z-30 h-16 border-b bg-background">
             <div className="flex h-full w-full items-center gap-6 px-4 md:px-(--space-page-x)">
               <Brand title={title} mark={brand} />
@@ -717,7 +910,7 @@ export function AppShell({
               </div>
             </div>
           </header>
-          <main className="mx-auto w-full max-w-6xl min-w-0 flex-1 px-4 py-8 md:px-(--space-page-x) md:py-12">
+          <main id={CONTENT} tabIndex={-1} className="w-full min-w-0 flex-1 px-4 py-8 outline-none md:px-(--space-page-x) md:py-12">
             <ItemsContext value={links}>{children}</ItemsContext>
           </main>
           <Toaster />
@@ -727,24 +920,55 @@ export function AppShell({
   }
   return (
     <ShellContext value={navigation}>
-      <div className="min-h-dvh [--bleed:1rem] [--sticky-top:3.5rem] md:grid md:grid-cols-[15rem_minmax(0,1fr)] md:[--bleed:var(--space-page-x)] md:[--sticky-top:4rem]">
+      <div
+        className={cn(
+          'min-h-dvh [--bleed:1rem] [--sticky-top:3.5rem] md:grid md:[--bleed:var(--space-page-x)] md:[--sticky-top:4rem]',
+          collapsed ? 'md:grid-cols-[var(--size-sidebar-rail)_minmax(0,1fr)]' : 'md:grid-cols-[var(--size-sidebar)_minmax(0,1fr)]',
+        )}
+      >
+        <SkipLink />
+        {/* a rail (`data-state="collapsed"`): the icons of the links with their labels in their
+            titles, the mark of the brand, the tools in a column and the circle of the user */}
         <aside
           data-slot="sidebar"
-          className="sticky top-0 hidden h-dvh flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex"
+          data-state={collapsed ? 'collapsed' : 'expanded'}
+          className="group/sidebar sticky top-0 hidden h-dvh flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex"
         >
-          <div className="flex h-16 shrink-0 items-center px-5">
+          <div className="flex h-16 shrink-0 items-center px-5 group-data-[state=collapsed]/sidebar:justify-center group-data-[state=collapsed]/sidebar:px-0 group-data-[state=collapsed]/sidebar:[&_[data-slot=brand-name]]:sr-only">
             <Brand title={title} mark={brand} />
           </div>
           <div className="flex-1 overflow-y-auto px-3 py-2">
-            <Navigation items={items} />
+            <RailContext value={collapsed}>
+              <TooltipProvider delayDuration={300}>
+                <Navigation items={items} />
+              </TooltipProvider>
+            </RailContext>
           </div>
           {/* the foot: the toggles and the tools of the product on a row that wraps, the
               session on a row of its own under them, so that neither pushes the other out */}
-          <div className="grid gap-2 border-t border-sidebar-border p-3">
-            <div data-slot="sidebar-tools" className="flex flex-wrap items-center gap-1">
+          <div className="grid gap-2 border-t border-sidebar-border p-3 group-data-[state=collapsed]/sidebar:justify-items-center group-data-[state=collapsed]/sidebar:px-1.5">
+            <div
+              data-slot="sidebar-tools"
+              className="flex flex-wrap items-center gap-1 group-data-[state=collapsed]/sidebar:flex-col"
+            >
               <ColorModeToggle className="text-muted-foreground" />
               <LanguageToggle className="text-muted-foreground" />
               {wide && tools}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label={t(collapsed ? 'shell.expand' : 'shell.collapse')}
+                aria-expanded={!collapsed}
+                title={t(collapsed ? 'shell.expand' : 'shell.collapse')}
+                className="ml-auto text-muted-foreground group-data-[state=collapsed]/sidebar:ml-0"
+                onClick={() => {
+                  storeRail(!collapsed);
+                  setChosen(!collapsed);
+                }}
+              >
+                {collapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
+              </Button>
             </div>
             <Account session={session} signIn={signIn} />
           </div>
@@ -759,7 +983,7 @@ export function AppShell({
               <ColorModeToggle />
             </div>
           </header>
-          <main className="min-w-0 flex-1 px-(--bleed) pt-(--space-section) pb-(--space-page-y)">
+          <main id={CONTENT} tabIndex={-1} className="min-w-0 flex-1 px-(--bleed) pt-(--space-section) pb-(--space-page-y) outline-none">
             <ItemsContext value={links}>{children}</ItemsContext>
           </main>
         </div>
@@ -779,6 +1003,16 @@ export interface ScreenPage {
   claim: (open: boolean) => void;
   /** The screen has a title, its `h1`; without one, its card is headed by its item, `h1`. */
   titled: boolean;
+  /**
+   * The place of the tools of a list in the header of the screen (`toolbar="header"` of
+   * `ResourceList`), `data-slot="screen-tools"`: null without a header.
+   */
+  tools: HTMLElement | null;
+  /**
+   * The caption beside the title (`caption`, `data-slot="screen-caption"`), where a list puts the
+   * number of its items (`count` of `ResourceList`): null without a header.
+   */
+  caption: HTMLElement | null;
 }
 
 const PageContext = createContext<ScreenPage | null>(null);
@@ -802,19 +1036,22 @@ export interface ScreenProps {
   title?: ReactNode;
   /**
    * The screen it was opened from: before the title, a breadcrumb to it on a wide screen
-   * (`xl`), a button back to it below.
+   * (`xl`), its label after an arrow below; beside its list (`ListCardLayout`, `split`) the
+   * screen closes back to it (`action:close`, Escape).
    */
   parent?: ScreenParent;
   /** Under the title: what the screen is for. */
   description?: ReactNode;
+  /** Beside the title, smaller: a fact of the screen, such as the day of today of a dashboard. */
+  caption?: ReactNode;
   /** Next to the title: the actions of the screen. */
   actions?: ReactNode;
   children: ReactNode;
 }
 
 /**
- * The link back to the parent of a screen: an arrow below `xl`, its label from it, and a
- * chevron before the title of the screen (none on a screen that its card heads).
+ * The link back to the parent of a screen: its label, after an arrow below `xl`, and a chevron
+ * before the title of the screen (none on a screen that its card heads).
  */
 function Breadcrumb({ parent, titled }: { parent: ScreenParent; titled: boolean }) {
   const { t } = useLanguage();
@@ -823,62 +1060,124 @@ function Breadcrumb({ parent, titled }: { parent: ScreenParent; titled: boolean 
       <Link
         to={parent.to}
         data-bz={`nav:${parent.screen}`}
-        className="-ml-2 inline-flex size-9 items-center justify-center gap-1 rounded-md outline-none pointer-coarse:min-h-11 pointer-coarse:min-w-11 hover:bg-accent hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 xl:ml-0 xl:size-auto xl:px-1.5 xl:py-1"
+        className="-ml-2 inline-flex h-9 items-center gap-1 rounded-md px-2 outline-none pointer-coarse:min-h-11 hover:bg-accent hover:text-foreground focus-visible:ring-focus xl:ml-0 xl:h-auto xl:px-1.5 xl:py-1"
       >
         <ArrowLeft className="size-4 xl:hidden" aria-hidden="true" />
-        <span className="max-xl:sr-only">{parent.label}</span>
+        <span>{parent.label}</span>
       </Link>
       {titled && <ChevronRight className="hidden size-4 opacity-60 xl:block" aria-hidden="true" />}
     </nav>
   );
 }
 
+/** The elements whose own Escape a card beside its list leaves to them. */
+const FIELDS = 'input, textarea, select, [contenteditable="true"], [role="combobox"]';
+
 /**
- * A screen of the specs: `screen:<id>`, its header (the link back to its parent, the title and
- * the actions; in a working application it stays at the top while the screen scrolls,
- * `--sticky-top` high), its description and its content.
+ * A screen of the specs: `screen:<id>`, its header (the link back to its parent, the title with
+ * its caption, the tools of its list and the actions; in a working application it stays at the
+ * top while the screen scrolls, `--sticky-top` high), its description and its content.
  */
-export function Screen({ id, title, parent, description, actions, children }: ScreenProps) {
+export function Screen({ id, title, parent, description, caption, actions, children }: ScreenProps) {
   const navigation = useContext(ShellContext);
   const [target, setTarget] = useState<HTMLElement | null>(null);
+  const [tools, setTools] = useState<HTMLElement | null>(null);
+  const [captionPlace, setCaptionPlace] = useState<HTMLElement | null>(null);
   const [pages, setPages] = useState(0);
   const claim = useCallback((open: boolean) => {
     setPages((count) => count + (open ? 1 : -1));
   }, []);
   const titled = title !== undefined;
-  const page = useMemo(() => ({ target, claim, titled }), [target, claim, titled]);
+  const page = useMemo(
+    () => ({ target, claim, titled, tools, caption: captionPlace }),
+    [target, claim, titled, tools, captionPlace],
+  );
   // the header sticks under the top of the page with the sidebar, never under a top bar
   const sticky = navigation !== 'topbar';
   const portal = THEME.preset === 'portal';
+  const { t } = useLanguage();
+  const navigate = useNavigate();
+  // beside its list, closed back to it, by Escape too unless a page of it (a form) is open or a
+  // dialog, a menu or a field took the key
+  const beside = useBesideList();
+  const closes = beside && parent !== undefined ? parent.to : undefined;
+  // beside its list, whose title is the `h1` of the page, under it
+  const Heading = beside ? 'h2' : 'h1';
+  // the title of the page: that of the screen before that of the product (of index.html)
+  useEffect(() => {
+    if (typeof title !== 'string') return;
+    const product = document.title;
+    document.title = `${title} · ${product}`;
+    return () => {
+      document.title = product;
+    };
+  }, [title]);
+  useEffect(() => {
+    if (closes === undefined || pages > 0) return;
+    const close = (event: KeyboardEvent) => {
+      // a field keeps its Escape (the search clears, a combobox closes its list); a dialog or a menu
+      // takes it before (`defaultPrevented`)
+      const field = event.target instanceof Element && event.target.closest(FIELDS) !== null;
+      if (event.key === 'Escape' && !event.defaultPrevented && !field) void navigate(closes);
+    };
+    document.addEventListener('keydown', close);
+    return () => {
+      document.removeEventListener('keydown', close);
+    };
+  }, [closes, pages, navigate]);
   return (
-    <section data-bz={`screen:${id}`} className="mx-auto grid w-full max-w-7xl grid-cols-[minmax(0,1fr)] gap-(--space-section)">
+    <section data-bz={`screen:${id}`} className="mx-auto grid w-full max-w-(--size-content) grid-cols-[minmax(0,1fr)] gap-(--space-section)">
       <PageContext value={page}>
         {/* `contents`: the header is laid out in the section, which it sticks in */}
         <div className={pages > 0 ? 'hidden' : 'contents'}>
-          {(title !== undefined || parent !== undefined || actions !== undefined) && (
+          {(title !== undefined || parent !== undefined || caption !== undefined || actions !== undefined) && (
             <header
               data-slot="screen-header"
               className={cn(
                 'flex flex-wrap items-center justify-between gap-4',
+                // the air under the sticky header: the ring of a focused control is never under it
                 sticky &&
-                  '-mx-(--bleed) bg-background px-(--bleed) md:sticky md:border-b md:top-0 md:z-20 md:mt-[calc(var(--screen-lift,var(--space-section))*-1)] md:h-(--sticky-top) md:flex-nowrap',
+                  '-mx-(--bleed) px-(--bleed) md:sticky md:border-b md:top-0 md:z-20 md:mt-[calc(var(--screen-lift,var(--space-section))*-1)] md:mb-3 md:h-(--sticky-top) md:flex-nowrap md:bg-background',
               )}
             >
               <div className="flex min-w-0 items-center gap-1">
                 {parent !== undefined && <Breadcrumb parent={parent} titled={titled} />}
-                {title !== undefined && (
-                  <h1
-                    title={typeof title === 'string' ? title : undefined}
-                    className={cn(
-                      'min-w-0 truncate font-heading',
-                      portal ? 'text-2xl md:text-3xl' : 'text-xl',
-                    )}
+                <div className="flex min-w-0 items-baseline gap-3">
+                  {title !== undefined && (
+                    <Heading
+                      title={typeof title === 'string' ? title : undefined}
+                      className={cn(
+                        'min-w-0 truncate font-heading',
+                        portal ? 'text-2xl md:text-3xl' : 'text-xl',
+                      )}
+                    >
+                      {title}
+                    </Heading>
+                  )}
+                  <p
+                    ref={setCaptionPlace}
+                    data-slot="screen-caption"
+                    className="shrink-0 text-sm whitespace-nowrap text-muted-foreground tabular-nums empty:hidden"
                   >
-                    {title}
-                  </h1>
-                )}
+                    {caption}
+                  </p>
+                </div>
               </div>
+              {/* the search, the view and the actions of a list (`toolbar="header"`) at the end, a row of
+                  their own under the title on a phone */}
+              <div
+                ref={setTools}
+                data-slot="screen-tools"
+                className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-x-4 gap-y-3 empty:hidden max-md:basis-full md:flex-1 md:flex-nowrap"
+              />
               {actions !== undefined && <div className="ml-auto flex shrink-0 flex-wrap gap-2">{actions}</div>}
+              {closes !== undefined && (
+                <Button asChild variant="ghost" size="icon" className="-mr-2 ml-auto">
+                  <Link to={closes} data-bz="action:close" aria-label={t('action.close')} title={t('action.close')}>
+                    <X aria-hidden="true" />
+                  </Link>
+                </Button>
+              )}
             </header>
           )}
           {description !== undefined && (
@@ -886,8 +1185,9 @@ export function Screen({ id, title, parent, description, actions, children }: Sc
               className={cn(
                 'text-muted-foreground',
                 portal ? 'text-lg' : 'text-sm',
-                // right under the title, not a section of its own
-                title !== undefined && (sticky ? 'md:-mt-(--space-section) -mt-3' : '-mt-4'),
+                // right under the title, not a section of its own; under the line of a sticky
+                // header at the air of the content, never against the line
+                title !== undefined && (sticky ? '-mt-3 md:mt-0' : '-mt-4'),
               )}
             >
               {description}

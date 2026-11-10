@@ -12,6 +12,10 @@ export interface Theme {
   readonly preset: 'workspace' | 'portal';
   readonly navigation: 'sidebar' | 'topbar';
   readonly density: 'comfortable' | 'compact';
+  readonly shell: {
+    /** The sidebar until the user chooses: auto, expanded from the breakpoint lg and a rail below; expanded; or a rail, at every width. */
+    readonly sidebar: 'auto' | 'expanded' | 'rail';
+  };
   readonly composition: {
     /** A list as a table or a grid of cards. */
     readonly list: 'table' | 'cards';
@@ -21,6 +25,10 @@ export interface Theme {
     readonly list_card: 'split' | 'pages';
     /** Forms in a dialog, or in place of the content of the screen. */
     readonly forms: 'dialog' | 'page';
+    /** The row of the filters on a surface of its own (plate), or on the page (row). */
+    readonly filters: 'plate' | 'row';
+    /** The search, the view and the actions of a list over it (list), or in the header of its screen (header). */
+    readonly list_tools: 'list' | 'header';
   };
   readonly controls: {
     /** localized: a text as the language of the product writes a date, with a calendar; native: `<input type="date">`. */
@@ -43,10 +51,12 @@ export type BrandMark = { readonly icon: ComponentType<{ className?: string }> }
 export const THEME: Theme = {
   brand: null,
   composition: {
+    filters: "plate",
     forms: "dialog",
     list: "table",
     list_card: "split",
     list_phone: "cards",
+    list_tools: "list",
   },
   controls: {
     date: "localized",
@@ -60,6 +70,9 @@ export const THEME: Theme = {
   },
   navigation: "sidebar",
   preset: "workspace",
+  shell: {
+    sidebar: "auto",
+  },
   statuses: {
     done: "success",
     draft: "neutral",

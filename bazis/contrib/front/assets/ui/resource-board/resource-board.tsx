@@ -50,7 +50,7 @@ import {
 } from '@/bazis/ui/resource';
 import { statusName, statusOf, transitName, transitTarget } from '@/bazis/ui/status-badge';
 import { errorState, StatePanel, toast, type ViewState } from '@/bazis/ui/state-panel';
-import { FilterBar, listFilters, type ListFilter } from '@/bazis/ui/resource-list';
+import { FilterBar, FilterRow, listFilters, ResetFilters, type ListFilter } from '@/bazis/ui/resource-list';
 import { inDeclaredOrder, listedTransit, useRunTransit, type DeclaredTransit, type TransitRun } from '@/bazis/ui/transit-bar';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -156,7 +156,7 @@ function BoardCard({ item, title, fields, meta, badge, display, onOpen, moves }:
   return (
     <article
       data-bz={`row:${item.id}`}
-      className="relative grid grid-cols-[minmax(0,1fr)] gap-2 rounded-lg border bg-card p-3 text-card-foreground shadow-xs transition-shadow has-[button[data-open]:hover]:shadow-md"
+      className="surface relative grid grid-cols-[minmax(0,1fr)] gap-2 rounded-lg p-3 text-card-foreground transition-shadow has-[button[data-open]:hover]:shadow-(--shadow-lift-2)"
     >
       <div className="flex items-start gap-2">
         {onOpen ? (
@@ -164,7 +164,7 @@ function BoardCard({ item, title, fields, meta, badge, display, onOpen, moves }:
           <button
             type="button"
             data-open=""
-            className="min-w-0 flex-1 text-left outline-none after:absolute after:inset-0 after:rounded-lg focus-visible:after:ring-[3px] focus-visible:after:ring-ring/50"
+            className="min-w-0 flex-1 text-left outline-none after:absolute after:inset-0 after:rounded-lg focus-visible:after:ring-focus"
             onClick={() => {
               onOpen(item.id);
             }}
@@ -223,6 +223,8 @@ export function ResourceBoard({
   const statuses = columns ?? workflowStatuses(type);
   const [limits, setLimits] = useState<Readonly<Record<string, number>>>({});
   const [userFilter, setUserFilter] = useState<Filter | undefined>();
+  // the filters of the user start again empty when he resets them
+  const [filterKey, setFilterKey] = useState(0);
   const filter = screenFilter && userFilter ? Filter.and(screenFilter, userFilter) : (screenFilter ?? userFilter);
   const meta = useListFields(path);
   const filterList = listFilters(filters, meta);
@@ -268,8 +270,20 @@ export function ResourceBoard({
   return (
     <div data-bz={`board:${entity}`} className="grid grid-cols-[minmax(0,1fr)] gap-4">
       {filterList.length > 0 && (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+        <FilterRow
+          tools={
+            <ResetFilters
+              shown={userFilter !== undefined}
+              onReset={() => {
+                setFilterKey((it) => it + 1);
+                setUserFilter(undefined);
+                setLimits({});
+              }}
+            />
+          }
+        >
           <FilterBar
+            resets={filterKey}
             path={path}
             filters={filterList}
             ready={meta.ready}
@@ -279,7 +293,7 @@ export function ResourceBoard({
               setLimits({});
             }}
           />
-        </div>
+        </FilterRow>
       )}
       {run.open === null && run.mutation.isError && (
         <div data-bz="error:move">
@@ -287,7 +301,6 @@ export function ResourceBoard({
             inline
             state={errorState(run.mutation.error)}
             error={run.mutation.error}
-            message={run.mutation.error.message}
           />
         </div>
       )}
@@ -331,7 +344,7 @@ export function ResourceBoard({
                         <span className="text-sm text-muted-foreground tabular-nums">{formatNumber(count, language)}</span>
                       </header>
                       {items.length === 0 ? (
-                        <p className="rounded-lg border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
+                        <p className="px-3 py-6 text-center text-sm text-muted-foreground">
                           {t('board.empty_column')}
                         </p>
                       ) : (

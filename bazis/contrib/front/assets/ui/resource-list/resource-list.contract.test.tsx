@@ -31,10 +31,10 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { Filter } from '@/bazis/client';
 import { TRANSITS } from '@/bazis/generated/contract';
-import { ListCardLayout } from '@/bazis/ui/app-shell';
-import { statusName } from '@/bazis/ui/resource';
+import { ListCardLayout, Screen } from '@/bazis/ui/app-shell';
+import { SOFT_TONES, statusName } from '@/bazis/ui/resource';
 import { equalValues, filterOf, ResourceList } from '@/bazis/ui/resource-list';
-import { Backend, errors, ITEMS, listDocument, renderWithBazis, resource, runtimeSchema } from '@/bazis/ui/testing';
+import { Backend, errors, ITEMS, listDocument, renderWithBazis, resource, runtimeSchema, setTheme } from '@/bazis/ui/testing';
 
 // the menus and the selects are positioned with ResizeObserver and scroll their options into
 // view, which jsdom does not have
@@ -110,10 +110,17 @@ describe('ResourceList', () => {
     expect(await within(loaded).findByText('Title')).toBeTruthy();
     expect(within(screen.getByTestId('row:a')).getByTestId('cell:title').textContent).toBe('First');
     expect(within(screen.getByTestId('row:a')).getByTestId('cell:done').textContent).toBe('Yes');
+    // a row that opens has no column of its own without the actions of the rows
+    expect(loaded.querySelectorAll('th')).toHaveLength(2);
+    expect(screen.getByTestId('row:a').querySelectorAll('td')).toHaveLength(2);
     fireEvent.click(screen.getByTestId('row:b'));
     expect(onOpen).toHaveBeenCalledWith('b');
     fireEvent.keyDown(screen.getByTestId('row:a'), { key: 'Enter' });
     expect(onOpen).toHaveBeenLastCalledWith('a');
+    // Space too, the row named by its item
+    expect(fireEvent.keyDown(screen.getByTestId('row:b'), { key: ' ' })).toBe(false);
+    expect(onOpen).toHaveBeenLastCalledWith('b');
+    expect(screen.getByTestId('row:a').getAttribute('aria-label')).toBe('First');
   });
 
   it('shows a number of `display: plain` without the separators of its thousands', async () => {
@@ -233,10 +240,17 @@ describe('ResourceList', () => {
     await waitFor(() => {
       expect(within(screen.getByTestId('row:a')).getByTestId('cell:state').textContent).toBe('Finished');
     });
-    // a select named by the field, whose first option, every item, is `data-value=""`
+    // a select named by the label of the field over it, whose first option, every item, is `data-value=""`
     const control = await screen.findByTestId('field:state');
-    expect(control.getAttribute('role')).toBe('combobox');
-    expect(control.getAttribute('aria-label')).toBe('State');
+    expect(screen.getByRole('combobox', { name: 'State' })).toBe(control);
+    // its group draws the line under the control, the label over it, outside the group
+    const group = control.closest('[data-slot="field-group"]');
+    const label = screen.getByText('State', { selector: 'label' });
+    expect(group).not.toBeNull();
+    expect(group?.contains(label)).toBe(false);
+    expect(label.closest('[data-filled]')).toBeNull();
+    // the row of a list of its own screen is no line (`line` of a section of a card, of a calendar)
+    expect(control.closest('[data-slot="filter-row"]')?.hasAttribute('data-line')).toBe(false);
     open(control);
     const listbox = await screen.findByRole('listbox');
     expect(control.getAttribute('aria-controls')).toBe(listbox.id);
@@ -248,6 +262,8 @@ describe('ResourceList', () => {
       expect(requested(server, 'filter=state=done')).toBe(true);
     });
     expect(control.textContent).toContain('Finished');
+    // filled, its label in the color of the text
+    expect(label.closest('[data-filled]')).not.toBeNull();
     // every item again
     const count = server.requests('GET').length;
     open(control);
@@ -265,7 +281,7 @@ describe('ResourceList', () => {
       .on('GET', ITEMS, listDocument(rows));
     renderWithBazis(<ResourceList path={ITEMS as never} entity="item" columns={['title']} filters={['is_late']} />, server);
     const group = await screen.findByTestId('field:is_late');
-    expect(group.getAttribute('aria-label')).toBe('Is late');
+    expect(screen.getByRole('group', { name: 'Is late' })).toBe(group);
     const [yes, no] = within(group).getAllByRole('button');
     if (!yes || !no) throw new Error('two chips');
     fireEvent.click(yes);
@@ -287,6 +303,34 @@ describe('ResourceList', () => {
     });
   });
 
+  it('resets the filters of the user, shown only while he has any', async () => {
+    const server = new Backend()
+      .on('GET', `${ITEMS}schema_list/`, runtimeSchema({ is_late: { attribute: { type: 'boolean', title: 'Late' } } }, { list: true }))
+      .on('GET', `${ITEMS}route_filter_fields/`, { fields: [{ name: 'is_late', py_type: 'boolean' }] })
+      .on('GET', ITEMS, listDocument(rows));
+    renderWithBazis(<ResourceList path={ITEMS as never} entity="item" columns={['title']} filters={['is_late']} />, server);
+    const group = await screen.findByTestId('field:is_late');
+    expect(screen.queryByTestId('action:reset-filters')).toBeNull();
+    const [yes] = within(group).getAllByRole('button');
+    if (!yes) throw new Error('a chip');
+    fireEvent.click(yes);
+    await waitFor(() => {
+      expect(requested(server, 'filter=is_late=true')).toBe(true);
+    });
+    const count = server.requests('GET').length;
+    fireEvent.click(await screen.findByTestId('action:reset-filters'));
+    await waitFor(() => {
+      expect(server.requests('GET').slice(count).some((it) => it.startsWith(`GET ${ITEMS}?`) && !it.includes('filter'))).toBe(true);
+    });
+    const [again] = within(await screen.findByTestId('field:is_late')).getAllByRole('button');
+    expect(again?.getAttribute('aria-pressed')).toBe('false');
+    expect(screen.queryByTestId('action:reset-filters')).toBeNull();
+    // the focus that the reset leaves goes to the first control of the filters
+    await waitFor(() => {
+      expect(document.activeElement).toBe(again);
+    });
+  });
+
   it('renders the numeric filters as numbers', async () => {
     const server = backend(listDocument(rows)).on('GET', `${ITEMS}route_filter_fields/`, {
       fields: [{ name: 'price', py_type: 'Decimal' }, { name: 'rate', py_type: 'number' }],
@@ -299,6 +343,93 @@ describe('ResourceList', () => {
       expect(screen.getByTestId<HTMLInputElement>('field:price').type).toBe('number');
     });
     expect(screen.getByTestId<HTMLInputElement>('field:rate').type).toBe('number');
+    // on a phone (one column) folded behind their button, which counts those with a value
+    const fold = screen.getByTestId('action:filters');
+    const cell = (name: string) => screen.getByTestId(`field:${name}`).closest('[data-filled], div.grid');
+    expect(fold.getAttribute('aria-expanded')).toBe('false');
+    expect(cell('price')?.className).toContain('@max-md:hidden');
+    fireEvent.change(screen.getByTestId('field:price'), { target: { value: '5' } });
+    expect(fold.textContent).toBe('Filters1');
+    fireEvent.click(fold);
+    expect(fold.getAttribute('aria-expanded')).toBe('true');
+    expect(cell('price')?.className).not.toContain('@max-md:hidden');
+    // a reset clears them, unfolded as they were
+    fireEvent.click(await screen.findByTestId('action:reset-filters'));
+    expect(screen.getByTestId<HTMLInputElement>('field:price').value).toBe('');
+    expect(screen.getByTestId('action:filters').getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByTestId('action:filters').textContent).toBe('Filters');
+  });
+
+  it('folds its filters beside a card whatever the width, its button shown', async () => {
+    const server = backend(listDocument(rows)).on('GET', `${ITEMS}route_filter_fields/`, {
+      fields: [{ name: 'price', py_type: 'Decimal' }, { name: 'rate', py_type: 'number' }],
+    });
+    renderWithBazis(
+      <Routes>
+        <Route
+          path="/items"
+          element={<ListCardLayout mode="split" list={<ResourceList path={ITEMS as never} entity="item" columns={['title']} filters={['price', 'rate']} />} />}
+        >
+          <Route path=":id" element={<p>card</p>} />
+        </Route>
+      </Routes>,
+      server,
+      { route: '/items/a' },
+    );
+    await screen.findByTestId('field:price');
+    const fold = screen.getByTestId('action:filters');
+    expect(fold.className).not.toContain('@md:hidden');
+    const cell = () => screen.getByTestId('field:price').closest('[data-slot="field-group"]')?.parentElement?.classList;
+    expect(cell()).toContain('hidden');
+    fireEvent.click(fold);
+    expect(cell()).not.toContain('hidden');
+  });
+
+  it('aligns the decimals to the right, a first column of short texts as wide as they are', async () => {
+    const server = new Backend()
+      .on(
+        'GET',
+        `${ITEMS}schema_list/`,
+        runtimeSchema(
+          { number: { attribute: { type: 'string', title: 'Number' } }, price: { attribute: { type: 'string', format: 'decimal', title: 'Price' } } },
+          { list: true },
+        ),
+      )
+      .on('GET', ITEMS, listDocument([resource('a', { number: '7', price: '10.50' }), resource('b', { number: '12', price: '3.00' })]));
+    renderWithBazis(<ResourceList path={ITEMS as never} entity="item" columns={['number', 'price']} layout="table" />, server);
+    const price = within(await screen.findByTestId('row:a')).getByTestId('cell:price');
+    expect(price.className).toContain('text-right');
+    expect(price.className).toContain('tabular-nums');
+    const number = within(screen.getByTestId('row:a')).getByTestId('cell:number');
+    expect([number.className.includes('min-w-48'), number.hasAttribute('data-short')]).toEqual([false, true]);
+  });
+
+  it('keeps each line of a text of several lines whole, a text of one line wrapping', async () => {
+    const server = new Backend()
+      .on(
+        'GET',
+        `${ITEMS}schema_list/`,
+        runtimeSchema(
+          { title: { attribute: { type: 'string', title: 'Title' } }, items: { attribute: { type: 'string', title: 'Items' } } },
+          { list: true },
+        ),
+      )
+      .on('GET', ITEMS, listDocument([resource('a', { title: 'A long name', items: 'Tent × 1\nStove × 2' }), resource('b', { title: 'Another long name', items: 'Kayak × 1' })]));
+    renderWithBazis(<ResourceList path={ITEMS as never} entity="item" columns={['title', 'items']} layout="table" />, server);
+    const row = await screen.findByTestId('row:b');
+    // the lines in a box as wide as the longest of them, up to 12rem: the column no narrower
+    expect(within(row).getByTestId('cell:items').firstElementChild?.className).toContain('w-max max-w-48');
+    expect(within(row).getByTestId('cell:title').querySelector('.w-max')).toBeNull();
+    // a first column of long texts wraps; of short ones on the page, as wide as they are (`data-short`)
+    expect(within(row).getByTestId('cell:title').hasAttribute('data-short')).toBe(false);
+  });
+
+  it('shows the range of a single page without the buttons of the pages', async () => {
+    renderWithBazis(<ResourceList path={ITEMS as never} entity="item" columns={['title']} />, backend(listDocument(rows, { count: 2 })));
+    const loaded = await screen.findByTestId('state:loaded');
+    expect(loaded.parentElement?.textContent).toContain('1–2 of 2');
+    expect(screen.queryByRole('navigation', { name: 'Pages' })).toBeNull();
+    expect(screen.queryByTestId('action:next-page')).toBeNull();
   });
 
   it('requests the search, the filters and the next page', async () => {
@@ -345,6 +476,98 @@ describe('ResourceList', () => {
     await waitFor(() => {
       expect(list.getAttribute('aria-busy')).toBeNull();
     });
+  });
+
+  it('puts its search, its view and its actions in the header of its screen (`toolbar="header"`), the number of its items beside the title (`count`)', async () => {
+    const create = vi.fn();
+    renderWithBazis(
+      <Screen id="item-list" title="Items">
+        <ResourceList
+          path={ITEMS as never}
+          entity="item"
+          columns={['title']}
+          search
+          toolbar="header"
+          count
+          filters={['title']}
+          actions={[{ id: 'create', label: 'Create', onClick: create }]}
+        />
+      </Screen>,
+      backend(listDocument(rows, { count: 12345 })),
+    );
+    const list = screen.getByTestId('list:item');
+    await within(list).findByTestId('state:loaded');
+    const tools = screen.getByTestId('screen:item-list').querySelector('header [data-slot="screen-tools"]');
+    if (!(tools instanceof HTMLElement)) throw new Error('No tools in the header');
+    expect(within(tools).getByTestId('field:$search')).toBeTruthy();
+    expect(within(tools).getByTestId('action:create')).toBeTruthy();
+    expect(list.contains(screen.getByTestId('field:$search'))).toBe(false);
+    // the filters stay over the list
+    expect(await within(list).findByTestId('field:title')).toBeTruthy();
+    // the number, its words for the readers of the screen
+    const number = screen.getByTestId('screen:item-list').querySelector('header [data-slot="screen-caption"] [data-slot="screen-count"]');
+    expect([number?.getAttribute('data-value'), number?.textContent]).toEqual(['12345', 'In the list: 12,345']);
+    // the search in the header is that of the list: it marks the list busy, then with its search
+    fireEvent.change(screen.getByTestId('field:$search'), { target: { value: 'word' } });
+    expect(list.getAttribute('aria-busy')).toBe('true');
+    await waitFor(() => {
+      expect(list.getAttribute('data-search')).toBe('word');
+    });
+  });
+
+  it('keeps its search and its actions over the list with the number of its items alone in the header', async () => {
+    setTheme({ composition: { list_tools: 'list' } });
+    renderWithBazis(
+      <Screen id="item-list" title="Items">
+        <ResourceList path={ITEMS as never} entity="item" columns={['title']} search count />
+      </Screen>,
+      backend(listDocument(rows)),
+    );
+    const list = screen.getByTestId('list:item');
+    await within(list).findByTestId('state:loaded');
+    expect(within(list).getByTestId('field:$search')).toBeTruthy();
+    const header = screen.getByTestId('screen:item-list').querySelector('header');
+    expect(header?.querySelector('[data-slot="screen-tools"]')?.childElementCount).toBe(0);
+    expect(header?.querySelector('[data-slot="screen-count"]')?.getAttribute('data-value')).toBe('2');
+  });
+
+  it('keeps its search and the number of its items over the list, outside a screen', async () => {
+    renderWithBazis(
+      <ResourceList path={ITEMS as never} entity="item" columns={['title']} search toolbar="header" count />,
+      backend(listDocument(rows)),
+    );
+    const list = screen.getByTestId('list:item');
+    await within(list).findByTestId('state:loaded');
+    expect(within(list).getByTestId('field:$search')).toBeTruthy();
+    expect(document.querySelector('[data-slot="screen-count"]')).toBeNull();
+  });
+
+  it('puts its tools and its filters where the theme does (`composition.list_tools`, `filters`), the prop over the theme', async () => {
+    const list = (toolbar?: 'list' | 'header') => (
+      <Screen id="item-list" title="Items">
+        <ResourceList path={ITEMS as never} entity="item" columns={['title']} search filters={['title']} {...(toolbar && { toolbar })} />
+      </Screen>
+    );
+    // the base: the tools over the list, the filters on a plate
+    setTheme({ composition: { list_tools: 'list', filters: 'plate' } });
+    const base = renderWithBazis(list(), backend(listDocument(rows)));
+    await within(screen.getByTestId('list:item')).findByTestId('state:loaded');
+    expect(within(screen.getByTestId('list:item')).getByTestId('field:$search')).toBeTruthy();
+    expect(document.querySelector('[data-slot="filter-row"]')?.getAttribute('data-plate')).toBe('true');
+    base.unmount();
+    setTheme({ composition: { list_tools: 'header', filters: 'row' } });
+    const themed = renderWithBazis(list(), backend(listDocument(rows)));
+    await within(screen.getByTestId('list:item')).findByTestId('state:loaded');
+    const tools = document.querySelector('header [data-slot="screen-tools"]');
+    if (!(tools instanceof HTMLElement)) throw new Error('No tools in the header');
+    expect(within(tools).getByTestId('field:$search')).toBeTruthy();
+    // the filters on the page, never on a surface
+    const row = document.querySelector('[data-slot="filter-row"]');
+    expect([row?.hasAttribute('data-plate'), row?.className.includes('surface')]).toEqual([false, false]);
+    themed.unmount();
+    renderWithBazis(list('list'), backend(listDocument(rows)));
+    await within(screen.getByTestId('list:item')).findByTestId('state:loaded');
+    expect(within(screen.getByTestId('list:item')).getByTestId('field:$search')).toBeTruthy();
   });
 
   for (const layout of ['table', 'cards'] as const) {
@@ -426,6 +649,12 @@ describe('ResourceList', () => {
     expect(failed.textContent).toContain('The filters are not available now.');
     expect(screen.queryByTestId('field:title')).toBeNull();
     expect(screen.getByTestId('row:a')).toBeTruthy();
+    // a retry reads them again, the focus kept in the row of the filters
+    server.on('GET', `${ITEMS}route_filter_fields/`, { fields: [{ name: 'title', py_type: 'string' }] });
+    fireEvent.click(within(failed).getByTestId('action:retry'));
+    expect(await screen.findByTestId('field:title')).toBeTruthy();
+    expect(screen.queryByTestId('state:error')).toBeNull();
+    expect(document.activeElement?.closest('[data-slot="filter-row"]')).not.toBeNull();
   });
 
   it('has no control for a filter that the backend does not offer the user', async () => {
@@ -711,6 +940,38 @@ describe('ResourceList', () => {
       expect(within(screen.getByTestId('row:a')).getByTestId('cell:done')).toBeTruthy();
       expect(screen.getByTestId('state:loaded').querySelector('table')).toBeNull();
       unmount();
+      // the image of a row a thumbnail beside its title, not a title of its own
+      const thumbed = renderWithBazis(
+        <ResourceList
+          path={ITEMS as never}
+          entity="item"
+          columns={['photo', 'title', 'count']}
+          display={{ photo: 'image' }}
+          layout="table"
+          phoneLayout="cards"
+        />,
+        new Backend()
+          .on(
+            'GET',
+            `${ITEMS}schema_list/`,
+            runtimeSchema(
+              {
+                title: { attribute: { type: 'string', title: 'Title' } },
+                photo: { attribute: { type: 'string', title: 'Photo' } },
+                count: { attribute: { type: 'integer', title: 'Count' } },
+              },
+              { list: true },
+            ),
+          )
+          .on('GET', ITEMS, listDocument([resource('a', { title: 'Tent', photo: 'tent.png', count: 3 })])),
+      );
+      await screen.findByTestId('state:loaded');
+      const card = screen.getByTestId('row:a');
+      const heading = within(card).getByTestId('cell:title');
+      expect(heading.tagName).toBe('H3');
+      expect(heading.parentElement?.parentElement?.firstElementChild).toBe(within(card).getByTestId('cell:photo'));
+      expect([...card.querySelectorAll('dt')].map((it) => it.textContent)).toEqual(['Count']);
+      thumbed.unmount();
       renderWithBazis(
         <ResourceList path={ITEMS as never} entity="item" columns={['title', 'done']} layout="table" phoneLayout="table" />,
         backend(listDocument(rows)),
@@ -901,6 +1162,8 @@ describe('ResourceList', () => {
   it.runIf(statusy)('shows the status of an item of a statusy model as its badge', async () => {
     if (!statusy) return;
     const { type, id } = statusy;
+    // the badge in the soft pair of its tone, that of the primary of the statuses its own
+    setTheme({ statuses: { [id]: 'primary' } });
     const server = new Backend()
       .on(
         'GET',
@@ -915,8 +1178,8 @@ describe('ResourceList', () => {
     renderWithBazis(<ResourceList path={ITEMS as never} entity="item" columns={['title', 'status']} layout="table" />, server);
     const cell = await within(await screen.findByTestId('row:a')).findByTestId('cell:status');
     const badge = within(cell).getByTestId(`status:${id}`);
-    expect(badge.getAttribute('data-tone')).toBeTruthy();
-    expect(badge.className).toContain(`bg-${String(badge.getAttribute('data-tone'))}-soft`);
+    expect(badge.getAttribute('data-tone')).toBe('primary');
+    for (const name of SOFT_TONES.primary.split(' ')) expect(badge.classList.contains(name)).toBe(true);
     expect(badge.textContent).toBe(statusName(type, id, 'en'));
   });
 });

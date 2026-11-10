@@ -30,6 +30,7 @@ import type * as Contract from '@/bazis/generated/contract';
 import { Screen } from '@/bazis/ui/app-shell';
 import { permitted } from '@/bazis/ui/resource';
 import { RelatedList, ResourceCard } from '@/bazis/ui/resource-card';
+import { ResourceList } from '@/bazis/ui/resource-list';
 import {
   Backend,
   errors,
@@ -39,6 +40,7 @@ import {
   renderWithBazis,
   resource,
   runtimeSchema,
+  setTheme,
   testLanguages,
 } from '@/bazis/ui/testing';
 
@@ -359,6 +361,23 @@ describe('ResourceCard', () => {
     });
   }
 
+  it('signs its delete as the edit is signed, its other actions by their labels only', async () => {
+    renderWithBazis(
+      <ResourceCard
+        path={ITEMS as never}
+        id={ITEM_ID}
+        sections={sections}
+        actions={[
+          { id: 'delete', label: 'Delete', onClick: vi.fn(), permission: 'delete', variant: 'destructive' },
+          { id: 'print', label: 'Print', onClick: vi.fn() },
+        ]}
+      />,
+      backend({ crud_actions: ['view', 'delete'] }),
+    );
+    expect((await screen.findByTestId('action:delete')).querySelector('svg')).not.toBeNull();
+    expect(screen.getByTestId('action:print').querySelector('svg')).toBeNull();
+  });
+
   it('shows its summary under its heading, and edits its fields before those of the sections', async () => {
     const year = new Date().getFullYear();
     const summarySchema = runtimeSchema({
@@ -381,7 +400,7 @@ describe('ResourceCard', () => {
         id={ITEM_ID}
         sections={[{ id: 'main', title: 'Main', fields: ['title'] }]}
         summary={{ range: ['date_from', 'date_to'], figure: 'total', meta: ['note'] }}
-        display={{ total: { currency: 'RUB' } }}
+        display={{ total: { currency: 'RUB' }, note: 'chips' }}
         edit
       />
     );
@@ -397,6 +416,8 @@ describe('ResourceCard', () => {
     expect(within(summary).getByTestId('field:date_to').textContent).toBe('2–4 марта');
     expect(summary.textContent).toContain('Даты');
     expect(summary.textContent).toContain('2 дн. · Note: Two tents');
+    // a line of a text: chips (and an avatar) as their text
+    expect(summary.querySelector('[data-slot="chips"]')).toBeNull();
     // the figure by its display, with its label
     expect(within(summary).getByTestId('field:total').textContent.replace(/\s/g, '')).toBe('3600₽');
     expect(summary.textContent).toContain('Total');
@@ -537,6 +558,48 @@ describe('RelatedList', () => {
     });
     // the form is closed
     expect(screen.queryByTestId('action:submit')).toBeNull();
+  });
+
+  it('keeps the tools of its list in its section with `composition.list_tools: header`, the header of the screen to its own list', async () => {
+    setTheme({ composition: { list_tools: 'header', list: 'table' } });
+    const section = (title: string) => (
+      <RelatedList
+        path={PARTS as never}
+        entity="part"
+        relation="item"
+        item={ITEM_ID}
+        itemPath={ITEMS as never}
+        columns={['name']}
+        title={title}
+        add={{ id: `add-${title}`, label: 'Add a part' }}
+      />
+    );
+    renderWithBazis(
+      <Screen id="parts" title="Parts">
+        <ResourceList path={PARTS as never} entity="part" columns={['name']} search />
+        {section('first')}
+        {section('second')}
+      </Screen>,
+      parts({ for_create: true }),
+    );
+    const lists = await screen.findAllByTestId('list:part');
+    expect(lists).toHaveLength(3);
+    await waitFor(() => {
+      expect(screen.getAllByTestId('action:add-second')).toHaveLength(1);
+    });
+    const tools = document.querySelector('header [data-slot="screen-tools"]');
+    if (!(tools instanceof HTMLElement)) throw new Error('No tools in the header');
+    // the search and the view of the list of the screen in its header, the view and the add of
+    // each section in the section
+    expect(within(tools).getAllByTestId('field:$search')).toHaveLength(1);
+    expect(within(tools).getAllByTestId('action:view')).toHaveLength(1);
+    expect(within(tools).queryByTestId('action:add-first')).toBeNull();
+    for (const [index, title] of ['first', 'second'].entries()) {
+      const list = lists[index + 1];
+      if (!list) throw new Error('No list');
+      expect(within(list).getByTestId('action:view')).toBeTruthy();
+      expect(within(list).getByTestId(`action:add-${title}`)).toBeTruthy();
+    }
   });
 
   it('offers the items of the filters of its add in the pickers of the form', async () => {

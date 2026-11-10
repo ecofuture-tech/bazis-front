@@ -41,6 +41,14 @@ describe('LoginForm', () => {
     expect(onLogin).toHaveBeenCalledWith({ username: 'manager', password: 'secret' });
   });
 
+  it('is a block of the theme, its shadow that of the surfaces', () => {
+    renderWithBazis(<LoginForm onLogin={() => Promise.resolve()} />, new Backend());
+    const card = screen.getByTestId('field:username').closest('[data-slot="card"]');
+    expect(card?.classList).toContain('surface');
+    // no shadow of its own over that of the blocks (`shadow.lift-1`: light with `surface: bordered`)
+    expect([...(card?.classList ?? [])].filter((it) => it.startsWith('shadow'))).toEqual([]);
+  });
+
   it('shows the error of the login', async () => {
     const onLogin = vi.fn(() => Promise.reject(new ApiError(401, [{ detail: 'Incorrect username or password' }])));
     renderWithBazis(<LoginForm onLogin={onLogin} />, new Backend());

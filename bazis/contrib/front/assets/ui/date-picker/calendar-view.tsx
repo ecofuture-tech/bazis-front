@@ -23,8 +23,14 @@ import { Calendar } from '@/components/ui/calendar';
 
 type WeekDay = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
-/** The month of a date to pick one: the selected date marked, the keyboard on it. */
-export default function CalendarView({ value, onSelect }: { value: Date | undefined; onSelect: (date: Date) => void }) {
+/** The month of a date to pick one: the selected date marked, the keyboard on it when it takes the focus (`autoFocus`). */
+export default function CalendarView({ value, month, onMonthChange, autoFocus, onSelect }: {
+  value: Date | undefined;
+  month: Date;
+  onMonthChange: (month: Date) => void;
+  autoFocus: boolean;
+  onSelect: (date: Date) => void;
+}) {
   const { language, t } = useLanguage();
   const caption = new Intl.DateTimeFormat(language, { month: 'long', year: 'numeric' });
   const weekday = new Intl.DateTimeFormat(language, { weekday: 'short' });
@@ -34,7 +40,8 @@ export default function CalendarView({ value, onSelect }: { value: Date | undefi
       mode="single"
       lang={language}
       selected={value}
-      defaultMonth={value}
+      month={month}
+      onMonthChange={onMonthChange}
       // `Intl` counts from Monday (1 … 7), react-day-picker from Sunday (0 … 6)
       weekStartsOn={(weekStart(language) % 7) as WeekDay}
       formatters={{
@@ -46,7 +53,7 @@ export default function CalendarView({ value, onSelect }: { value: Date | undefi
         labelNext: () => t('date.next_month'),
         labelPrevious: () => t('date.previous_month'),
       }}
-      autoFocus
+      autoFocus={autoFocus}
       onSelect={(date) => {
         if (date) onSelect(date);
       }}

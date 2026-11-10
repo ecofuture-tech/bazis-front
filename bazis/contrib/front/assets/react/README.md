@@ -6,7 +6,7 @@ bound to the runtime schema, the transits of bazis-statusy, the uploads of
 bazis-uploadable, the socket of bazis-ws, the tasks of bazis-bg and the background requests
 of bazis-async-request and bazis-async-background. No UI: the components
 (`assets/ui`) and the screens of a product render what the hooks return. Status:
-pre-release.
+below 1.0.
 
 The hooks are not an npm package: `src/` is copied into a product by
 `manage.py bazis_front init`, to `frontend/src/bazis/react/`, and imported as

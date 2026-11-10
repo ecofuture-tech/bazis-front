@@ -37,8 +37,8 @@ function endSessionOn401(error: Error): void {
 
 /**
  * The query cache of the application: a request that the backend refused (4xx) is not
- * retried, a failure of the server or of the network (5xx, no answer) at most three times; a
- * 401 ends the session. The errors are not thrown: the screens show them (`StatePanel`).
+ * retried, a failure of the server or of the network (5xx, no answer) once, so that the screen
+ * soon says it and offers to retry (`StatePanel`); a 401 ends the session. The errors are not thrown: the screens show them (`StatePanel`).
  */
 export function createQueryClient(): QueryClient {
   return new QueryClient({
@@ -47,7 +47,7 @@ export function createQueryClient(): QueryClient {
     defaultOptions: {
       // an error of the request (4xx) does not change on retry
       queries: {
-        retry: (failures, error) => !(error instanceof ApiError && error.status < 500) && failures < 3,
+        retry: (failures, error) => !(error instanceof ApiError && error.status < 500) && failures < 1,
       },
     },
   });

@@ -18,7 +18,7 @@ navigation:
   - group: tasks
     title: {en: Tasks, ru: Задачи}
     items:
-      - {screen: task-list, icon: list-checks}
+      - {screen: task-list, icon: list-checks, count: {filter: {status: draft}}}   # the number of the drafts beside it
       - {screen: draft-tasks, icon: file-pen}
       - {screen: export-tasks, icon: download}   # the form of the custom action `export`, which answers a file
   - group: planning
@@ -47,7 +47,7 @@ entities:
       - {id: attachment, type: file}     # bazis-uploadable: a file uploaded with the task
       - {id: priority, type: string}     # choices: shown, filled and filtered by their labels
       - {id: location, type: point}      # a PointField: on the map of the list, its coordinates on the card
-      - {id: watchers, relation: user, many: true}   # a to-many relationship: chosen in the forms
+      - {id: watchers, relation: user, many: true, display: chips}   # a to-many relationship: chosen in the forms, shown as chips
       - {id: due, type: datetime}        # the calendar of the tasks, whose add takes its time
       - {id: hours, type: string, display: {unit: h}}   # a decimal: summed by the tile and the chart of the home
       # several files: a many-to-many field to the uploaded files, shown as their thumbnails

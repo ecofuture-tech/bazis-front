@@ -536,8 +536,7 @@ def render_list(product: Product, data: dict) -> str:
         attrs.append(Attr('filter', filter_ref))
     if 'sort' in spec:
         attrs.append(Attr('sort', Arr([Str(it) for it in spec['sort']])))
-    if spec.get('search'):
-        attrs.append(Attr('search'))
+    attrs += search_attrs(data)
     attrs += entity_attrs(product, entity_id, const, label=False)
     if 'layout' in spec:
         attrs.append(Attr('layout', spec['layout']))
@@ -563,6 +562,21 @@ def render_list(product: Product, data: dict) -> str:
     if 'map' in spec:
         body.insert(0, list_map(screen, const, spec, filter_ref, opened))
     return screen.write(screen_element(screen, body))
+
+
+def search_attrs(data: dict) -> list[Attr]:
+    """
+    The search of a list and its header: the search, the view and the actions beside the title
+    (`header.search`) or over the list (`header.search: false`), where `composition.list_tools`
+    of the theme puts them without it; the number of the items there too (`header.count`).
+    """
+    header = data.get('header', {})
+    attrs = [Attr('search')] if data['list'].get('search') else []
+    if 'search' in header:
+        attrs.append(Attr('toolbar', 'header' if header['search'] else 'list'))
+    if header.get('count'):
+        attrs.append(Attr('count'))
+    return attrs
 
 
 def fields_object(spec: dict) -> Obj:
@@ -939,7 +953,8 @@ def render_dashboard(product: Product, data: dict) -> str:
     """
     A dashboard: the create forms of its actions in its header, the day of today, its tiles, its
     charts and its last items, each of its own entity, without the links of the navigation with
-    `links: false` (`Dashboard` is the screen: its forms are its children).
+    `links: false`; with `layout: focus` the chart of `hero` in focus, apart from the others
+    (`Dashboard` is the screen: its forms are its children).
     """
     screen = Screen(product, data)
     spec = data['dashboard']
@@ -953,8 +968,14 @@ def render_dashboard(product: Product, data: dict) -> str:
         parts.append(Attr('links', Arr([])))
     if spec.get('tiles'):
         parts.append(Attr('tiles', Arr([tile(screen, i, it) for i, it in enumerate(spec['tiles'])])))
-    if spec.get('charts'):
-        charts = [chart(screen, i, it) for i, it in enumerate(spec['charts'])]
+    hero = spec.get('hero') if spec.get('layout') == 'focus' else None
+    charts = []
+    for i, it in enumerate(spec.get('charts', [])):
+        if hero is not None and it['id'] == hero['chart']:
+            parts.append(Attr('focus', chart(screen, i, it, hero)))
+        else:
+            charts.append(chart(screen, i, it))
+    if charts:
         parts.append(Attr('charts', charts[0] if len(charts) == 1 else Jsx('', [], charts)))
     if spec.get('recent'):
         parts.append(Attr('recent', Arr([recent_list(screen, i, it) for i, it in enumerate(spec['recent'])])))
@@ -1005,11 +1026,11 @@ def adds(spec: dict) -> bool:
     return spec.get('requires', {}).get('can') == 'add'
 
 
-def chart(screen: Screen, index: int, spec: dict) -> Jsx:
+def chart(screen: Screen, index: int, spec: dict, hero: dict | None = None) -> Jsx:
     """
-    A chart of the items of an entity by its status (`StatusChart`) or by a date (`TimeChart`),
-    shown to the users who may view them, and add one with `requires` (`Viewable`, as the tiles
-    and the last items).
+    A chart of the items of an entity by its status (`StatusChart`) or by a date (`TimeChart`,
+    the chart in focus with the figures of `hero`), shown to the users who may view them, and
+    add one with `requires` (`Viewable`, as the tiles and the last items).
     """
     const = screen.entity(spec['entity'])
     attrs = [Attr('id', spec['id']), Attr('path', Raw(f'{const.code}.path'))]
@@ -1023,6 +1044,8 @@ def chart(screen: Screen, index: int, spec: dict) -> Jsx:
         attrs.append(Attr('last', Raw(str(spec['last']))))
     if 'value' in spec:
         attrs.append(Attr('value', aggregate_value(spec['value'])))
+    if hero is not None:
+        attrs.append(Attr('hero', Arr([Str(it) for it in hero.get('side', [])])))
     name = 'StatusChart' if by_status else 'TimeChart'
     screen.code.use('@/bazis/ui/charts', name)
     screen.code.use('@/bazis/ui/dashboard', 'Viewable')
@@ -1444,7 +1467,7 @@ def nav_item(code: Code, product: Product, link: dict, at: tuple) -> Obj:
     requires: to view the items of the entity of its screen (and filter them by the fields of
     a report, add one with `requires.can: add`), the form of a custom action its action (its
     key in the contract, `customActionKey`); at once a screen without an entity and the public
-    form of an action.
+    form of an action. With `count`, the list and the filter of the number beside it.
     """
     data = product.screens[link['screen']]
     if 'label' in link:
@@ -1478,6 +1501,13 @@ def nav_item(code: Code, product: Product, link: dict, at: tuple) -> Obj:
             names = dict.fromkeys(filter_field(it)[0] for it in data['list']['filter'])
             requires.append(('filters', Arr([Str(it) for it in names])))
         props.append(('requires', Obj(requires)))
+        if 'count' in link:
+            # the items of its filter among those of the list (of a report, its filter too)
+            fields = {it['id']: it for it in product.entities[entity]['fields']}
+            where = [it for it in (data['list'].get('filter'), link['count']['filter']) if it]
+            parts = [filter_value(code, it, fields) for it in where]
+            counted = parts[0] if len(parts) == 1 else Call('Filter.and', parts)
+            props.append(('count', Obj([('path', Raw(path)), ('filter', counted)])))
     if product.public(data):
         props.append(('public', Raw('true')))
     return Obj(props)

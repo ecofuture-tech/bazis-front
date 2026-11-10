@@ -18,7 +18,7 @@ export const ENTITIES = {
     type: 'tasks.task',
     path: ROUTES['tasks.task'],
     title: 'entities.task.title',
-    display: { hours: { unit: 'h' }, photos: 'image' },
+    display: { watchers: 'chips', hours: { unit: 'h' }, photos: 'image' },
     transits: [
       { id: 'start' },
       { id: 'finish' },

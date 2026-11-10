@@ -26,10 +26,10 @@ import {
   TriangleAlert,
   type LucideIcon,
 } from 'lucide-react';
-import type { ReactNode } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
 
-import { ApiError } from '@/bazis/client';
-import { useLanguage } from '@/bazis/i18n';
+import { ApiError, OfflineError } from '@/bazis/client';
+import { useLanguage, type Translate } from '@/bazis/i18n';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -46,6 +46,15 @@ export function errorState(error: unknown): ErrorState {
   if (error.status === 404) return 'not_found';
   if (error.status === 422) return 'invalid';
   return 'error';
+}
+
+/**
+ * The text of a failure for the user: `state.offline` when the backend cannot be reached
+ * (`OfflineError`), else the message of the error (of the backend: `ApiError`), none without one.
+ */
+export function failureText(error: unknown, t: Translate): string | null {
+  if (error instanceof OfflineError) return t('state.offline');
+  return error instanceof Error && error.message ? error.message : null;
 }
 
 /**
@@ -82,6 +91,18 @@ const TONES: Readonly<Record<Exclude<ViewState, 'loading' | 'loaded'>, string>> 
   invalid: 'bg-danger-soft text-danger-ink',
 };
 
+/**
+ * Moves the focus from a retry to the box that holds its panel (not one of `display:
+ * contents`): the panel goes once the request starts again or succeeds, the focus stays there.
+ */
+function holdFocus(event: MouseEvent<HTMLElement>) {
+  let place = event.currentTarget.closest('[data-bz^="state:"]')?.parentElement ?? null;
+  while (place && getComputedStyle(place).display === 'contents') place = place.parentElement;
+  if (!place) return;
+  if (!place.hasAttribute('tabindex')) place.tabIndex = -1;
+  place.focus({ preventScroll: true });
+}
+
 /** The skeleton of a block of text, while what it shows loads. */
 export function SkeletonLines({ lines = 3, className }: { lines?: number; className?: string }) {
   return (
@@ -101,7 +122,7 @@ export interface StatePanelProps {
   message?: ReactNode;
   /** Replaces the default hint of the state (the message of an error by default). */
   description?: ReactNode;
-  /** Shows a retry button (`action:retry`) in the `error` state. */
+  /** Shows a retry button (`action:retry`) in the `error` state, inline too. */
   onRetry?: () => void;
   /** One line, without the frame: inside a form or a bar. */
   inline?: boolean;
@@ -153,8 +174,7 @@ export function StatePanel({
     );
   }
   const failed = state !== 'empty';
-  const detail =
-    (state === 'error' || state === 'invalid') && error instanceof Error && error.message ? error.message : null;
+  const detail = state === 'error' || state === 'invalid' ? failureText(error, t) : null;
   const Icon = ICONS[state];
   if (inline) {
     return (
@@ -168,7 +188,22 @@ export function StatePanel({
         )}
       >
         <Icon className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-        <p>{message ?? detail ?? t(`state.${state}.title`)}</p>
+        <p className="flex-1">{message ?? detail ?? t(`state.${state}.title`)}</p>
+        {state === 'error' && onRetry && (
+          <Button
+            type="button"
+            variant="link"
+            size="sm"
+            data-bz="action:retry"
+            className="h-auto p-0 text-inherit underline"
+            onClick={(event) => {
+              holdFocus(event);
+              onRetry();
+            }}
+          >
+            {t('state.retry')}
+          </Button>
+        )}
       </div>
     );
   }
@@ -177,7 +212,7 @@ export function StatePanel({
       data-bz={`state:${state}`}
       role={failed ? 'alert' : 'status'}
       className={cn(
-        'flex flex-col items-center gap-4 rounded-xl border border-dashed bg-card/60 px-6 py-12 text-center',
+        'surface flex flex-col items-center gap-4 px-6 py-12 text-center',
         className,
       )}
     >
@@ -189,7 +224,16 @@ export function StatePanel({
         <p className="text-sm text-muted-foreground">{description ?? detail ?? t(`state.${state}.hint`)}</p>
       </div>
       {state === 'error' && onRetry && (
-        <Button type="button" variant="outline" size="sm" data-bz="action:retry" onClick={onRetry}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          data-bz="action:retry"
+          onClick={(event) => {
+            holdFocus(event);
+            onRetry();
+          }}
+        >
           {t('state.retry')}
         </Button>
       )}

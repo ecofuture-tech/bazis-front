@@ -14,7 +14,9 @@
 
 """
 bazis-statusy: the statuses and the transits of every statusy model, from the database,
-with the JSON Schema of the payload a transit requires, and the status of its new objects:
+the statuses in the order of the life of an item (that of its declared workflow, else from its
+initial status along the transits), with the JSON Schema of the payload a transit requires, and
+the status of its new objects:
 the one its workflow declares (`Workflow(initial=...)`, bazis-statusy 2.12), else the
 global `BAZIS_STATUS_INITIAL`. The names are in every language of the project (translated
 fields; the name of the global initial status, a lazy text until its row exists); the
@@ -27,7 +29,7 @@ language (`TranslatedSchemaModel` of the core).
 from django.apps import apps
 from django.conf import settings
 
-from bazis.contrib.statusy.declare import initial_status
+from bazis.contrib.statusy.declare import Workflow, declarations, initial_status
 from bazis.contrib.statusy.models_abstract import StatusyMixin
 
 from . import translated
@@ -59,7 +61,7 @@ def section() -> dict:
                         )
                     ),
                 }
-                for pk in sorted(ids)
+                for pk in lifecycle(model, initial, transits, ids)
             ],
             'transits': [
                 {
@@ -73,6 +75,25 @@ def section() -> dict:
             ],
         }
     return {'models': dict(sorted(models.items()))}
+
+
+def lifecycle(model, initial: str, transits: list, ids: set[str]) -> list[str]:
+    """
+    The statuses of a model in the order of the life of an item: that of its declared workflow
+    (`Workflow.statuses`), else from its initial status along its transits; the others by id.
+    """
+    declared = next(
+        (workflow.statuses for _, workflow in declarations() if isinstance(workflow, Workflow) and workflow.model == model._meta.label),
+        (),
+    )
+    order = [it for it in (getattr(status, 'id', status) for status in declared) if it in ids]
+    following = [initial]
+    while not declared and following:
+        status = following.pop(0)
+        if status not in order:
+            order.append(status)
+            following += [it.status_dst_id for it in transits if it.status_src_id == status]
+    return order + sorted(ids - set(order))
 
 
 def _payload(model, transit) -> dict | None:

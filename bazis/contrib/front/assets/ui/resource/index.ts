@@ -29,6 +29,7 @@ export {
   formatValue,
   fromLocalDateTime,
   hasSearch,
+  inlineDisplay,
   isLongText,
   isNumeric,
   isReverse,

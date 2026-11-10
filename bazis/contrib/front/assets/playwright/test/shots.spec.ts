@@ -194,6 +194,9 @@ test('a table that grows sideways once the texts of the items are long', async (
   // a text that wraps, and a table that was wider already (its columns, not its texts)
   await show(page, table('white-space: normal; overflow-wrap: anywhere'));
   expect(await found(page, LIGHT)).toEqual([]);
+  // the short texts of a first column as wide as they are by their values (`data-short`): never long
+  await show(page, table('white-space: nowrap').replace('<td data-bz="cell:subscription"', '<td data-short data-bz="cell:subscription"'));
+  expect(await found(page, LIGHT)).toEqual([]);
   await show(page, `<div style="overflow-x: auto; width: 300px"><table style="width: 800px"><tr><td style="white-space: nowrap"><span data-text>Mary</span></td></tr></table></div>`);
   expect(await found(page, LIGHT)).toEqual([]);
 });

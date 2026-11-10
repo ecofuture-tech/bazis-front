@@ -29,6 +29,7 @@ import { XIcon } from "lucide-react"
 import { Dialog as SheetPrimitive } from "radix-ui"
 
 import { useLanguage } from "@/bazis/i18n"
+import { useDialogFocus } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 
 function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
@@ -74,12 +75,16 @@ function SheetContent({
   children,
   side = "right",
   showCloseButton = true,
+  onOpenAutoFocus,
+  onCloseAutoFocus,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: "top" | "right" | "bottom" | "left"
   showCloseButton?: boolean
 }) {
   const { t } = useLanguage()
+  // its first link (a menu), back to its button once closed
+  const focus = useDialogFocus("a[href]", { onOpenAutoFocus, onCloseAutoFocus })
   return (
     <SheetPortal>
       <SheetOverlay />
@@ -98,10 +103,11 @@ function SheetContent({
           className
         )}
         {...props}
+        {...focus}
       >
         {children}
         {showCloseButton && (
-          <SheetPrimitive.Close className="absolute top-4 right-4 rounded-xs opacity-70 pointer-coarse:after:absolute pointer-coarse:after:-inset-3.5 ring-offset-background transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none data-[state=open]:bg-secondary">
+          <SheetPrimitive.Close className="absolute top-4 right-4 rounded-xs opacity-70 pointer-coarse:after:absolute pointer-coarse:after:-inset-3.5 transition-opacity hover:opacity-100 focus-visible:ring-focus outline-hidden disabled:pointer-events-none data-[state=open]:bg-secondary">
             <XIcon className="size-4" />
             <span className="sr-only">{t("action.close")}</span>
           </SheetPrimitive.Close>

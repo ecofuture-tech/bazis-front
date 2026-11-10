@@ -34,7 +34,7 @@ import {
 
 import { nextPage, type Filter } from '@/bazis/client';
 import { useLanguage } from '@/bazis/i18n';
-import { Input } from '@/components/ui/input';
+import { fieldClassName, Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 
@@ -84,11 +84,10 @@ export interface RelationPickerProps
   'data-bz'?: string;
 }
 
-const TRIGGER =
-  'flex h-9 w-full min-w-0 items-center pointer-coarse:min-h-11 justify-between gap-2 rounded-md border border-input bg-transparent px-3 py-2 ' +
-  'text-left text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring ' +
-  'focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 ' +
-  'aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:bg-input/30';
+const TRIGGER = cn(
+  fieldClassName,
+  'flex items-center justify-between gap-2 text-left disabled:cursor-not-allowed disabled:opacity-50',
+);
 
 type Entry = { kind: 'clear' } | { kind: 'item'; item: ResourceObject } | { kind: 'more' };
 
@@ -119,7 +118,8 @@ interface OptionsProps {
  * (`page[offset]`, `PICKER_PAGE` each: a larger `page[limit]` would pass the maximum of the
  * backend, `BAZIS_API_PAGINATION_PAGE_SIZE_MAX`). The active option (`aria-activedescendant`)
  * is, until the user moves, the (first) selected item when the picker opens and the first
- * item after a search, never the option that clears the value.
+ * item after a search, never the option that clears the value. While the options are not those
+ * of the text typed, the arrows wait and Enter chooses once they are.
  */
 function Options({
   path,
@@ -143,6 +143,8 @@ function Options({
   const [offset, setOffset] = useState(0);
   // the option the user moved to; null: the default one
   const [active, setActive] = useState<number | null>(null);
+  // Enter pressed before the options of the text typed came
+  const confirming = useRef(false);
   useEffect(() => {
     const timer = setTimeout(() => {
       const next = text.trim();
@@ -181,6 +183,12 @@ function Options({
   useEffect(() => {
     if (current >= 0) document.getElementById(optionId(current))?.scrollIntoView({ block: 'nearest' });
   });
+  useEffect(() => {
+    if (!confirming.current || stale) return;
+    confirming.current = false;
+    const entry = entries[current];
+    if (entry?.kind !== 'more' && entry) choose(entry);
+  });
 
   function choose(entry: Entry) {
     if (entry.kind === 'item') onSelect(entry.item);
@@ -198,12 +206,18 @@ function Options({
       onClose();
     } else if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && count) {
       event.preventDefault();
+      // not over the options of the text before: the first of those of this one is active once they come
+      if (stale) return;
       const down = event.key === 'ArrowDown';
       setActive(current < 0 ? (down ? 0 : count - 1) : (current + (down ? 1 : count - 1)) % count);
     } else if (event.key === 'Enter') {
       event.preventDefault();
+      if (stale) {
+        confirming.current = true;
+        return;
+      }
       const entry = entries[current];
-      if (entry && !stale) choose(entry);
+      if (entry) choose(entry);
     }
   }
 
@@ -225,7 +239,7 @@ function Options({
             aria-activedescendant={current >= 0 ? optionId(current) : undefined}
             aria-label={searchLabel}
             placeholder={t('picker.search')}
-            className="h-10 w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+            className="h-10 w-full min-w-0 bg-transparent text-base outline-none placeholder:text-muted-foreground md:text-sm"
             value={text}
             onChange={(event) => {
               setText(event.target.value);
