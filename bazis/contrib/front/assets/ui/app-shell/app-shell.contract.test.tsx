@@ -622,7 +622,7 @@ describe('AppShell', () => {
     expect(screen.queryByTestId('count:item-list')).toBeNull();
   });
 
-  it('collapses the sidebar to a rail of icons, kept so in the storage of the browser', () => {
+  it('collapses the sidebar to a rail of icons, kept so in the storage of the browser', async () => {
     window.localStorage.removeItem('bazis-sidebar');
     const shell = (
       <AppShell title="Product" navigation="sidebar" items={items} session={{ user: 'Mary Manager', onLogout: vi.fn() }}>
@@ -637,9 +637,21 @@ describe('AppShell', () => {
     expect(screen.getByText('Tasks').getAttribute('title')).toBe('Tasks');
     fireEvent.click(screen.getByRole('button', { name: 'Collapse the sidebar' }));
     expect(aside()?.getAttribute('data-state')).toBe('collapsed');
-    // a link keeps its mark and its label, also in its title (only its icon is seen)
+    // a link keeps its mark and its label, also in a tooltip at its focus (only its icon is seen)
     expect(screen.getByRole('link', { name: 'Tasks' })).toBe(screen.getByTestId('nav:task-list'));
-    expect(screen.getByTestId('nav:task-list').getAttribute('title')).toBe('Tasks');
+    expect(screen.getByTestId('nav:task-list').hasAttribute('title')).toBe(false);
+    // the tooltip is placed with ResizeObserver, which jsdom has not
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    fireEvent.focus(screen.getByTestId('nav:task-list'));
+    expect((await screen.findByRole('tooltip')).textContent).toBe('Tasks');
+    vi.unstubAllGlobals();
     expect(screen.getByTestId('action:logout').textContent).toBe('Log out');
     first.unmount();
 

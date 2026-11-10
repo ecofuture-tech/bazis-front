@@ -216,7 +216,8 @@
           "button",
           "state-panel",
           "sheet",
-          "dropdown-menu"
+          "dropdown-menu",
+          "tooltip"
         ]
       },
       "files": [

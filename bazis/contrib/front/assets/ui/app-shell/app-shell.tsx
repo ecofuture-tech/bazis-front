@@ -41,6 +41,7 @@ import {
   useSyncExternalStore,
   type ComponentProps,
   type ComponentType,
+  type ReactElement,
   type ReactNode,
 } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router';
@@ -60,6 +61,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 import { ColorModeToggle } from './color-mode.js';
@@ -616,6 +618,19 @@ const CURRENT = {
   horizontal: 'bg-accent text-accent-foreground',
 };
 
+/** The label of a link of a rail, only the icon of which is seen: a tooltip at its side under the pointer and the focus. */
+function RailLabel({ label, children }: { label: ReactNode; children: ReactElement }) {
+  if (label === undefined) return children;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent side="right" sideOffset={8}>
+        {label}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 /** A link of the navigation, `nav:<screen>`, shown once the backend allows what it requires. */
 function NavLinkEntry({ item, vertical, onNavigate, copy = false }: EntryProps & { item: NavItem }) {
   const Icon = item.icon;
@@ -624,35 +639,35 @@ function NavLinkEntry({ item, vertical, onNavigate, copy = false }: EntryProps &
   return (
     <Allowed requirement={item.requires}>
       <li data-nav-entry={copy ? item.screen : undefined} className={vertical ? AFTER_GROUP.vertical : AFTER_GROUP.horizontal}>
-        <NavLink
-          to={item.to}
-          end={item.end}
-          data-bz={copy ? undefined : `nav:${item.screen}`}
-          // the label of a link of a rail, only the icon of which is seen
-          title={rail ? label : undefined}
-          onClick={onNavigate}
-          className={({ isActive }) =>
-            cn(
-              LINK.base,
-              vertical ? LINK.vertical : LINK.horizontal,
-              isActive && (vertical ? CURRENT.vertical : CURRENT.horizontal),
-            )
-          }
-        >
-          {Icon && (
-            <Icon
-              className={cn(
-                'size-4 shrink-0 opacity-70 group-aria-[current=page]:opacity-100',
-                // in the sidebar a thinner stroke, the current one in the color of its text
-                vertical ? '[stroke-width:1.75]' : 'group-aria-[current=page]:text-primary',
-              )}
-            />
-          )}
-          <span title={label} className="truncate group-data-[state=collapsed]/sidebar:sr-only">
-            {item.label}
-          </span>
-          {item.count && <NavCount screen={copy ? undefined : item.screen} count={item.count} vertical={vertical} />}
-        </NavLink>
+        <RailLabel label={rail ? item.label : undefined}>
+          <NavLink
+            to={item.to}
+            end={item.end}
+            data-bz={copy ? undefined : `nav:${item.screen}`}
+            onClick={onNavigate}
+            className={({ isActive }) =>
+              cn(
+                LINK.base,
+                vertical ? LINK.vertical : LINK.horizontal,
+                isActive && (vertical ? CURRENT.vertical : CURRENT.horizontal),
+              )
+            }
+          >
+            {Icon && (
+              <Icon
+                className={cn(
+                  'size-4 shrink-0 opacity-70 group-aria-[current=page]:opacity-100',
+                  // in the sidebar a thinner stroke, the current one in the color of its text
+                  vertical ? '[stroke-width:1.75]' : 'group-aria-[current=page]:text-primary',
+                )}
+              />
+            )}
+            <span title={label} className="truncate group-data-[state=collapsed]/sidebar:sr-only">
+              {item.label}
+            </span>
+            {item.count && <NavCount screen={copy ? undefined : item.screen} count={item.count} vertical={vertical} />}
+          </NavLink>
+        </RailLabel>
       </li>
     </Allowed>
   );
@@ -924,7 +939,9 @@ export function AppShell({
           </div>
           <div className="flex-1 overflow-y-auto px-3 py-2">
             <RailContext value={collapsed}>
-              <Navigation items={items} />
+              <TooltipProvider delayDuration={300}>
+                <Navigation items={items} />
+              </TooltipProvider>
             </RailContext>
           </div>
           {/* the foot: the toggles and the tools of the product on a row that wraps, the
