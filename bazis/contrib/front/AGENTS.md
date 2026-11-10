@@ -5201,7 +5201,7 @@ Its props, `ScreenProps`:
 
 - `id: string`: The id of the screen in the specs: `screen:<id>`.
 - `title?: ReactNode`
-- `parent?: ScreenParent`: The screen it was opened from: before the title, a breadcrumb to it on a wide screen (`xl`), a button back to it below.
+- `parent?: ScreenParent`: The screen it was opened from: before the title, a breadcrumb to it on a wide screen (`xl`), its label after an arrow below; beside its list (`ListCardLayout`, `split`) the screen closes back to it (`action:close`, Escape).
 - `description?: ReactNode`: Under the title: what the screen is for.
 - `caption?: ReactNode`: Beside the title, smaller: a fact of the screen, such as the day of today of a dashboard.
 - `actions?: ReactNode`: Next to the title: the actions of the screen.
@@ -6495,7 +6495,7 @@ Its props, `FilterBarProps`:
 
 #### FilterRow
 
-`FilterRow(props: { plate?: boolean; tools?: ReactNode; children: ReactNode; }): Element`: The row of the filters of a list, a calendar or a board, with the search of a list, on a plate of its own (`plate`: with a search or more than one filter, not the tools alone), its tools (`tools`) at its end: where its container is as wide as 48rem the filters wrap beside the tools, which stay on the right of their last line, the lines of the controls at the bottom under their labels; narrower (a list beside its card, a phone) a grid of cells of one width, two from 28rem (a range of dates takes both, the next filters filling the cell it leaves), the label and the control of a filter filling its cell, the tools at the end of the second column (of the line on a phone).
+`FilterRow(props: { plate?: boolean; tools?: ReactNode; children: ReactNode; }): Element`: The row of the filters of a list, a calendar or a board, with the search of a list, on a plate of its own (`plate`: with a search or more than one filter, not the tools alone), its tools (`tools`) at its end: where its container is as wide as 48rem the filters wrap beside the tools, which stay on the right of their last line, the lines of the controls at the bottom under their labels; narrower (a list beside its card, a phone) a grid of cells of one width, two from 28rem (a range of dates takes both, the next filters filling the cell it leaves), the label and the control of a filter filling its cell, the tools at the end of the second column (of the line on a phone), wrapping there rather than past the edge.
 
 #### listFilters
 

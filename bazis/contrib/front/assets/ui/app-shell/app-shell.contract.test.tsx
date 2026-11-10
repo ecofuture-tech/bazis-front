@@ -755,7 +755,7 @@ describe('AppShell', () => {
       { route: '/tasks/1' },
     );
     const back = screen.getByTestId('nav:task-list');
-    // in the header, before the title, named by the parent also where only its arrow shows
+    // in the header, before the title, named by the parent
     const header = screen.getByTestId('screen:task-card').querySelector('header');
     expect(header?.contains(back)).toBe(true);
     expect(back.compareDocumentPosition(screen.getByRole('heading', { level: 1 })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -887,6 +887,52 @@ describe('ListCardLayout', () => {
       expect(mounted).toBe(1);
     });
   }
+
+  it('closes the card beside its list back to it, by Escape too, from the breakpoint xl only', () => {
+    for (const xl of [true, false]) {
+      // jsdom has no `matchMedia`: `xl` or not
+      window.matchMedia = (query: string) =>
+        ({ matches: xl || !query.includes('80rem'), addEventListener: vi.fn(), removeEventListener: vi.fn() }) as unknown as MediaQueryList;
+      try {
+        const { unmount } = renderWithBazis(
+          <Routes>
+            <Route path="/items" element={<ListCardLayout mode="split" list={<Screen id="item-list">list</Screen>} />}>
+              <Route
+                path=":id"
+                element={
+                  <Screen id="item-card" parent={{ screen: 'item-list', label: 'Items', to: '/items' }}>
+                    card
+                  </Screen>
+                }
+              />
+            </Route>
+          </Routes>,
+          new Backend(),
+          { route: '/items/1' },
+        );
+        if (!xl) {
+          expect(screen.queryByTestId('action:close')).toBeNull();
+          fireEvent.keyDown(document.body, { key: 'Escape' });
+          expect(screen.getByTestId('screen:item-card')).toBeTruthy();
+          unmount();
+          continue;
+        }
+        // the breadcrumb stays, the close at the end of the header
+        expect(screen.getByTestId('nav:item-list')).toBeTruthy();
+        expect(screen.getByTestId('action:close').getAttribute('aria-label')).toBe('Close');
+        // a key that a dialog or a menu took leaves the card open
+        const taken = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+        taken.preventDefault();
+        document.body.dispatchEvent(taken);
+        expect(screen.getByTestId('screen:item-card')).toBeTruthy();
+        fireEvent.keyDown(document.body, { key: 'Escape' });
+        expect(screen.queryByTestId('screen:item-card')).toBeNull();
+        unmount();
+      } finally {
+        Reflect.deleteProperty(window, 'matchMedia');
+      }
+    }
+  });
 
   for (const mode of ['split', 'pages'] as const) {
     it(`shows the list without an item (${mode})`, () => {

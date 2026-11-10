@@ -25,11 +25,12 @@
 // (`nav:<screen>`).
 
 import type { UseQueryResult } from '@tanstack/react-query';
-import { ArrowLeft, ChevronRight, Ellipsis, LogIn, LogOut, Menu, PanelLeftClose, PanelLeftOpen, UserRound } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Ellipsis, LogIn, LogOut, Menu, PanelLeftClose, PanelLeftOpen, UserRound, X } from 'lucide-react';
 import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useId,
   useLayoutEffect,
   useMemo,
@@ -40,7 +41,7 @@ import {
   type ComponentType,
   type ReactNode,
 } from 'react';
-import { Link, NavLink, useLocation } from 'react-router';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router';
 
 import { aggregateValues, type Filter } from '@/bazis/client';
 import { THEME, type BrandMark } from '@/bazis/generated/theme';
@@ -61,6 +62,7 @@ import { cn } from '@/lib/utils';
 
 import { ColorModeToggle } from './color-mode.js';
 import { LanguageToggle } from './language.js';
+import { useBesideList } from './list-card.js';
 
 /** A link of the navigation to a screen of the specs: `nav:<screen>`. */
 export interface NavItem {
@@ -986,7 +988,8 @@ export interface ScreenProps {
   title?: ReactNode;
   /**
    * The screen it was opened from: before the title, a breadcrumb to it on a wide screen
-   * (`xl`), a button back to it below.
+   * (`xl`), its label after an arrow below; beside its list (`ListCardLayout`, `split`) the
+   * screen closes back to it (`action:close`, Escape).
    */
   parent?: ScreenParent;
   /** Under the title: what the screen is for. */
@@ -999,8 +1002,8 @@ export interface ScreenProps {
 }
 
 /**
- * The link back to the parent of a screen: an arrow below `xl`, its label from it, and a
- * chevron before the title of the screen (none on a screen that its card heads).
+ * The link back to the parent of a screen: its label, after an arrow below `xl`, and a chevron
+ * before the title of the screen (none on a screen that its card heads).
  */
 function Breadcrumb({ parent, titled }: { parent: ScreenParent; titled: boolean }) {
   const { t } = useLanguage();
@@ -1009,10 +1012,10 @@ function Breadcrumb({ parent, titled }: { parent: ScreenParent; titled: boolean 
       <Link
         to={parent.to}
         data-bz={`nav:${parent.screen}`}
-        className="-ml-2 inline-flex size-9 items-center justify-center gap-1 rounded-md outline-none pointer-coarse:min-h-11 pointer-coarse:min-w-11 hover:bg-accent hover:text-foreground focus-visible:ring-focus xl:ml-0 xl:size-auto xl:px-1.5 xl:py-1"
+        className="-ml-2 inline-flex h-9 items-center gap-1 rounded-md px-2 outline-none pointer-coarse:min-h-11 hover:bg-accent hover:text-foreground focus-visible:ring-focus xl:ml-0 xl:h-auto xl:px-1.5 xl:py-1"
       >
         <ArrowLeft className="size-4 xl:hidden" aria-hidden="true" />
-        <span className="max-xl:sr-only">{parent.label}</span>
+        <span>{parent.label}</span>
       </Link>
       {titled && <ChevronRight className="hidden size-4 opacity-60 xl:block" aria-hidden="true" />}
     </nav>
@@ -1041,6 +1044,21 @@ export function Screen({ id, title, parent, description, caption, actions, child
   // the header sticks under the top of the page with the sidebar, never under a top bar
   const sticky = navigation !== 'topbar';
   const portal = THEME.preset === 'portal';
+  const { t } = useLanguage();
+  const navigate = useNavigate();
+  // beside its list, closed back to it, by Escape too unless a page of it (a form) is open or a
+  // dialog, a menu or a field took the key
+  const closes = useBesideList() && parent !== undefined ? parent.to : undefined;
+  useEffect(() => {
+    if (closes === undefined || pages > 0) return;
+    const close = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !event.defaultPrevented) void navigate(closes);
+    };
+    document.addEventListener('keydown', close);
+    return () => {
+      document.removeEventListener('keydown', close);
+    };
+  }, [closes, pages, navigate]);
   return (
     <section data-bz={`screen:${id}`} className="mx-auto grid w-full max-w-7xl grid-cols-[minmax(0,1fr)] gap-(--space-section)">
       <PageContext value={page}>
@@ -1087,6 +1105,13 @@ export function Screen({ id, title, parent, description, caption, actions, child
                 className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-x-4 gap-y-3 empty:hidden max-md:basis-full md:flex-1 md:flex-nowrap"
               />
               {actions !== undefined && <div className="ml-auto flex shrink-0 flex-wrap gap-2">{actions}</div>}
+              {closes !== undefined && (
+                <Button asChild variant="ghost" size="icon" className="-mr-2 ml-auto">
+                  <Link to={closes} data-bz="action:close" aria-label={t('action.close')} title={t('action.close')}>
+                    <X aria-hidden="true" />
+                  </Link>
+                </Button>
+              )}
             </header>
           )}
           {description !== undefined && (
