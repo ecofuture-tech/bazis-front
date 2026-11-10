@@ -194,6 +194,7 @@ export const ru: Messages = {
   'shell.more': 'Ещё',
   'shell.navigation': 'Основная навигация',
   'shell.sign_in': 'Войти',
+  'shell.skip': 'К содержимому',
   'size.bytes': '{size} Б',
   'size.gb': '{size} ГБ',
   'size.kb': '{size} КБ',

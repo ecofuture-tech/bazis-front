@@ -765,6 +765,38 @@ describe('AppShell', () => {
     expect(screen.getByTestId('places').textContent).toBe('screen-tools screen-caption');
   });
 
+  it('names the page by its screen before the product, back once the screen is gone', () => {
+    document.title = 'Product';
+    const { unmount } = renderWithBazis(
+      <Screen id="home" title="Home">
+        home
+      </Screen>,
+      new Backend(),
+    );
+    expect(document.title).toBe('Home · Product');
+    unmount();
+    expect(document.title).toBe('Product');
+  });
+
+  it('skips the navigation to the content by the first link of the page', () => {
+    for (const navigation of ['sidebar', 'topbar'] as const) {
+      const { unmount } = renderWithBazis(
+        <AppShell title="Product" navigation={navigation} items={items}>
+          <Screen id="home" title="Home">
+            home
+          </Screen>
+        </AppShell>,
+        new Backend(),
+      );
+      const skip = screen.getByRole('link', { name: 'Skip to content' });
+      expect(document.querySelector('a[href]')).toBe(skip);
+      const main = screen.getByRole('main');
+      expect(skip.getAttribute('href')).toBe(`#${main.id}`);
+      expect(main.tabIndex).toBe(-1);
+      unmount();
+    }
+  });
+
   it('links a screen back to the screen it was opened from', () => {
     renderWithBazis(
       <Routes>
@@ -958,6 +990,53 @@ describe('ListCardLayout', () => {
       } finally {
         Reflect.deleteProperty(window, 'matchMedia');
       }
+    }
+  });
+
+  it('moves the focus to the card that opens beside its list, under its single h1, and back to its row once closed', async () => {
+    window.matchMedia = () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }) as unknown as MediaQueryList;
+    try {
+      function List() {
+        const navigate = useNavigate();
+        return (
+          <Screen id="item-list" title="Items">
+            <button type="button" data-bz="row:1" onClick={() => void navigate('/items/1')}>
+              row
+            </button>
+          </Screen>
+        );
+      }
+      renderWithBazis(
+        <Routes>
+          <Route path="/items" element={<ListCardLayout mode="split" list={<List />} />}>
+            <Route
+              path=":id"
+              element={
+                <Screen id="item-card" title="Item" parent={{ screen: 'item-list', label: 'Items', to: '/items' }}>
+                  card
+                </Screen>
+              }
+            />
+          </Route>
+        </Routes>,
+        new Backend(),
+        { route: '/items' },
+      );
+      // never on the first render
+      expect(document.activeElement).toBe(document.body);
+      const row = screen.getByTestId('row:1');
+      row.focus();
+      fireEvent.click(row);
+      const heading = screen.getByRole('heading', { level: 2, name: 'Item' });
+      expect(screen.getAllByRole('heading', { level: 1 }).map((it) => it.textContent)).toEqual(['Items']);
+      await waitFor(() => {
+        expect(document.activeElement).toBe(heading);
+      });
+      fireEvent.click(screen.getByTestId('action:close'));
+      expect(screen.queryByTestId('screen:item-card')).toBeNull();
+      expect(document.activeElement).toBe(screen.getByTestId('row:1'));
+    } finally {
+      Reflect.deleteProperty(window, 'matchMedia');
     }
   });
 

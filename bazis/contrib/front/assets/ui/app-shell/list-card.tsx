@@ -19,8 +19,8 @@
 // the list. The list stays mounted under the same element whatever is open, so that it keeps
 // its search, filters, sort and page.
 
-import { createContext, useContext, useSyncExternalStore, type ReactNode } from 'react';
-import { useOutlet } from 'react-router';
+import { createContext, useContext, useEffect, useRef, useSyncExternalStore, type ReactNode } from 'react';
+import { useLocation, useOutlet } from 'react-router';
 
 import { THEME } from '@/bazis/generated/theme';
 import { cn } from '@/lib/utils';
@@ -64,11 +64,50 @@ export function useBesideList(): boolean {
   return useContext(BesideList) && split;
 }
 
+/** Focuses the first heading in an element, once it shows (the card reads its item), unless the user moved the focus meanwhile. */
+function focusHeading(area: HTMLElement) {
+  const focus = (heading: HTMLElement) => {
+    heading.tabIndex = -1;
+    heading.focus({ preventScroll: true });
+  };
+  const found = area.querySelector<HTMLElement>('h1, h2');
+  if (found) {
+    focus(found);
+    return;
+  }
+  const from = document.activeElement;
+  const observer = new MutationObserver(() => {
+    const heading = area.querySelector<HTMLElement>('h1, h2');
+    if (!heading) return;
+    observer.disconnect();
+    if (document.activeElement === from || document.activeElement === document.body) focus(heading);
+  });
+  observer.observe(area, { childList: true, subtree: true });
+}
+
 /** The screen of a list with the screen of its card (the child route). */
 export function ListCardLayout({ list, mode = THEME.composition.list_card }: ListCardLayoutProps) {
   const card = useOutlet();
   const open = card !== null;
   const split = mode === 'split';
+  const { pathname } = useLocation();
+  const listArea = useRef<HTMLDivElement>(null);
+  const cardArea = useRef<HTMLDivElement>(null);
+  const shown = useRef(pathname);
+  // the focus follows the user from the list to a card (its heading, once it shows) and back to the
+  // row of the card that closes; never on the first render (a link opened in a new tab)
+  useEffect(() => {
+    const before = shown.current;
+    shown.current = pathname;
+    if (before === pathname) return;
+    if (open) {
+      if (cardArea.current) focusHeading(cardArea.current);
+      return;
+    }
+    const row = `row:${before.split('/').filter(Boolean).pop() ?? ''}`;
+    const rows = listArea.current?.querySelectorAll<HTMLElement>('[data-bz^="row:"]') ?? [];
+    [...rows].find((it) => it.dataset.bz === row)?.focus();
+  }, [pathname, open]);
   return (
     <div
       className={cn(
@@ -78,11 +117,12 @@ export function ListCardLayout({ list, mode = THEME.composition.list_card }: Lis
         split && open && 'xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:gap-0 2xl:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]',
       )}
     >
-      <div className={cn('min-w-0', open && (split ? 'hidden xl:block xl:self-start xl:pr-(--space-page-x)' : 'hidden'))}>
+      <div ref={listArea} className={cn('min-w-0', open && (split ? 'hidden xl:block xl:self-start xl:pr-(--space-page-x)' : 'hidden'))}>
         <BesideCard value={split && open}>{list}</BesideCard>
       </div>
       {open && (
         <div
+          ref={cardArea}
           className={cn(
             'min-w-0',
             // the line between the areas as high as the window and the list: the area is as high as

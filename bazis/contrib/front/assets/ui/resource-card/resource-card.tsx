@@ -25,7 +25,7 @@ import type { CustomActionName, PermitMeta } from '@/bazis/client';
 import { THEME } from '@/bazis/generated/theme';
 import { useLanguage } from '@/bazis/i18n';
 import type { ItemPath } from '@/bazis/react';
-import { useScreenPage } from '@/bazis/ui/app-shell';
+import { useBesideList, useScreenPage } from '@/bazis/ui/app-shell';
 import {
   alignsDigits,
   FieldValue,
@@ -160,10 +160,12 @@ interface SectionsProps {
 
 /**
  * The card heads its screen, a screen without a title (`h1`; its sections and its related
- * lists `h2`); else it is under the title (`h2`, its parts `h3`).
+ * lists `h2`); else it is under the title (`h2`, its parts `h3`), beside its list too, whose
+ * title is the `h1` of the page.
  */
 export function useHeadsScreen(): boolean {
-  return useScreenPage()?.titled === false;
+  const beside = useBesideList();
+  return useScreenPage()?.titled === false && !beside;
 }
 
 /**

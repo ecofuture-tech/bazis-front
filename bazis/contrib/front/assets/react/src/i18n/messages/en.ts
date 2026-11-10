@@ -194,6 +194,7 @@ export const en: Messages = {
   'shell.more': 'More',
   'shell.navigation': 'Main',
   'shell.sign_in': 'Log in',
+  'shell.skip': 'Skip to content',
   'size.bytes': '{size} B',
   'size.gb': '{size} GB',
   'size.kb': '{size} KB',

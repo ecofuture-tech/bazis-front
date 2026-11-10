@@ -238,6 +238,22 @@ export function useWide(): boolean {
   return useSyncExternalStore(subscribeWide, () => typeof window.matchMedia !== 'function' || window.matchMedia(WIDE).matches);
 }
 
+/** The id of the content of the page, which the first link of the page skips to. */
+const CONTENT = 'content';
+
+/** The first link of the page for the keyboard, shown once focused: past the navigation to the content. */
+function SkipLink() {
+  const { t } = useLanguage();
+  return (
+    <a
+      href={`#${CONTENT}`}
+      className="sr-only rounded-md bg-background px-3 py-2 text-sm font-medium text-foreground shadow-(--shadow-lift-2) focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus-visible:ring-focus"
+    >
+      {t('shell.skip')}
+    </a>
+  );
+}
+
 const ShellContext = createContext<Navigation | null>(null);
 const ItemsContext = createContext<readonly NavItem[]>([]);
 /** Whether the links are those of a rail, only their icons seen: their labels in their titles. */
@@ -857,6 +873,7 @@ export function AppShell({
     return (
       <ShellContext value={navigation}>
         <div className="flex min-h-dvh flex-col [--bleed:1rem] [--sticky-top:4rem] md:[--bleed:var(--space-page-x)]">
+          <SkipLink />
           <header className="sticky top-0 z-30 h-16 border-b bg-background">
             <div className="flex h-full w-full items-center gap-6 px-4 md:px-(--space-page-x)">
               <Brand title={title} mark={brand} />
@@ -876,7 +893,7 @@ export function AppShell({
               </div>
             </div>
           </header>
-          <main className="mx-auto w-full max-w-6xl min-w-0 flex-1 px-4 py-8 md:px-(--space-page-x) md:py-12">
+          <main id={CONTENT} tabIndex={-1} className="mx-auto w-full max-w-6xl min-w-0 flex-1 px-4 py-8 outline-none md:px-(--space-page-x) md:py-12">
             <ItemsContext value={links}>{children}</ItemsContext>
           </main>
           <Toaster />
@@ -892,6 +909,7 @@ export function AppShell({
           collapsed ? 'md:grid-cols-[4.25rem_minmax(0,1fr)]' : 'md:grid-cols-[15rem_minmax(0,1fr)]',
         )}
       >
+        <SkipLink />
         {/* a rail (`data-state="collapsed"`): the icons of the links with their labels in their
             titles, the mark of the brand, the tools in a column and the circle of the user */}
         <aside
@@ -946,7 +964,7 @@ export function AppShell({
               <ColorModeToggle />
             </div>
           </header>
-          <main className="min-w-0 flex-1 px-(--bleed) pt-(--space-section) pb-(--space-page-y)">
+          <main id={CONTENT} tabIndex={-1} className="min-w-0 flex-1 px-(--bleed) pt-(--space-section) pb-(--space-page-y) outline-none">
             <ItemsContext value={links}>{children}</ItemsContext>
           </main>
         </div>
@@ -1059,7 +1077,19 @@ export function Screen({ id, title, parent, description, caption, actions, child
   const navigate = useNavigate();
   // beside its list, closed back to it, by Escape too unless a page of it (a form) is open or a
   // dialog, a menu or a field took the key
-  const closes = useBesideList() && parent !== undefined ? parent.to : undefined;
+  const beside = useBesideList();
+  const closes = beside && parent !== undefined ? parent.to : undefined;
+  // beside its list, whose title is the `h1` of the page, under it
+  const Heading = beside ? 'h2' : 'h1';
+  // the title of the page: that of the screen before that of the product (of index.html)
+  useEffect(() => {
+    if (typeof title !== 'string') return;
+    const product = document.title;
+    document.title = `${title} · ${product}`;
+    return () => {
+      document.title = product;
+    };
+  }, [title]);
   useEffect(() => {
     if (closes === undefined || pages > 0) return;
     const close = (event: KeyboardEvent) => {
@@ -1089,7 +1119,7 @@ export function Screen({ id, title, parent, description, caption, actions, child
                 {parent !== undefined && <Breadcrumb parent={parent} titled={titled} />}
                 <div className="flex min-w-0 items-baseline gap-3">
                   {title !== undefined && (
-                    <h1
+                    <Heading
                       title={typeof title === 'string' ? title : undefined}
                       className={cn(
                         'min-w-0 truncate font-heading',
@@ -1097,7 +1127,7 @@ export function Screen({ id, title, parent, description, caption, actions, child
                       )}
                     >
                       {title}
-                    </h1>
+                    </Heading>
                   )}
                   <p
                     ref={setCaptionPlace}
