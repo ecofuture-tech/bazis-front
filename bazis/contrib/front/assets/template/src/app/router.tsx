@@ -124,10 +124,7 @@ export function AppRouter() {
             {PUBLIC_ROUTES}
             <Route element={<RequireSession />}>{SCREEN_ROUTES}</Route>
             {/* a path of no screen: said so in the layout, never a silent jump home */}
-            <Route
-              path="*"
-              element={<NotFound />}
-            />
+            <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>
       </BrowserRouter>
