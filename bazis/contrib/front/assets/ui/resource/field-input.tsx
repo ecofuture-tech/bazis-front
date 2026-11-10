@@ -299,8 +299,11 @@ export function FieldInput({
   return (
     <div className={cn('grid gap-2', checkbox && 'grid-cols-[auto_1fr] items-center')}>
       <Label htmlFor={id} className={cn(checkbox && 'order-2')}>
-        {field.title}
-        {required && <span aria-hidden="true">*</span>}
+        {/* the mark of a required field a space after its title, not the gap of a label */}
+        <span>
+          {field.title}
+          {required && <span aria-hidden="true">{' *'}</span>}
+        </span>
       </Label>
       {file && FileControl ? (
         <FileControl
