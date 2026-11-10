@@ -9,7 +9,7 @@ shape: soft                # sharp | soft | round
 surface: lifted            # flat | bordered | elevated | lifted
 mode: both                 # both (switched by the user) | light | dark
 navigation: sidebar        # sidebar | topbar
-# shell: {sidebar: rail}   # the sidebar a rail of icons until the user expands it (expanded from lg by default)
+# shell: {sidebar: rail}   # auto (expanded from lg, a rail below) | expanded | rail: until the user chooses
 density: comfortable       # comfortable | compact
 composition:
   list: table              # table | cards

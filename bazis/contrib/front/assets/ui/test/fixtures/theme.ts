@@ -13,8 +13,8 @@ export interface Theme {
   readonly navigation: 'sidebar' | 'topbar';
   readonly density: 'comfortable' | 'compact';
   readonly shell: {
-    /** The sidebar until the user chooses: expanded from the breakpoint lg (a rail below), or a rail at every width. */
-    readonly sidebar: 'expanded' | 'rail';
+    /** The sidebar until the user chooses: auto, expanded from the breakpoint lg and a rail below; expanded; or a rail, at every width. */
+    readonly sidebar: 'auto' | 'expanded' | 'rail';
   };
   readonly composition: {
     /** A list as a table or a grid of cards. */
@@ -71,7 +71,7 @@ export const THEME: Theme = {
   navigation: "sidebar",
   preset: "workspace",
   shell: {
-    sidebar: "expanded",
+    sidebar: "auto",
   },
   statuses: {
     done: "success",

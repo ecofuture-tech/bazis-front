@@ -2792,7 +2792,7 @@ the table; what it lists as code is a screen of your own or its extension (see
 
 | I want | The key or the token | What stays code |
 |---|---|---|
-| the sidebar a rail until the user expands it | `shell.sidebar: rail` (`expanded`, the default: expanded from `lg`, a rail below); the choice of the user wins, kept by the browser (`bazis-sidebar`); D018 under `navigation: topbar` | the sidebar on the right |
+| the sidebar a rail, or expanded, until the user chooses | `shell.sidebar: rail` or `expanded` (`auto`, the default: expanded from `lg`, a rail below); the choice of the user wins, kept by the browser (`bazis-sidebar`); D018 under `navigation: topbar` | the sidebar on the right |
 | a wider sidebar, rail or content | `size.sidebar`, `size.sidebar-rail`, `size.content` | the drawer of a phone |
 | a top bar instead of the sidebar | `navigation: topbar` (see [The design](#the-design)) | — |
 | the filters on the page, without their plate | `composition.filters: row` (a list, a board, a calendar) | the order of the filters is `list.filters` |
@@ -2813,7 +2813,7 @@ should follow the sidebar is an expression of a role variable (`var(--sidebar)`,
 ```yaml
 # theme.yaml: the base with the sidebar a rail, the filters on the page, the tools over the lists
 shell:
-  sidebar: rail            # expanded | rail: the sidebar until the user chooses
+  sidebar: rail            # auto | expanded | rail: the sidebar until the user chooses
 composition:
   filters: row             # plate | row
   list_tools: list         # list | header
@@ -2932,8 +2932,8 @@ in `--sidebar-muted-foreground`. A link with `count` shows the number of its ite
 `detail` under it; the template passes none) the user is a plate at the foot: the circle of
 his initials in `--sidebar-primary`, the logout an icon. The last button of the tools collapses
 the sidebar to a rail of icons `size.sidebar-rail` wide (`data-state="collapsed"` of the `aside`,
-the choice kept in the storage of the browser; until the user chooses, a rail below `lg` or with
-`shell.sidebar: rail`): the labels are the titles of the links, a number is a dot.
+the choice kept in the storage of the browser; until the user chooses, `shell.sidebar`: a rail
+below `lg` by default): the labels are the titles of the links, a number is a dot.
 
 **The headings.** `font-heading` is the family, the weight and the tracking of a heading
 (the title of a screen, a card, a figure of a dashboard) and `font-subheading` those of the

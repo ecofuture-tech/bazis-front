@@ -66,7 +66,7 @@ PRESETS = {
     'workspace': {
         'navigation': 'sidebar',
         'density': 'comfortable',
-        'shell': {'sidebar': 'expanded'},
+        'shell': {'sidebar': 'auto'},
         'composition': {
             'list': 'table', 'list_phone': 'cards', 'list_card': 'split', 'forms': 'dialog',
             'filters': 'plate', 'list_tools': 'list',
@@ -75,7 +75,7 @@ PRESETS = {
     'portal': {
         'navigation': 'topbar',
         'density': 'comfortable',
-        'shell': {'sidebar': 'expanded'},
+        'shell': {'sidebar': 'auto'},
         'composition': {
             'list': 'cards', 'list_phone': 'cards', 'list_card': 'pages', 'forms': 'page',
             'filters': 'plate', 'list_tools': 'list',

@@ -677,6 +677,25 @@ describe('AppShell', () => {
     }
   });
 
+  it('stays expanded below the breakpoint lg with `shell.sidebar: expanded` of the theme', () => {
+    window.localStorage.removeItem('bazis-sidebar');
+    window.matchMedia = (query: string) =>
+      ({ matches: !query.includes('64rem'), addEventListener: vi.fn(), removeEventListener: vi.fn() }) as unknown as MediaQueryList;
+    Object.assign(THEME.shell, { sidebar: 'expanded' });
+    try {
+      renderWithBazis(
+        <AppShell title="Product" navigation="sidebar" items={items}>
+          <Screen id="home">home</Screen>
+        </AppShell>,
+        new Backend(),
+      );
+      expect(screen.getByTestId('nav:home').closest('aside')?.getAttribute('data-state')).toBe('expanded');
+    } finally {
+      Object.assign(THEME.shell, { sidebar: 'auto' });
+      Reflect.deleteProperty(window, 'matchMedia');
+    }
+  });
+
   it('starts as a rail with `shell.sidebar: rail` of the theme until the user expands it, as wide as the tokens of the sizes', () => {
     window.localStorage.removeItem('bazis-sidebar');
     Object.assign(THEME.shell, { sidebar: 'rail' });
@@ -699,7 +718,7 @@ describe('AppShell', () => {
       expect(window.localStorage.getItem('bazis-sidebar')).toBe('expanded');
       expect(aside()?.getAttribute('data-state')).toBe('expanded');
     } finally {
-      Object.assign(THEME.shell, { sidebar: 'expanded' });
+      Object.assign(THEME.shell, { sidebar: 'auto' });
       window.localStorage.removeItem('bazis-sidebar');
     }
   });

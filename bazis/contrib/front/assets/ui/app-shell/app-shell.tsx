@@ -214,7 +214,7 @@ function storeRail(collapsed: boolean): void {
 
 /** The width from which the sidebar is shown: the breakpoint `md` of Tailwind. */
 const WIDE = '(min-width: 48rem)';
-/** The width from which the sidebar is expanded until the user collapses it, a rail below (`shell.sidebar: expanded`): the breakpoint `lg`. */
+/** The width from which the sidebar is expanded until the user collapses it, a rail below (`shell.sidebar: auto`): the breakpoint `lg`. */
 const ROOMY = '(min-width: 64rem)';
 
 function subscriber(media: string) {
@@ -868,8 +868,8 @@ export function AppShell({
   const links = useMemo(() => navLinks(items), [items]);
   const [chosen, setChosen] = useState(storedRail);
   const roomy = useSyncExternalStore(subscribeRoomy, () => typeof window.matchMedia !== 'function' || window.matchMedia(ROOMY).matches);
-  // the choice of the user, else the state of the theme: a rail, or expanded where there is room
-  const collapsed = chosen ?? (THEME.shell.sidebar === 'rail' || !roomy);
+  // the choice of the user, else the state of the theme: a rail, expanded, or expanded where there is room
+  const collapsed = chosen ?? (THEME.shell.sidebar === 'auto' ? !roomy : THEME.shell.sidebar === 'rail');
   const { t } = useLanguage();
   if (navigation === 'topbar') {
     return (

@@ -848,9 +848,9 @@ def test_the_shell_and_the_composition_of_a_product():
     # of the shell; theme.yaml and tokens.json change them
     files = theme.render(Specs(theme={'spec': 'bazis-design/1', 'preset': 'workspace'}))
     text = files[theme.THEME_TS]
-    for line in ('shell: {\n    sidebar: "expanded",\n  },', 'filters: "plate",', 'list_tools: "list",'):
+    for line in ('shell: {\n    sidebar: "auto",\n  },', 'filters: "plate",', 'list_tools: "list",'):
         assert line in text
-    assert "readonly sidebar: 'expanded' | 'rail';" in text and "readonly list_tools: 'list' | 'header';" in text
+    assert "readonly sidebar: 'auto' | 'expanded' | 'rail';" in text and "readonly list_tools: 'list' | 'header';" in text
     light = root_block(files[theme.THEME_CSS], ':root')
     assert (light['--size-sidebar'], light['--size-sidebar-rail'], light['--size-content']) == ('15rem', '4.25rem', '80rem')
     data = {
@@ -875,6 +875,12 @@ def test_the_state_of_a_sidebar_under_a_top_bar():
     design.check(theme_doc, None, set(), None, issues)
     assert [(it.code, it.severity, it.path) for it in issues.items] == [('D018', 'error', '/shell/sidebar')]
     assert not validator(DESIGN_SCHEMA).is_valid({**theme_doc.data, 'shell': {'sidebar': 'hidden'}})
+    # every state of the sidebar under a sidebar, and none of them under a top bar
+    for state in ('auto', 'expanded', 'rail'):
+        assert validator(DESIGN_SCHEMA).is_valid({**theme_doc.data, 'shell': {'sidebar': state}})
+        issues = Issues()
+        design.check(Document('design', 'spec/design/theme.yaml', {**theme_doc.data, 'shell': {'sidebar': state}}, True), None, set(), None, issues)
+        assert [it.code for it in issues.items] == ['D018']
 
 
 @pytest.mark.django_db

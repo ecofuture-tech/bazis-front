@@ -55,7 +55,7 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "sidebar": {"description": "The sidebar until the user chooses (his choice is kept by the browser): expanded (the default), expanded on a wide screen and a rail of icons below the breakpoint lg; rail, a rail of icons at every width. Only with `navigation: sidebar` (D018).", "enum": ["expanded", "rail"]}
+        "sidebar": {"description": "The sidebar until the user chooses (his choice is kept by the browser): auto (the default), expanded on a wide screen and a rail of icons below the breakpoint lg; expanded, at every width; rail, a rail of icons at every width. Only with `navigation: sidebar` (D018).", "enum": ["auto", "expanded", "rail"]}
       }
     },
     "controls": {
