@@ -36,7 +36,7 @@ from bazis.contrib.front.vendor.lock import digest
 #: require
 INIT_COMPONENTS = [
     'state-panel', 'app-shell', 'login-form', 'dashboard', 'testing', 'button', 'card', 'input', 'label',
-    'sheet', 'dropdown-menu', 'skeleton', 'resource', 'stat-card', 'badge', 'native-select', 'popover',
+    'sheet', 'dialog', 'dropdown-menu', 'skeleton', 'resource', 'stat-card', 'badge', 'native-select', 'popover',
 ]
 
 
