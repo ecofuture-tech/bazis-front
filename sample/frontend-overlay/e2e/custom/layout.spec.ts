@@ -15,7 +15,8 @@
 // The layout with the styles of a product (what jsdom does not lay out): the foot of the
 // sidebar holds the tools of the sample (the state of the socket and the bell), the
 // language, the color mode and the session without pushing any of them out, on a phone
-// the filters of the list of the tasks (a date range among them) fit the width of the page,
+// the filters of the list of the tasks (a date range among them), folded behind their button,
+// fit the width of the page once unfolded,
 // and a long title (a word without a space among its words) keeps every screen that shows it
 // within the width of the page, of a phone and of a desktop (the task stays: `e2e_data`
 // only adds, and the manager may not delete it).
@@ -63,9 +64,15 @@ test('a phone shows the filters of a list within its width', async ({ page }) =>
   await app.open('task-list');
   await app.expectState('loaded');
   const to = page.locator(bz('field', 'dt_created__lte'));
+  // folded behind their button on a phone
+  await expect(to).toBeHidden();
+  const fold = page.locator(bz('action', 'filters'));
+  await fold.click();
+  await expect(fold).toHaveAttribute('aria-expanded', 'true');
   await expect(to).toBeVisible();
   const box = await to.boundingBox();
   expect(box && box.x + box.width).toBeLessThanOrEqual(390);
+  expect(await overflowing(page.locator('[data-slot="filter-row"]').first())).toEqual([]);
   expect(await scrollsSideways(page)).toBe(false);
 });
 
