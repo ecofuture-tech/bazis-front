@@ -647,7 +647,34 @@ describe('AppShell', () => {
     expect(aside()?.getAttribute('data-state')).toBe('collapsed');
     fireEvent.click(screen.getByRole('button', { name: 'Expand the sidebar' }));
     expect(aside()?.getAttribute('data-state')).toBe('expanded');
-    expect(window.localStorage.getItem('bazis-sidebar')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Collapse the sidebar' }).getAttribute('aria-expanded')).toBe('true');
+    // the choice of the user, whatever the width
+    expect(window.localStorage.getItem('bazis-sidebar')).toBe('expanded');
+    window.localStorage.removeItem('bazis-sidebar');
+  });
+
+  it('collapses the sidebar to a rail below the breakpoint lg until the user expands it', () => {
+    window.localStorage.removeItem('bazis-sidebar');
+    // jsdom has no `matchMedia`: wide (`md`), not `lg`
+    window.matchMedia = (query: string) =>
+      ({ matches: !query.includes('64rem'), addEventListener: vi.fn(), removeEventListener: vi.fn() }) as unknown as MediaQueryList;
+    try {
+      const shell = (
+        <AppShell title="Product" navigation="sidebar" items={items}>
+          <Screen id="home">home</Screen>
+        </AppShell>
+      );
+      const first = renderWithBazis(shell, new Backend());
+      const aside = () => screen.getByTestId('nav:home').closest('aside');
+      expect(aside()?.getAttribute('data-state')).toBe('collapsed');
+      fireEvent.click(screen.getByRole('button', { name: 'Expand the sidebar' }));
+      first.unmount();
+      renderWithBazis(shell, new Backend());
+      expect(aside()?.getAttribute('data-state')).toBe('expanded');
+    } finally {
+      Reflect.deleteProperty(window, 'matchMedia');
+      window.localStorage.removeItem('bazis-sidebar');
+    }
   });
 
   it('keeps in a rail the number of a link as a dot and the names of the logout and the sign-in', async () => {

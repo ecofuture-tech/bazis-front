@@ -16,7 +16,8 @@
 // bar, as `navigation` of spec/design/theme.yaml), its links `nav:<screen>` (those that
 // require a permission shown once the backend allows it, the number of the items of a list
 // beside a link `count:<screen>`; those that the top bar has no room for in its menu
-// `nav:more`; the sidebar collapsed to a rail of icons, kept in the storage of the browser),
+// `nav:more`; the sidebar collapsed to a rail of icons, by default on a narrow screen, the choice
+// of the user kept in the storage of the browser),
 // the session (the user and the logout, `action:logout`; without one, the sign-in
 // `action:sign-in`), the language
 // (`action:language`, with more than one language), the color mode, the tools of the product
@@ -189,38 +190,45 @@ export interface AppShellProps {
   children: ReactNode;
 }
 
-/** The key of the storage of the browser that keeps the sidebar collapsed to a rail. */
+/** The key of the storage of the browser that keeps the choice of the user: the sidebar collapsed to a rail or expanded. */
 const RAIL = 'bazis-sidebar';
 
-/** Whether the user collapsed the sidebar to a rail (false when the storage is not available). */
-function storedRail(): boolean {
+/** Whether the user collapsed the sidebar to a rail; null when he did not choose (or the storage is not available). */
+function storedRail(): boolean | null {
   try {
-    return window.localStorage.getItem(RAIL) === 'collapsed';
+    const stored = window.localStorage.getItem(RAIL);
+    return stored === null ? null : stored === 'collapsed';
   } catch {
-    return false;
+    return null;
   }
 }
 
 function storeRail(collapsed: boolean): void {
   try {
-    if (collapsed) window.localStorage.setItem(RAIL, 'collapsed');
-    else window.localStorage.removeItem(RAIL);
+    window.localStorage.setItem(RAIL, collapsed ? 'collapsed' : 'expanded');
   } catch {
-    // a storage that is not available: the rail lasts until the page is reloaded
+    // a storage that is not available: the choice lasts until the page is reloaded
   }
 }
 
 /** The width from which the sidebar is shown: the breakpoint `md` of Tailwind. */
 const WIDE = '(min-width: 48rem)';
+/** The width from which the sidebar is expanded until the user collapses it, a rail below: the breakpoint `lg`. */
+const ROOMY = '(min-width: 64rem)';
 
-function subscribeWide(listener: () => void) {
-  if (typeof window.matchMedia !== 'function') return () => undefined;
-  const query = window.matchMedia(WIDE);
-  query.addEventListener('change', listener);
-  return () => {
-    query.removeEventListener('change', listener);
+function subscriber(media: string) {
+  return (listener: () => void) => {
+    if (typeof window.matchMedia !== 'function') return () => undefined;
+    const query = window.matchMedia(media);
+    query.addEventListener('change', listener);
+    return () => {
+      query.removeEventListener('change', listener);
+    };
   };
 }
+
+const subscribeWide = subscriber(WIDE);
+const subscribeRoomy = subscriber(ROOMY);
 
 /**
  * Whether the screen is at least the breakpoint `md` of Tailwind wide: the sidebar is shown,
@@ -841,7 +849,9 @@ export function AppShell({
 }: AppShellProps) {
   const wide = useWide();
   const links = useMemo(() => navLinks(items), [items]);
-  const [collapsed, setCollapsed] = useState(storedRail);
+  const [chosen, setChosen] = useState(storedRail);
+  const roomy = useSyncExternalStore(subscribeRoomy, () => typeof window.matchMedia !== 'function' || window.matchMedia(ROOMY).matches);
+  const collapsed = chosen ?? !roomy;
   const { t } = useLanguage();
   if (navigation === 'topbar') {
     return (
@@ -912,11 +922,12 @@ export function AppShell({
                 variant="ghost"
                 size="icon-sm"
                 aria-label={t(collapsed ? 'shell.expand' : 'shell.collapse')}
+                aria-expanded={!collapsed}
                 title={t(collapsed ? 'shell.expand' : 'shell.collapse')}
                 className="ml-auto text-muted-foreground group-data-[state=collapsed]/sidebar:ml-0"
                 onClick={() => {
                   storeRail(!collapsed);
-                  setCollapsed(!collapsed);
+                  setChosen(!collapsed);
                 }}
               >
                 {collapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
