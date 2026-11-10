@@ -5898,7 +5898,7 @@ Its props, `ItemValueProps`:
 
 #### isNumeric
 
-`isNumeric(field: FormField | undefined): boolean`: Whether a field is a number: aligned to the right.
+`isNumeric(field: FormField | undefined): boolean`: Whether a field is numeric: aligned to the right.
 
 #### isReverse
 

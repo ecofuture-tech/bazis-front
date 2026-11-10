@@ -227,6 +227,9 @@ const ROW_TONES: Readonly<Record<Tone, string>> = {
 /** The bounds of a column of names with their avatars and of chips, wider than those of a text. */
 const DISPLAY_WIDTHS: Readonly<Partial<Record<string, string>>> = { avatar: 'min-w-40 max-w-56', chips: 'min-w-40 max-w-72' };
 
+/** The length of the texts of a first column as wide as they are. */
+const SHORT_TEXT = 12;
+
 /** Whether the values of a field are short by their nature and never wrap: a number, a date, a time. */
 function isShort(field: FormField | undefined): boolean {
   return isNumeric(field) || (field?.kind === 'attribute' && ['date', 'date-time', 'time'].includes(field.format ?? ''));
@@ -293,8 +296,18 @@ function TableView(
   const { rows, columns, fields, onOpen, selected, header, sorted, actionsColumn, hidden, selection } = props;
   const { t } = useLanguage();
   const { resources } = useFiles();
-  /** Whether the values of a column are as wide as they are, never wrapped: short values, files (their thumbnails). */
-  const compact = (field: FormField | undefined) => isShort(field) || isFile(field, resources);
+  /**
+   * Whether the values of a column are as wide as they are, never wrapped: short values, files
+   * (their thumbnails), the short texts of the first column on the page (the number of a booking).
+   */
+  const compact = (field: FormField | undefined, name: string, index: number) =>
+    isShort(field) ||
+    isFile(field, resources) ||
+    (index === 0 &&
+      rows.every((row) => {
+        const value = fieldValue(row, name);
+        return value === null || ((typeof value === 'string' || typeof value === 'number') && String(value).length <= SHORT_TEXT);
+      }));
   return (
     <table data-slot="table" className="w-full caption-bottom text-sm">
       <TableHeader>
@@ -353,7 +366,7 @@ function TableView(
               {columns.map((name, index) => {
                 const field = fields.fields.get(name);
                 const shown = props.display[name];
-                const fits = compact(field);
+                const fits = compact(field, name, index);
                 return (
                   <TableCell
                     key={name}
@@ -361,7 +374,7 @@ function TableView(
                     className={cn(
                       'px-(--space-cell-x) py-(--space-cell-y)',
                       // the first column, the name of a row, is at least 12rem but for a short value (a
-                      // number) or a file
+                      // number, a short text) or a file
                       index === 0
                         ? cn(!fits && 'min-w-48', 'font-medium text-foreground', STICKY, selection ? 'left-10' : cn('left-0', LEFTMOST))
                         : 'text-foreground/80',

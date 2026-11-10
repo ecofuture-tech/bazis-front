@@ -435,9 +435,9 @@ export function fromLocalDateTime(text: string): string | null {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
-/** Whether a field is a number: aligned to the right. */
+/** Whether a field is numeric: aligned to the right. */
 export function isNumeric(field: FormField | undefined): boolean {
-  return field?.kind === 'attribute' && (field.type === 'integer' || field.type === 'number');
+  return field?.kind === 'attribute' && (field.type === 'integer' || field.type === 'number' || field.format === 'decimal');
 }
 
 /**
@@ -445,7 +445,7 @@ export function isNumeric(field: FormField | undefined): boolean {
  * So in a cell, a value of a card and an input; a heading and a figure keep those of `font-heading`.
  */
 export function alignsDigits(field: FormField | undefined): boolean {
-  return isNumeric(field) || (field?.kind === 'attribute' && ['decimal', 'date', 'date-time'].includes(field.format ?? ''));
+  return isNumeric(field) || (field?.kind === 'attribute' && ['date', 'date-time'].includes(field.format ?? ''));
 }
 
 /** Whether a field is a long text (a string without a format and a maximal length). */
