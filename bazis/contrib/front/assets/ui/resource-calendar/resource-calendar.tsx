@@ -404,18 +404,23 @@ export function ResourceCalendar({
     // a compact month: a dot, the items in the list of the day
     const dot = view === 'month' && compact;
     return (
+      // a click anywhere on the day selects it (its button for the keyboard), on an item opens it too
       <div
         key={key}
         data-bz={`day:${key}`}
         data-count={dayItems.length}
         className={cn(
           'grid min-w-0 content-start gap-1 bg-card',
-          // a compact week is a list of its days: a day without items is low
-          dot ? 'min-h-16 p-0.5' : view === 'month' ? 'min-h-28 p-1.5' : cn('p-1.5', !compact && 'min-h-40'),
+          // a compact week is a list of its days: a day without items is low; a wide week down to
+          // the bottom of the window
+          dot ? 'min-h-16 p-0.5' : view === 'month' ? 'min-h-28 p-1.5' : cn('p-1.5', !compact && 'min-h-[max(10rem,calc(100dvh-20rem))]'),
           // a day of another month on the card as the others, the month one field: its number
-          // muted, its items paler
+          // muted, its items neutral
           outside && 'text-muted-foreground',
         )}
+        onClick={() => {
+          setSelected(key);
+        }}
       >
         <div className="flex items-center gap-1.5">
           {view === 'week' && (
@@ -426,6 +431,7 @@ export function ResourceCalendar({
           <button
             type="button"
             aria-pressed={isSelected}
+            aria-current={key === today ? 'date' : undefined}
             aria-label={fullDay.format(day)}
             aria-controls={listId}
             className={cn(
@@ -434,15 +440,14 @@ export function ResourceCalendar({
               dot ? 'grid w-full justify-items-center gap-1 rounded-md py-1' : 'flex size-7 items-center justify-center rounded-full pointer-coarse:size-11',
               'text-sm tabular-nums',
             )}
-            onClick={() => {
-              setSelected(key);
-            }}
           >
+            {/* today filled, the selected day in a ring */}
             <span
               className={cn(
                 'flex size-7 items-center justify-center rounded-full transition-colors hover:bg-muted',
-                key === today && 'font-semibold text-primary',
-                isSelected && 'bg-primary text-primary-foreground hover:bg-primary',
+                key === today && 'bg-primary font-semibold text-primary-foreground hover:bg-primary',
+                isSelected && 'ring-2 ring-primary',
+                isSelected && key === today && 'ring-offset-2 ring-offset-card',
               )}
             >
               {day.getDate()}
@@ -457,9 +462,19 @@ export function ResourceCalendar({
           </button>
         </div>
         {dot ? null : (
-          <div className={cn('grid min-w-0 gap-1 text-xs', outside && 'opacity-60')}>
+          <div className="grid min-w-0 gap-1 text-xs">
+            {/* a line of a month: the first field of the label */}
             {shown.map((item) => (
-              <Item key={item.id} item={item} label={labels} meta={meta} display={display} tone={toneOf(item)} onOpen={onOpen} {...timesOn(item, key, view === 'month')} />
+              <Item
+                key={item.id}
+                item={item}
+                label={view === 'month' ? labels.slice(0, 1) : labels}
+                meta={meta}
+                display={display}
+                tone={outside ? 'neutral' : toneOf(item)}
+                onOpen={onOpen}
+                {...timesOn(item, key, view === 'month')}
+              />
             ))}
             {dayItems.length > shown.length && (
               <button
