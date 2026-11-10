@@ -1,7 +1,7 @@
 # End-to-end helpers
 
 The helpers of the end-to-end tests of a product on
-[Bazis](https://github.com/ecofuture-tech/bazis), over Playwright. Status: pre-release.
+[Bazis](https://github.com/ecofuture-tech/bazis), over Playwright. Status: below 1.0.
 
 They are not an npm package: `manage.py bazis_front init` copies `bazis/index.ts` into the
 frontend of a product, to `frontend/e2e/bazis/index.ts` (stamped, with its pristine copy in

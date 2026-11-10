@@ -6,7 +6,7 @@ requests, filters, errors, pagination, authentication (bazis-users), permission 
 the OpenAPI of a project, so paths, request bodies and responses are checked by the
 compiler.
 
-ESM only, no dependencies, uses the standard `fetch`. Status: pre-release.
+ESM only, no dependencies, uses the standard `fetch`. Status: below 1.0.
 
 The client is not an npm package: its `src/*.ts` files are copied into a product, to
 `frontend/src/bazis/client/`, and imported as `@/bazis/client` (a `paths` alias of the

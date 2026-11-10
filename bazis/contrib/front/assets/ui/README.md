@@ -2,7 +2,7 @@
 
 The visual building blocks of the frontend of a product on
 [Bazis](https://github.com/ecofuture-tech/bazis): React components on shadcn/ui and
-Tailwind 4 over the hooks (`assets/react`). Status: pre-release.
+Tailwind 4 over the hooks (`assets/react`). Status: below 1.0.
 
 The components are not an npm package: `manage.py bazis_front add <component>...` copies
 them into the frontend of a product, to `frontend/src/bazis/ui/<component>/` (imported as
