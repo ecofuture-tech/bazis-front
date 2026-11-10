@@ -222,7 +222,8 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   `onOpen` makes the whole tile a button named by its label.
 - **`dashboard`** (`primitive: dashboard`, the home of the starters): its title in the header
   of the screen, the day of `today` beside it (`caption`), or as a hero with the day under it (`data-slot="hero"`, the default of a portal), the tiles of
-  `stat-card` (a tile of a `value` takes the whole row of a phone, a count half of it), the
+  `stat-card` (two a row, the last of an odd number the whole row; from `xl` at most four a
+  row, those of a shorter last row sharing it: never a hole), the
   links to the other screens of the navigation (`link:<screen>`, each once
   the backend allows what it `requires`; the numbers are those of the tiles), the
   charts it is given and the last items of route sets (`RecentList`, `recent:<id>`: a list

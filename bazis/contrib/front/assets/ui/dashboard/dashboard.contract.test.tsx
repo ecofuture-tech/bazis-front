@@ -88,7 +88,7 @@ describe('Dashboard', () => {
     expect(screen.getByTestId('chart:by-status')).toBeTruthy();
   });
 
-  it('gives the last of an odd number of tiles the row of a phone, whatever its value', async () => {
+  it('gives the last of an odd number of tiles the row below xl, whatever its value, and the tiles of the last row their row from xl', async () => {
     renderWithBazis(
       <Dashboard
         hero={false}
@@ -103,9 +103,12 @@ describe('Dashboard', () => {
       expect(screen.getByTestId('tile:paid').getAttribute('data-value')).toBe('20600');
     });
     // the grid spans its last child when it is odd (the tiles that the user views): no tile by
-    // its value; the class of the tile is kept
+    // its value; from xl rows that wrap, their tiles growing (a short last row shared, never a
+    // hole); the class of the tile is kept
     const grid = screen.getByTestId('tile:paid').parentElement;
-    expect(grid?.classList).toContain('max-sm:*:last:odd:col-span-2');
+    expect(grid?.classList).toContain('max-xl:*:last:odd:col-span-2');
+    expect(grid?.classList).toContain('xl:flex-wrap');
+    expect(grid?.classList).toContain('xl:*:grow');
     expect(screen.getByTestId('tile:paid').classList).toContain('xl:col-span-2');
     expect(screen.getByTestId('tile:paid').classList).not.toContain('max-sm:col-span-2');
   });

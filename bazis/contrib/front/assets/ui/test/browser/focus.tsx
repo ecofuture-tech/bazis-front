@@ -17,7 +17,8 @@
 // `vitest.config.ts` and the Tailwind of a product), what jsdom does not lay out: the chart in
 // focus, the rail of the tiles, the charts and the last items, each of the route set of the test
 // or, the part named by the query `hide`, of a route set that the backend does not let the user
-// view (the test answers both); the query `link`, the label of a quick link (`link:long`).
+// view (the test answers both); the query `link`, the label of a quick link (`link:long`); the
+// query `tiles`, a dashboard of that number of tiles without a focus.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createRoot } from 'react-dom/client';
@@ -32,6 +33,7 @@ import { Dashboard, Viewable } from '@/bazis/ui/dashboard';
 const query = new URLSearchParams(window.location.search);
 const hide = query.get('hide');
 const link = query.get('link');
+const tiles = query.get('tiles');
 /** The route set of a part: one that the user may not view for the part `hide`. */
 const path = (part: string) => (part === hide ? '/api/test/hidden/' : '/api/test/item/') as never;
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -44,22 +46,29 @@ if (root) {
       <QueryClientProvider client={queryClient}>
         <BazisProvider client={api} session="test" language="en">
           <MemoryRouter>
-            <Dashboard
-              hero={false}
-              links={link === null ? [] : [{ screen: 'long', label: link, to: '/long' }]}
-              focus={
-                <Viewable path={path('focus')}>
-                  <div data-testid="focus" className="h-80" />
-                </Viewable>
-              }
-              tiles={['a', 'b', 'c'].map((id) => ({ id, path: path('tiles'), label: id }))}
-              charts={['d', 'e'].map((id) => (
-                <Viewable key={id} path={path('charts')}>
-                  <div data-testid={`chart-${id}`} className="h-40" />
-                </Viewable>
-              ))}
-              recent={[{ id: 'items', path: path('recent'), label: 'Items', columns: ['title'] }]}
-            />
+            {tiles !== null ? (
+              <Dashboard
+                hero={false}
+                tiles={Array.from({ length: Number(tiles) }, (_, index) => ({ id: String(index), path: path('tiles'), label: `Tile ${String(index)}` }))}
+              />
+            ) : (
+              <Dashboard
+                hero={false}
+                links={link === null ? [] : [{ screen: 'long', label: link, to: '/long' }]}
+                focus={
+                  <Viewable path={path('focus')}>
+                    <div data-testid="focus" className="h-80" />
+                  </Viewable>
+                }
+                tiles={['a', 'b', 'c'].map((id) => ({ id, path: path('tiles'), label: id }))}
+                charts={['d', 'e'].map((id) => (
+                  <Viewable key={id} path={path('charts')}>
+                    <div data-testid={`chart-${id}`} className="h-40" />
+                  </Viewable>
+                ))}
+                recent={[{ id: 'items', path: path('recent'), label: 'Items', columns: ['title'] }]}
+              />
+            )}
           </MemoryRouter>
         </BazisProvider>
       </QueryClientProvider>

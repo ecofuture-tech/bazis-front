@@ -300,9 +300,11 @@ export function Dashboard({
         {before}
         {focus === undefined ? (
           tiles.length > 0 && (
-            // on a phone two columns, the last tile of an odd number of them (those the user views)
-            // taking the row: never a hole beside it
-            <div className="grid grid-cols-2 gap-3 max-sm:*:last:odd:col-span-2 sm:gap-4 xl:grid-cols-4">{cards('card')}</div>
+            // two columns, the last tile of an odd number of them (those the user views) taking the
+            // row; from xl rows of four at most, the tiles of the last row sharing it: never a hole
+            <div className="grid grid-cols-2 gap-3 max-xl:*:last:odd:col-span-2 sm:gap-4 xl:flex xl:flex-wrap xl:*:min-w-0 xl:*:grow xl:*:basis-1/5">
+              {cards('card')}
+            </div>
           )
         ) : (
           // two rows whose parts share the width (the chart in focus two thirds, the rail one; the

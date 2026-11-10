@@ -375,6 +375,34 @@ for (const width of [1280, 390]) {
   });
 }
 
+test('the tiles of a dashboard leave no hole: rows of four at most from xl, the last row shared, two columns below', async ({ page }) => {
+  /** The rows of the tiles: the number of tiles of each and whether they fill it, the tiles of a row as wide as each other. */
+  const rows = async (width: number, count: number) => {
+    await openFocus(page, width, `tiles=${String(count)}`);
+    const tiles = page.locator('[data-bz^="tile:"]');
+    await expect(tiles).toHaveCount(count);
+    return tiles.evaluateAll((all) => {
+      const grid = all[0]?.parentElement?.getBoundingClientRect();
+      const byTop = new Map<number, DOMRect[]>();
+      for (const it of all) {
+        const box = it.getBoundingClientRect();
+        byTop.set(Math.round(box.top), [...(byTop.get(Math.round(box.top)) ?? []), box]);
+      }
+      return [...byTop.values()].map((row) => ({
+        tiles: row.length,
+        filled: Math.round((row.at(-1)?.right ?? 0) - (row[0]?.left ?? 0)) === Math.round(grid?.width ?? 0),
+        even: new Set(row.map((it) => Math.round(it.width))).size === 1,
+      }));
+    });
+  };
+  const shape = (all: { tiles: number; filled: boolean; even: boolean }[]) => all.map((it) => [it.tiles, it.filled && it.even]);
+  expect(shape(await rows(1280, 3))).toEqual([[3, true]]);
+  expect(shape(await rows(1280, 5))).toEqual([[4, true], [1, true]]);
+  expect(shape(await rows(1280, 6))).toEqual([[4, true], [2, true]]);
+  expect(shape(await rows(1280, 8))).toEqual([[4, true], [4, true]]);
+  expect(shape(await rows(768, 3))).toEqual([[2, true], [1, true]]);
+});
+
 for (const width of [768, 390]) {
   test(`a long label of a quick link of a dashboard is cut at ${String(width)} px, the page never widened`, async ({ page }) => {
     await openFocus(page, width, `link=${encodeURIComponent('A quick link whose label is longer than any column of the dashboard has room for '.repeat(2))}`);
