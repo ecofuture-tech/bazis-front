@@ -493,7 +493,9 @@ export function ResourceCalendar({
 
   return (
     <div data-bz={`calendar:${entity}`} data-from={from} data-to={to} className="grid grid-cols-[minmax(0,1fr)] gap-4">
-      <div className="flex flex-wrap items-center gap-2">
+      {/* the line of the navigation: the period, its filters, the views; on the bottom of the
+          controls of the filters, under their labels */}
+      <div className="flex flex-wrap items-end gap-2">
         <div className="flex items-center gap-1">
           <Button
             type="button"
@@ -534,11 +536,37 @@ export function ResourceCalendar({
         </div>
         {/* the period in the text of the toolbar, under the title of the screen: never a heading as
             heavy as it */}
-        <h2 aria-live="polite" className="min-w-0 flex-1 text-base font-medium first-letter:uppercase max-sm:order-first max-sm:basis-full">
+        <h2 aria-live="polite" className="min-w-0 py-1.5 text-base font-medium first-letter:uppercase max-sm:order-first max-sm:basis-full">
           {title}
         </h2>
+        {filterList.length > 0 && (
+          // no plate of their own: about 15rem a filter, folded behind their button where narrower than 28rem
+          <div className="@container min-w-48 flex-1 sm:ml-4" style={{ maxWidth: `${String(filterList.length * 15)}rem` }}>
+            <FilterRow plate={false} line>
+              <FilterBar
+                resets={filterKey}
+                path={path}
+                filters={filterList}
+                ready={meta.ready}
+                title={meta.title}
+                onFilter={(next, equal) => {
+                  setUserFilter({ filter: next, equal });
+                }}
+              />
+            </FilterRow>
+          </div>
+        )}
+        {filterList.length > 0 && (
+          <ResetFilters
+            shown={userFilter.filter !== undefined}
+            onReset={() => {
+              setFilterKey((it) => it + 1);
+              setUserFilter({ filter: undefined, equal: {} });
+            }}
+          />
+        )}
         {views.length > 1 && (
-          <div role="group" aria-label={t('calendar.view')} className="flex gap-1.5">
+          <div role="group" aria-label={t('calendar.view')} className="ml-auto flex gap-1.5">
             {views.map((it) => (
               <Button
                 key={it}
@@ -570,30 +598,6 @@ export function ResourceCalendar({
           </Button>
         )}
       </div>
-      {filterList.length > 0 && (
-        <FilterRow
-          tools={
-            <ResetFilters
-              shown={userFilter.filter !== undefined}
-              onReset={() => {
-                setFilterKey((it) => it + 1);
-                setUserFilter({ filter: undefined, equal: {} });
-              }}
-            />
-          }
-        >
-          <FilterBar
-            resets={filterKey}
-            path={path}
-            filters={filterList}
-            ready={meta.ready}
-            title={meta.title}
-            onFilter={(next, equal) => {
-              setUserFilter({ filter: next, equal });
-            }}
-          />
-        </FilterRow>
-      )}
       {state === 'loaded' || state === 'empty' ? (
         <div data-bz={`state:${state}`} className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 xl:grid-cols-[minmax(0,1fr)_18rem]">
           <div className="grid min-w-0 gap-2">

@@ -2795,7 +2795,7 @@ the table; what it lists as code is a screen of your own or its extension (see
 | the sidebar a rail, or expanded, until the user chooses | `shell.sidebar: rail` or `expanded` (`auto`, the default: expanded from `lg`, a rail below); the choice of the user wins, kept by the browser (`bazis-sidebar`); D018 under `navigation: topbar` | the sidebar on the right |
 | a wider sidebar, rail or content | `size.sidebar`, `size.sidebar-rail`, `size.content` | the drawer of a phone |
 | a top bar instead of the sidebar | `navigation: topbar` (see [The design](#the-design)) | — |
-| the filters on the page, without their plate | `composition.filters: row` (a list, a board, a calendar) | the order of the filters is `list.filters` |
+| the filters on the page, without their plate | `composition.filters: row` (a list, a board; those of a calendar are in the line of its period) | the order of the filters is `list.filters` |
 | the search, the view and the actions of the lists beside their titles | `composition.list_tools: header` (`init` names it for `workspace`): the list of a screen only, a related section keeps its own (`NestedLists`); a screen chooses by `header.search`, `false` over its list | the order of the tools |
 | a list as cards, the card on its own page, the forms on pages | `composition.list`, `list_phone`, `list_card`, `forms` | — |
 | the current link of the sidebar | `color.nav-active` (its fill), `color.nav-active-bar` (the bar at its start), `shadow.nav-active` | — |
