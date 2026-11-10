@@ -192,12 +192,12 @@ export function FilterField({ label, id, kind, filled, folded = false, children,
   children: ReactNode;
 }) {
   const beside = useBesideCard();
-  // in a line (`line` of the row) narrower than 48rem (a calendar, a section of a card) the filters
+  // in a line (`line` of the row) of 28rem to 48rem (a calendar, a section of a card) the filters
   // share it, each at least 10rem (a range of dates 18rem), wrapping where it has no room: never a
-  // column of filters as wide as the line
+  // column of filters as wide as the line; narrower, a column, as on a phone
   const wrapper = cn(
-    'grid w-full min-w-0 gap-1 @3xl:w-auto @max-3xl:in-data-line:grow @max-3xl:in-data-line:basis-40',
-    kind === 'date' && '@md:col-span-2 @max-3xl:in-data-line:basis-72',
+    'grid w-full min-w-0 gap-1 @3xl:w-auto @md:@max-3xl:in-data-line:grow @md:@max-3xl:in-data-line:basis-40',
+    kind === 'date' && '@md:col-span-2 @md:@max-3xl:in-data-line:basis-72',
     folded && (beside ? 'hidden' : '@max-md:hidden'),
   );
   const text = 'cursor-pointer text-sm font-normal whitespace-nowrap text-muted-foreground in-data-filled:text-foreground';

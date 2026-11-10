@@ -130,7 +130,7 @@ test('the tools of a line of a section stay one group: beside its sort, or under
   }
 });
 
-test('the filters of a line narrower than 48rem share it, wrapping where it has no room', async ({ page }) => {
+test('the filters of a line of 28rem to 48rem share it, wrapping where it has no room; narrower, a column', async ({ page }) => {
   await open(page, 1280);
   const boxes = async (width: string) =>
     page
@@ -143,9 +143,13 @@ test('the filters of a line narrower than 48rem share it, wrapping where it has 
   expect(new Set(wide.map((it) => it.width)).size).toBe(1);
   expect(wide[0]?.width).toBeGreaterThan(160);
   // narrower, two a row and the third under them
-  const narrow = await boxes('24rem');
+  const narrow = await boxes('30rem');
   expect(narrow[0]?.y).toBe(narrow[1]?.y);
   expect(narrow[2]?.y).toBeGreaterThan(narrow[0]?.y ?? 0);
+  // narrower than where the filters fold (28rem), one a row, as wide as the line
+  const phone = await boxes('24rem');
+  expect(new Set(phone.map((it) => it.y)).size).toBe(3);
+  expect(new Set(phone.map((it) => it.width)).size).toBe(1);
 });
 
 test('the line of a filter is lit while its select, picker or calendar is open', async ({ page }) => {

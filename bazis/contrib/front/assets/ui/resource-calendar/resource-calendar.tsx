@@ -546,8 +546,13 @@ export function ResourceCalendar({
           {title}
         </h2>
         {filterList.length > 0 && (
-          // no plate of their own: about 15rem a filter, folded behind their button where narrower than 28rem
-          <div className="@container min-w-48 flex-1 sm:ml-4" style={{ maxWidth: `${String(filterList.length * 15)}rem` }}>
+          // no plate of their own: about 15rem a filter, never narrower than 28rem (where they fold
+          // behind their button) beside the period: with less room they wrap with the toolbar, a
+          // line of filters, folded on a phone only
+          <div
+            className="@container flex-1 sm:ml-4"
+            style={{ minWidth: `min(100%, ${String(Math.min(filterList.length * 15, 28))}rem)`, maxWidth: `${String(filterList.length * 15)}rem` }}
+          >
             <FilterRow plate={false} line>
               <FilterBar
                 resets={filterKey}

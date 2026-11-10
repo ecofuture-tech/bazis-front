@@ -324,6 +324,10 @@ describe('ResourceCalendar', () => {
     expect(screen.getByTestId('field:owner')).toBeTruthy();
     // the filters a line, which they share at any width (never a column: `fields.spec.ts` of the playwright helpers)
     expect(title.closest('[data-slot="filter-row"]')?.hasAttribute('data-line')).toBe(true);
+    // as wide as where the filters fold (28rem, 15rem a filter): beside the period or a line of the toolbar, never a column
+    const line = title.closest('[data-slot="filter-row"]')?.parentElement;
+    expect(line?.style.minWidth).toBe('min(100%, 28rem)');
+    expect(line?.style.maxWidth).toBe('30rem');
     // the place of the reset is kept by the width of the line of the navigation, its container
     const place = document.querySelector('[data-slot="reset-place"]');
     expect(place?.closest('.\\@container')?.contains(screen.getByTestId('action:previous-period'))).toBe(true);
