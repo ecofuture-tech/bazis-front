@@ -25,6 +25,7 @@ import {
   formatDateTime,
   formatDecimal,
   formatNumber,
+  formatTime,
   type LanguageContextValue,
 } from '@/bazis/i18n';
 import { choiceLabel, resourceSchema, type AttributeField, type FormField, type JsonSchema } from '@/bazis/react';
@@ -499,9 +500,9 @@ function formatPhone(value: string): string {
  * The text of the value of an attribute, in the language of the interface (`useLanguage()`;
  * English by default): a choice by its label (`enumDict` of the backend, the choices of an
  * array each), else by its type and format, the numbers, the sums, the quantities and the
- * phones as `display` says and the dates with `Intl`, a point (GeoJSON) as its coordinates
- * (`formatPoint`); `—` for no value. A number is grouped by thousands from five digits
- * (`formatNumber`: a year `2020`, `12,345`), never with `display: plain`.
+ * phones as `display` says, the decimals, dates and times with `Intl`, a point (GeoJSON) as its
+ * coordinates (`formatPoint`); `—` for no value. A number is grouped by thousands from five
+ * digits (`formatNumber`: a year `2020`, `12,345`), never with `display: plain`.
  */
 export function formatValue(
   field: FormField | undefined,
@@ -518,10 +519,12 @@ export function formatValue(
   if (typeof value === 'boolean') return t(value ? 'value.yes' : 'value.no');
   // a sum or a quantity: a number, or a DecimalField (its exact digits)
   if (typeof display === 'object' && !('bar' in display) && (typeof value === 'number' || typeof value === 'string')) {
-    if (!('currency' in display)) return `${formatDecimal(value, language)}\u00a0${display.unit}`;
-    // a whole sum without its zero cents (`3600 ₽`, `15 000 ₽`), unless they are always shown
-    const whole = display.fraction !== 'always' && /^-?\d+(\.0*)?$/.test(String(value).trim());
+    // a whole sum without its zero cents (`3600 ₽`, `15 000 ₽`), unless they are always shown, and
+    // a whole quantity without its zeros (`24 pcs` of a DecimalField `24.000`); else its digits
+    const always = 'currency' in display && display.fraction === 'always';
+    const whole = !always && /^-?\d+(\.0*)?$/.test(String(value).trim());
     const digits = whole ? { minimumFractionDigits: 0, maximumFractionDigits: 0 } : {};
+    if (!('currency' in display)) return `${formatDecimal(value, language, digits)}\u00a0${display.unit}`;
     let sum: string;
     try {
       sum = formatDecimal(value, language, { style: 'currency', currency: display.currency, ...digits });
@@ -539,6 +542,10 @@ export function formatValue(
     const format = field?.kind === 'attribute' ? field.format : null;
     if (format === 'date-time') return formatDateTime(value, language);
     if (format === 'date') return formatDate(value, language);
+    if (format === 'decimal') return formatDecimal(value, language);
+    // a TimeField (`08:00:00`): its hours and minutes, read as that time wherever the user is
+    const time = format === 'time' ? /^(\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?$/.exec(value) : null;
+    if (time) return formatTime(new Date(2000, 0, 1, Number(time[1]), Number(time[2])), language);
     return value;
   }
   // a point (GeoJSON) as its coordinates

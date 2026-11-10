@@ -5945,7 +5945,7 @@ Its props, `ItemValueProps`:
 
 #### formatValue
 
-`formatValue(field: FormField | undefined, value: unknown, options?: Pick<LanguageContextValue, 'language' | 't'>, display?: FieldDisplay): string`: The text of the value of an attribute, in the language of the interface (`useLanguage()`; English by default): a choice by its label (`enumDict` of the backend, the choices of an array each), else by its type and format, the numbers, the sums, the quantities and the phones as `display` says and the dates with `Intl`, a point (GeoJSON) as its coordinates (`formatPoint`); `—` for no value.
+`formatValue(field: FormField | undefined, value: unknown, options?: Pick<LanguageContextValue, 'language' | 't'>, display?: FieldDisplay): string`: The text of the value of an attribute, in the language of the interface (`useLanguage()`; English by default): a choice by its label (`enumDict` of the backend, the choices of an array each), else by its type and format, the numbers, the sums, the quantities and the phones as `display` says, the decimals, dates and times with `Intl`, a point (GeoJSON) as its coordinates (`formatPoint`); `—` for no value.
 
 #### fromLocalDateTime
 

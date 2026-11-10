@@ -614,6 +614,17 @@ describe('FieldValue', () => {
     expect(formatValue(undefined, null)).toBe('—');
     expect(formatValue(undefined, true)).toBe('Yes');
     expect(formatValue(attribute('dt', 'string', { format: 'date-time' }), 'oops')).toBe('oops');
+    // a decimal without a display in the language, its exact digits (never the text of the API, `12.000`)
+    const amount = attribute('amount', 'string', { format: 'decimal' });
+    expect(formatValue(amount, '12.000')).toBe('12.000');
+    expect(formatValue(amount, '12.000', { language: 'ru', t: (key) => key })).toBe('12,000');
+    expect(formatValue(amount, '45000.10', { language: 'ru', t: (key) => key })).toMatch(/^45\s000,10$/);
+    // a TimeField: its hours and minutes, without its seconds; another text as it is
+    const opens = attribute('opens', 'string', { format: 'time' });
+    expect(formatValue(opens, '08:00:00', { language: 'ru', t: (key) => key })).toBe('08:00');
+    expect(formatValue(opens, '17:45:30.250000', { language: 'ru', t: (key) => key })).toBe('17:45');
+    expect(formatValue(opens, '08:00:00')).toBe('08:00 AM');
+    expect(formatValue(opens, 'soon')).toBe('soon');
     render(<FieldValue field={attribute('title', 'string')} value="Report" />);
     expect(screen.getByText('Report')).toBeTruthy();
   });
@@ -701,6 +712,10 @@ describe('FieldValue', () => {
     expect(formatValue(attribute('copies', 'integer'), 12000, undefined, { unit: 'pcs' })).toBe('12,000\u00a0pcs');
     expect(formatValue(attribute('copies', 'integer'), 1200, undefined, { unit: 'pcs' })).toBe('1200\u00a0pcs');
     expect(formatValue(price, '2.50', undefined, { unit: 'kg' })).toBe('2.50\u00a0kg');
+    // a whole quantity of a DecimalField without its zeros, in the language (`24,000` of three places was read as 24 thousand)
+    expect(formatValue(price, '24.000', undefined, { unit: 'pcs' })).toBe('24\u00a0pcs');
+    expect(formatValue(price, '24.000', russian, { unit: 'шт.' })).toBe('24\u00a0шт.');
+    expect(formatValue(price, '12000.500', russian, { unit: 'кг' })).toMatch(/^12\s000,500\u00a0кг$/);
     expect(formatValue(price, null, undefined, { unit: 'kg' })).toBe('—');
     // a code that is not of ISO 4217: after the number, as a unit, never an error of the render;
     // a unit after a no-break space, never alone at the start of a line

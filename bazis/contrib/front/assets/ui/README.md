@@ -117,8 +117,8 @@ only one: the forms and the payloads of the transits use it; the choices of a fi
 select of their labels; a decimal, `format: decimal` of a `DecimalField` in the contract,
 `contractFormat`, or a number or a string of Pydantic, is typed on one line with a point or
 a comma and given as its digits with a point, `'2.5'`), `FieldValue` (with `formatValue`: the value in the language of the
-interface, a choice by its label, a value by its `display`: `plain` without the separators
-of its thousands, `phone` a link to call it, `{currency}`, `{unit}` (after a no-break space), `{bar}` a `meter` of its
+interface, a choice by its label, a decimal by `formatDecimal`, a time its hours and minutes, a value by its `display`: `plain` without the separators
+of its thousands, `phone` a link to call it, `{currency}`, `{unit}` (after a no-break space, a whole quantity without its zeros), `{bar}` a `meter` of its
 share, `avatar` a name after the circle of its initials (its tint by the name), `chips` the parts
 of a text or the related items (two, then `+N`; all in a card), each cut with its title; the `status` of an item of a statusy model by its name in the contract,
 `statusName`; `choiceOptions`: the choices as options of a filter; `itemName`/`itemLabel`:
