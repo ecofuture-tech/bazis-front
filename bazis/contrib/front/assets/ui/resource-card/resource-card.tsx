@@ -188,7 +188,8 @@ function Sections({ sections, item, fields, values, display, editable }: Section
         {section.title !== undefined && (
           <Title className="border-b px-(--space-card) py-3 text-sm font-subheading">{section.title}</Title>
         )}
-        <dl className="grid grid-cols-[minmax(0,1fr)] gap-x-8 gap-y-5 p-(--space-card) sm:grid-cols-2">
+        {/* a short field after a long one, which takes the row, fills the hole that it leaves */}
+        <dl className="grid grid-cols-[minmax(0,1fr)] gap-x-8 gap-y-5 p-(--space-card) sm:grid-cols-2 sm:grid-flow-row-dense">
           {names.map((name) => {
             const field = fields.fields.get(name);
             const readOnly = editable !== null && !editable(name);
