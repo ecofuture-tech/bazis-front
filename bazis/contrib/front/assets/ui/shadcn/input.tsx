@@ -27,13 +27,19 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 // a field is its bottom line (the tokens `field-line`, `-hover`, `-focus`, the shadow
-// `field-focus`): the inputs, the selects and the pickers; a group of fields
-// (`data-slot="field-group"`, a range of dates, a label with its field) has the line, its fields
-// none of their own
-const fieldClassName =
-  "border-b border-(--field-line) bg-transparent transition-[color,border-color,box-shadow] outline-none hover:border-(--field-line-hover) focus-visible:border-(--field-line-focus) focus-visible:shadow-(--shadow-field-focus) aria-invalid:border-destructive disabled:border-dashed in-data-[slot=field-group]:border-0 in-data-[slot=field-group]:focus-visible:shadow-none"
+// `field-focus`) and its box: the inputs, the selects and the pickers. The line in its states, at
+// rest, under the pointer, focused by the keyboard, open (a select, a picker, a calendar),
+// invalid (2px of the destructive), unavailable, is drawn by one element: the field, or a group
+// of fields (`data-slot="field-group"`: a filter with its label, a range of dates) in the same
+// states, its fields without their own. The box is the height, the padding and the text of every
+// field; a consumer gives a field its width, never its height, padding or text
+const FIELD_LINE =
+  "border-b border-(--field-line) bg-transparent transition-[color,border-color,box-shadow] outline-none hover:border-(--field-line-hover) focus-visible:border-(--field-line-focus) focus-visible:shadow-(--shadow-field-focus) data-[state=open]:border-(--field-line-focus) data-[state=open]:shadow-(--shadow-field-focus) aria-invalid:border-destructive aria-invalid:shadow-[0_1px_0_0_var(--destructive)] disabled:border-dashed in-data-[slot=field-group]:border-0 in-data-[slot=field-group]:shadow-none"
+const FIELD_BOX =
+  "h-9 w-full min-w-0 pointer-coarse:min-h-11 px-3 py-1 text-base md:text-sm in-data-[slot=field-group]:h-full in-data-[slot=field-group]:min-h-0"
+const fieldClassName = `${FIELD_LINE} ${FIELD_BOX}`
 const fieldGroupClassName =
-  "border-b border-(--field-line) transition-[border-color,box-shadow] hover:border-(--field-line-hover) focus-within:border-(--field-line-focus) focus-within:shadow-(--shadow-field-focus)"
+  "flex h-9 pointer-coarse:min-h-11 items-center border-b border-(--field-line) transition-[border-color,box-shadow] hover:border-(--field-line-hover) has-[:focus-visible]:border-(--field-line-focus) has-[:focus-visible]:shadow-(--shadow-field-focus) has-data-[state=open]:border-(--field-line-focus) has-data-[state=open]:shadow-(--shadow-field-focus) has-aria-invalid:border-destructive has-aria-invalid:shadow-[0_1px_0_0_var(--destructive)] has-[:disabled]:border-dashed"
 
 function Input({ className, type, ...props }: React.ComponentProps<"input">) {
   return (
@@ -42,7 +48,7 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
       data-slot="input"
       className={cn(
         fieldClassName,
-        "h-9 w-full min-w-0 pointer-coarse:min-h-11 px-3 py-1 text-base selection:bg-primary selection:text-primary-foreground file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+        "selection:bg-primary selection:text-primary-foreground file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
         className
       )}
       {...props}
@@ -50,4 +56,4 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
   )
 }
 
-export { Input, fieldClassName, fieldGroupClassName }
+export { Input, FIELD_BOX, FIELD_LINE, fieldClassName, fieldGroupClassName }

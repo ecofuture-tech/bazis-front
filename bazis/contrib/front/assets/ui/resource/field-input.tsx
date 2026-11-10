@@ -20,7 +20,7 @@ import { useCallback, useId, useState } from 'react';
 
 import type { Filter } from '@/bazis/client';
 import { choiceLabel, type AttributeField, type FormField } from '@/bazis/react';
-import { fieldClassName, Input } from '@/components/ui/input';
+import { FIELD_BOX, FIELD_LINE, Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { cn } from '@/lib/utils';
@@ -57,8 +57,9 @@ export interface FieldInputProps {
 export type FieldFilters = Readonly<Record<string, Filter>>;
 
 const TEXTAREA = cn(
-  fieldClassName,
-  'min-h-20 w-full px-3 py-2 text-base placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 md:text-sm',
+  FIELD_LINE,
+  FIELD_BOX,
+  'h-auto min-h-20 py-2 placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50',
 );
 
 /** A JSON value (an object, an array) as text; kept as text while it is not valid JSON. */
@@ -105,7 +106,6 @@ function AttributeControl({ field, value, onChange, disabled, control }: {
     return (
       <NativeSelect
         {...control}
-        className="w-full"
         value={value === null || value === undefined ? '' : text(value)}
         disabled={disabled || readOnly}
         aria-readonly={readOnly || undefined}
@@ -294,13 +294,7 @@ export function FieldInput({
     'data-bz': `field:${field.name}`,
   };
   return (
-    // the wrapper of a select of shadcn/ui fits its content: the field is as wide as the form
-    <div
-      className={cn(
-        'grid gap-2 [&>[data-slot=native-select-wrapper]]:w-full',
-        checkbox && 'grid-cols-[auto_1fr] items-center',
-      )}
-    >
+    <div className={cn('grid gap-2', checkbox && 'grid-cols-[auto_1fr] items-center')}>
       <Label htmlFor={id} className={cn(checkbox && 'order-2')}>
         {field.title}
         {required && <span aria-hidden="true">*</span>}

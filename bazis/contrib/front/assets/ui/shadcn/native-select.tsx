@@ -35,7 +35,7 @@ function NativeSelect({
 }: Omit<React.ComponentProps<"select">, "size"> & { size?: "sm" | "default" }) {
   return (
     <div
-      className="group/native-select relative w-fit has-[select:disabled]:opacity-50"
+      className="group/native-select relative w-full has-[select:disabled]:opacity-50"
       data-slot="native-select-wrapper"
     >
       <select
@@ -43,7 +43,7 @@ function NativeSelect({
         data-size={size}
         className={cn(
           fieldClassName,
-          "h-9 w-full min-w-0 appearance-none pointer-coarse:min-h-11 px-3 py-2 pr-9 text-sm selection:bg-primary selection:text-primary-foreground placeholder:text-muted-foreground disabled:pointer-events-none disabled:cursor-not-allowed data-[size=sm]:h-8 data-[size=sm]:py-1",
+          "appearance-none pr-9 selection:bg-primary selection:text-primary-foreground placeholder:text-muted-foreground disabled:pointer-events-none disabled:cursor-not-allowed data-[size=sm]:h-8 data-[size=sm]:py-1",
           className
         )}
         {...props}

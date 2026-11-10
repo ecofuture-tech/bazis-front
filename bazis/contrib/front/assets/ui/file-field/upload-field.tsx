@@ -321,9 +321,9 @@ export default function UploadField({
       }}
       onDrop={drop}
       className={cn(
-        'rounded-md border border-dashed border-input px-3 py-2 transition-colors',
-        dragging && 'border-primary bg-primary/5',
-        control['aria-invalid'] && 'border-destructive',
+        // the colors of the line of a field: the field invalid, a file dragged over it
+        'rounded-md border border-dashed border-(--field-line) px-3 py-2 transition-colors hover:border-(--field-line-hover) has-aria-invalid:border-destructive',
+        dragging && 'border-(--field-line-focus) bg-primary/5',
         disabled && 'opacity-70',
       )}
     >

@@ -86,8 +86,7 @@ export interface RelationPickerProps
 
 const TRIGGER = cn(
   fieldClassName,
-  'flex h-9 w-full min-w-0 items-center pointer-coarse:min-h-11 justify-between gap-2 px-3 py-2 text-left text-sm',
-  'aria-expanded:border-(--field-line-focus) disabled:cursor-not-allowed disabled:opacity-50',
+  'flex items-center justify-between gap-2 text-left disabled:cursor-not-allowed disabled:opacity-50',
 );
 
 type Entry = { kind: 'clear' } | { kind: 'item'; item: ResourceObject } | { kind: 'more' };
@@ -225,7 +224,7 @@ function Options({
             aria-activedescendant={current >= 0 ? optionId(current) : undefined}
             aria-label={searchLabel}
             placeholder={t('picker.search')}
-            className="h-10 w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+            className="h-10 w-full min-w-0 bg-transparent text-base outline-none placeholder:text-muted-foreground md:text-sm"
             value={text}
             onChange={(event) => {
               setText(event.target.value);
