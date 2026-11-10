@@ -169,8 +169,8 @@ function AttributeControl({ field, value, onChange, disabled, control }: {
         <Input
           {...control}
           type="datetime-local"
-          // as wide as a date and a time, not the whole form
-          className="max-w-56 tabular-nums"
+          // as wide as the other fields: one edge of the form
+          className="tabular-nums"
           value={toLocalDateTime(value)}
           readOnly={readOnly}
           disabled={disabled}
@@ -184,8 +184,6 @@ function AttributeControl({ field, value, onChange, disabled, control }: {
       return (
         <DateInput
           {...control}
-          // as wide as a date, not the whole form
-          className="max-w-48"
           value={current}
           readOnly={readOnly}
           disabled={disabled}
