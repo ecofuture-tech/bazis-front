@@ -2684,10 +2684,10 @@ The generated files are never edited. The design must have no errors (`bazis_fro
 | `font.weight-heading`, `-subheading`, `font.tracking-heading` (`h1`–`h3`, `font-heading`, `font-subheading`) | 600; 600; `-0.025em` (`-0.02em` for `portal`) |
 | `shadow.xs` (the blocks and the controls by default), `-sm`, `-md` (the popovers, the dialogs), `-lg` | the shadows of Tailwind |
 | `motion.fast`, `-base`, `-slow`, `-ease` (`duration-(--motion-fast)`, `ease-standard`; `base` and `ease` are those of every `transition`) | 100ms, 150ms, 300ms and the curve of Tailwind |
-| `color.border-surface`, `-control`, `color.control`, `-hover`, `color.field-line`, `-hover`, `-focus` (the line of a field), `color.shade`, `color.surface-light`, `shadow.lift-*`, `shadow.ring-focus`, `shadow.field-focus`, `shadow.nav-active` (`surface: lifted`) | the look before them (`DEFAULTS`) |
+| `color.border-surface`, `-control`, `color.control`, `-hover`, `color.field-line`, `-hover`, `-focus` (the line of a field), `color.shade`, `color.surface-light`, `shadow.lift-*`, `shadow.ring-focus`, `shadow.field-focus`, `shadow.nav-active` (`surface: lifted`) | the look before them (`DEFAULTS`); line: foreground 48%, 72% |
 | `color.sidebar-to`, `-glow`, `color.glow-a`, `-b` (`frost`); `color.nav-active`, `-bar` (the current link) | not drawn; `sidebar-accent`, none |
 
-A design that names no layer (of an older version) keeps its look: `update` and `design` add
+A design that names no layer (older) keeps its look: `update` and `design` add
 the new tokens with these defaults until `theme.yaml` names one. Inside the sidebar the role
 colors (`--foreground`, `--card` and its text, …) are its own and the tokens of the surfaces
 and the fields are computed on them (flat): a color that follows it is an expression of a
