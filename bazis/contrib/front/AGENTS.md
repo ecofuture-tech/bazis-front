@@ -5491,7 +5491,7 @@ Its props, `RecentListProps`:
 
 #### DatePicker
 
-`DatePicker(props: DatePickerProps): Element`: The input of a date and its calendar: a text in the numeric format of the language of the product (`02.11.2026`, whatever the language of the browser), typed in that order with any separator or as `YYYY-MM-DD`, or `<input type="date">` of the browser (`mode: native`); none when the input is read-only.
+`DatePicker(props: DatePickerProps): Element`: The input of a date and its calendar, opened by a click on the field (the focus staying in it to type), the arrow down or its icon: a text in the numeric format of the language of the product (`02.11.2026`, whatever the language of the browser), typed in that order with any separator or as `YYYY-MM-DD`, or `<input type="date">` of the browser (`mode: native`); no calendar when the input is read-only.
 
 
 Its props, `DatePickerProps`:

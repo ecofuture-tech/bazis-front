@@ -89,13 +89,13 @@ export type DatePickerProps = DateInputProps & {
 };
 
 /**
- * The input of a date and its calendar: a text in the numeric format of the language of the
+ * The input of a date and its calendar, opened by a click on the field (the focus staying in it
+ * to type), the arrow down or its icon: a text in the numeric format of the language of the
  * product (`02.11.2026`, whatever the language of the browser), typed in that order with any
- * separator or as `YYYY-MM-DD`, or `<input type="date">` of the browser (`mode: native`); none
- * when the input is read-only. The calendar opens on a click on the field, the focus staying in
- * it to type, the month following a date typed, or on the arrow down (a second one goes to the
- * days); on a tap or the icon with the focus on its days. A day picked, Escape or Tab closes it,
- * the focus back in the field.
+ * separator or as `YYYY-MM-DD`, or `<input type="date">` of the browser (`mode: native`); no
+ * calendar when the input is read-only. The month follows a date typed; a second arrow down goes
+ * to the days, as a tap or the icon; a day picked, Escape or Tab closes it, the focus back in the
+ * field.
  */
 export function DatePicker({
   value,
