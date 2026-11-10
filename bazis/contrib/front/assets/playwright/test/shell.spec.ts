@@ -19,7 +19,9 @@
 // never scrolls sideways, whatever the number of the links; the name of a file on a touch
 // screen is as large as a finger (V009 of the screenshots). And the surfaces with the theme of
 // a product (`surfaces-<surface>.html`): what the layer `surface` computes for a card, the
-// summary of a card, an outline button and an input.
+// summary of a card, an outline button and an input. And a list with its card beside it
+// (`split.html`): its rows within the list, Escape, the dialog of a changed form, the focus ring of
+// a filled button, the soft tones of the statuses in the dark mode and less motion.
 
 import { fileURLToPath } from 'node:url';
 
@@ -42,7 +44,7 @@ test.beforeAll(async () => {
     // a cache of its own: the page of the pickers bundles other dependencies
     cacheDir: fileURLToPath(new URL('../test-results/.vite-shell', import.meta.url)),
     // the dependencies are bundled before the page loads: no reload in a test
-    optimizeDeps: { entries: ['shell.tsx', 'surfaces.tsx', 'focus.tsx'] },
+    optimizeDeps: { entries: ['shell.tsx', 'surfaces.tsx', 'focus.tsx', 'split.tsx'] },
     server: { host: '127.0.0.1', port: 0, strictPort: false, hmr: false },
     logLevel: 'error',
   });
@@ -382,3 +384,166 @@ for (const width of [768, 390]) {
     expect(box && box.x + box.width).toBeLessThanOrEqual(width);
   });
 }
+
+/** A runtime schema of the item of the test with these attributes (`required`: those required), of a list or not. */
+function itemSchema(names: readonly string[], { list = false, required = [] as string[] } = {}) {
+  const item = {
+    type: 'object',
+    properties: {
+      type: { type: 'string', default: 'test.item' },
+      attributes: { type: 'object', properties: Object.fromEntries(names.map((name) => [name, { type: 'string', title: name }])), required },
+      relationships: { type: 'object', properties: {} },
+    },
+  };
+  return { type: 'object', properties: { data: list ? { type: 'array', items: { anyOf: [item] } } : item } };
+}
+
+/** A text of `words` long words: a row that would widen its table unless it wraps. */
+const LONG = (words: number) => Array.from({ length: words }, (_, index) => `Longword${String(index)}`).join(' ');
+
+/** Opens the list and its card (`split.html`) at `width` on `path`, its rows long texts; `dark`: the dark mode. */
+async function openSplit(page: Page, width: number, path = '/items', dark = false) {
+  await page.setViewportSize({ width, height: 900 });
+  await page.route('**/api/test/item/**', async (route) => {
+    const { pathname } = new URL(route.request().url());
+    if (pathname.endsWith('/schema_list/')) await route.fulfill({ json: itemSchema(['title', 'note', 'place'], { list: true }) });
+    else if (pathname.endsWith('/schema_create/')) await route.fulfill({ json: itemSchema(['title'], { required: ['title'] }) });
+    else {
+      const rows = ['a', 'b', 'c'].map((id) => ({
+        id,
+        type: 'test.item',
+        attributes: { title: `Item ${id} ${LONG(4)}`, note: LONG(12), place: `${LONG(3)}\n${LONG(3)}` },
+        relationships: {},
+      }));
+      await route.fulfill({ json: { data: rows, links: { next: null }, meta: { pagination: { count: 3, limit: 20, offset: 0 } } } });
+    }
+  });
+  await page.goto(`${origin}/split.html?path=${encodeURIComponent(path)}${dark ? '&mode=dark' : ''}`);
+  await expect(page.locator('[data-bz="row:a"]')).toBeVisible();
+}
+
+/** How far the table of the list passes its area: 0 when its rows wrap within it. */
+async function tableOverflow(page: Page): Promise<number> {
+  return page.locator('[data-bz="list:item"] table').evaluate((table) => table.scrollWidth - (table.parentElement?.clientWidth ?? 0));
+}
+
+for (const [width, path] of [
+  [1280, '/items/a'],
+  [768, '/items'],
+] as const) {
+  test(`the rows of a list wrap within it at ${String(width)} px (${path}), the page never widened`, async ({ page }) => {
+    await openSplit(page, width, path);
+    expect(await tableOverflow(page)).toBeLessThanOrEqual(0);
+    expect(await scrollsSideways(page)).toBe(false);
+    if (path !== '/items') await expect(page.locator('[data-bz="screen:item-card"]')).toBeVisible();
+  });
+}
+
+test('Escape closes the card beside its list, the focus back on its row', async ({ page }) => {
+  await openSplit(page, 1280);
+  await page.locator('[data-bz="row:a"]').focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('path')).toHaveText('/items/a');
+  await expect(page.getByRole('heading', { level: 2, name: 'Item' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('path')).toHaveText('/items');
+  await expect(page.locator('[data-bz="row:a"]')).toBeFocused();
+});
+
+test('a changed form asks before it closes, never closed by a click beside it, and gives the focus back', async ({ page }) => {
+  await openSplit(page, 1280, '/items/a');
+  const edit = page.locator('[data-bz="action:edit"]');
+  await edit.click();
+  const title = page.locator('[data-bz="field:title"]');
+  await expect(title).toBeFocused();
+  await title.fill('Report');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('[data-bz="state:discard"]')).toBeVisible();
+  await page.mouse.click(5, 450);
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.locator('[data-bz="action:discard"]').click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(edit).toBeFocused();
+  // the card stays: Escape closed the dialog, not the card
+  await expect(page.getByTestId('path')).toHaveText('/items/a');
+});
+
+test('the focus ring of a filled button: a gap of the page and a solid ring', async ({ page }) => {
+  await openSplit(page, 1280, '/items/a');
+  await page.addStyleTag({ content: '* { transition: none !important; }' });
+  const edit = page.locator('[data-bz="action:edit"]');
+  await edit.focus();
+  await page.keyboard.press('Shift+Tab');
+  await page.keyboard.press('Tab');
+  await expect(edit).toBeFocused();
+  const { shadow, background, ring } = await edit.evaluate((element) => {
+    const style = getComputedStyle(document.documentElement);
+    const probe = document.createElement('i');
+    document.body.append(probe);
+    const color = (value: string) => {
+      probe.style.color = value;
+      return getComputedStyle(probe).color;
+    };
+    const colors = { background: color(style.getPropertyValue('--background')), ring: color(style.getPropertyValue('--ring')) };
+    probe.remove();
+    return { shadow: getComputedStyle(element).boxShadow, ...colors };
+  });
+  expect(shadow).toContain(`${background} 0px 0px 0px 2px`);
+  expect(shadow).toContain(`${ring} 0px 0px 0px 4px`);
+});
+
+/** The color of a CSS color as [r, g, b] (0–255), read by a canvas. */
+function rgbOf(page: Page, selector: string, property: 'color' | 'background-color'): Promise<number[]> {
+  return page.locator(selector).evaluate((element, name) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1;
+    canvas.height = 1;
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('No canvas.');
+    context.fillStyle = getComputedStyle(element).getPropertyValue(name);
+    context.fillRect(0, 0, 1, 1);
+    return [...context.getImageData(0, 0, 1, 1).data.slice(0, 3)];
+  }, property);
+}
+
+/** The contrast of two colors (WCAG). */
+function contrast(a: number[], b: number[]): number {
+  const luminance = (rgb: number[]) => {
+    const [r = 0, g = 0, bl = 0] = rgb.map((it) => {
+      const value = it / 255;
+      return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * bl;
+  };
+  const [light, dark] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return ((light ?? 0) + 0.05) / ((dark ?? 0) + 0.05);
+}
+
+for (const dark of [false, true]) {
+  test(`the soft tones of the statuses are read on their backgrounds and differ (${dark ? 'dark' : 'light'})`, async ({ page }) => {
+    await openSplit(page, 1280, '/items', dark);
+    const tones = await page.locator('[data-testid="tones"] [data-tone]').evaluateAll((badges) => badges.map((it) => (it as HTMLElement).dataset.tone ?? ''));
+    expect(tones).toHaveLength(6);
+    const inks: number[][] = [];
+    for (const tone of tones) {
+      const selector = `[data-testid="tones"] [data-tone="${tone}"]`;
+      const ink = await rgbOf(page, selector, 'color');
+      expect(contrast(ink, await rgbOf(page, selector, 'background-color')), tone).toBeGreaterThanOrEqual(4.5);
+      inks.push(ink);
+    }
+    // no two tones the same color
+    for (const [index, ink] of inks.entries()) {
+      for (const other of inks.slice(index + 1)) {
+        expect(Math.hypot(...ink.map((it, channel) => it - (other[channel] ?? 0)))).toBeGreaterThan(20);
+      }
+    }
+  });
+}
+
+test('less motion when the system asks for it: the transitions end at once', async ({ page }) => {
+  await openSplit(page, 1280, '/items/a');
+  const edit = page.locator('[data-bz="action:edit"]');
+  expect(await edit.evaluate((element) => getComputedStyle(element).transitionDuration)).not.toBe('1e-05s');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  expect(await edit.evaluate((element) => getComputedStyle(element).transitionDuration)).toBe('1e-05s');
+});
