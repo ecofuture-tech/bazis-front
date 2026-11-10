@@ -157,7 +157,7 @@ function TransitForm({ path, open, mutation, run, onCancel, filters }: TransitFo
   const fields = read.isLoading ? [] : objectFields(transit.payload ?? {});
   const target = transitTarget(transit.resource.type, transit.id);
   // a transit to a status of the tone danger (a cancellation): its button destructive, the one that
-  // closes the dialog not a "cancel" beside it
+  // closes the dialog Back, never a "cancel" (its own name) beside it
   const danger = target !== null && statusTone(target) === 'danger';
   // a transit without a payload is only confirmed: the status it leads to
   const question =
@@ -220,7 +220,7 @@ function TransitForm({ path, open, mutation, run, onCancel, filters }: TransitFo
         ))}
         <DialogFooter>
           <Button type="button" variant="outline" data-bz="action:cancel" onClick={onCancel}>
-            {t(danger ? 'action.close' : 'action.cancel')}
+            {t(danger ? 'form.back' : 'action.cancel')}
           </Button>
           <Button
             type="submit"

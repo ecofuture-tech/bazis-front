@@ -223,7 +223,7 @@ export const ru: Messages = {
   'toast.region': 'Уведомления',
   'transit.confirm': 'Статус станет: {status}.',
   'transit.done': 'Статус теперь: {status}.',
-  'transit.fill': 'Заполните значения перехода.',
+  'transit.fill': 'Укажите данные для этого шага.',
   'transit.group': 'Переходы',
   'transit.next': 'Следующий шаг',
   'upload.choose': 'выберите его',

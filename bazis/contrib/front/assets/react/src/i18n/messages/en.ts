@@ -223,7 +223,7 @@ export const en: Messages = {
   'toast.region': 'Notifications',
   'transit.confirm': 'The status will be {status}.',
   'transit.done': 'The status is {status} now.',
-  'transit.fill': 'Fill in the values of the transit.',
+  'transit.fill': 'Fill in what this step needs.',
   'transit.group': 'Transits',
   'transit.next': 'Next step',
   'upload.choose': 'choose one',
