@@ -270,9 +270,7 @@ export function ResourceBoard({
   return (
     <div data-bz={`board:${entity}`} className="grid grid-cols-[minmax(0,1fr)] gap-4">
       {filterList.length > 0 && (
-        // a single filter without a plate
         <FilterRow
-          plate={filterList.length > 1}
           tools={
             userFilter && (
               <ResetFilters

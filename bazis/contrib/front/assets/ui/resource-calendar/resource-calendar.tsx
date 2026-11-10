@@ -559,9 +559,7 @@ export function ResourceCalendar({
         )}
       </div>
       {filterList.length > 0 && (
-        // a single filter without a plate
         <FilterRow
-          plate={filterList.length > 1}
           tools={
             userFilter.filter && (
               <ResetFilters
