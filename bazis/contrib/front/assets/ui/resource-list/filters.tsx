@@ -27,7 +27,7 @@ import { THEME } from '@/bazis/generated/theme';
 import { useLanguage } from '@/bazis/i18n';
 import { choiceOptions, DateInput, type Fields, RelationPicker, typeAt, useAnyFilterFields } from '@/bazis/ui/resource';
 import { errorState, StatePanel } from '@/bazis/ui/state-panel';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { fieldGroupClassName, Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -344,11 +344,26 @@ function FilterControl({ filter, label, type, values, onChange, folded }: Filter
 const FIRST_FILTER = '[data-bz="field:$search"], [data-slot="filter-row"] :is(input, button, select):not(:disabled)';
 
 /**
- * Clears the filters of the user (`action:reset-filters`), shown while he has any; it goes with
- * them, the focus to the search or to the first filter of its screen.
+ * Clears the filters of the user (`action:reset-filters`), shown while he has any (`shown`, by
+ * default); it goes with them, the focus to the search or to the first filter of its screen.
+ * Where the row of the filters is a line its place is kept while it is hidden: the filters do not
+ * wrap again when it comes.
  */
-export function ResetFilters({ onReset }: { onReset: () => void }) {
+export function ResetFilters({ shown = true, onReset }: { shown?: boolean; onReset: () => void }) {
   const { t } = useLanguage();
+  const content = (
+    <>
+      <FunnelX aria-hidden="true" />
+      {t('filter.clear')}
+    </>
+  );
+  if (!shown) {
+    return (
+      <span aria-hidden="true" data-slot="reset-place" className={cn(buttonVariants({ variant: 'outline' }), 'invisible hidden @3xl:inline-flex')}>
+        {content}
+      </span>
+    );
+  }
   return (
     <Button
       type="button"
@@ -365,8 +380,7 @@ export function ResetFilters({ onReset }: { onReset: () => void }) {
         });
       }}
     >
-      <FunnelX aria-hidden="true" />
-      {t('filter.clear')}
+      {content}
     </Button>
   );
 }

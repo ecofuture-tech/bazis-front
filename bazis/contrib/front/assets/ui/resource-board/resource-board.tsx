@@ -272,15 +272,14 @@ export function ResourceBoard({
       {filterList.length > 0 && (
         <FilterRow
           tools={
-            userFilter && (
-              <ResetFilters
-                onReset={() => {
-                  setFilterKey((it) => it + 1);
-                  setUserFilter(undefined);
-                  setLimits({});
-                }}
-              />
-            )
+            <ResetFilters
+              shown={userFilter !== undefined}
+              onReset={() => {
+                setFilterKey((it) => it + 1);
+                setUserFilter(undefined);
+                setLimits({});
+              }}
+            />
           }
         >
           <FilterBar

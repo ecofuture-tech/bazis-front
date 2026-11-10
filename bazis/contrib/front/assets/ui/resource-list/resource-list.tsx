@@ -652,7 +652,7 @@ export function ResourceList({
   // at the end of the row of the filters (`tools` of `FilterRow`), or in the header of the screen
   const tools = (
     <>
-      {filtered && <ResetFilters onReset={reset} />}
+      <ResetFilters shown={filtered} onReset={reset} />
       {viewMenu && (
         <ViewMenu
           columns={hideable}

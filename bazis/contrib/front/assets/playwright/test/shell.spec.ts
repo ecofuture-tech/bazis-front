@@ -403,11 +403,12 @@ function itemSchema(names: readonly string[], { list = false, required = [] as s
 const LONG = (words: number) => Array.from({ length: words }, (_, index) => `Longword${String(index)}`).join(' ');
 
 /** Opens the list and its card (`split.html`) at `width` on `path`, its rows long texts; `dark`: the dark mode. */
-async function openSplit(page: Page, width: number, path = '/items', dark = false) {
+async function openSplit(page: Page, width: number, path = '/items', dark = false, filters: readonly string[] = []) {
   await page.setViewportSize({ width, height: 900 });
   await page.route('**/api/test/item/**', async (route) => {
     const { pathname } = new URL(route.request().url());
     if (pathname.endsWith('/schema_list/')) await route.fulfill({ json: itemSchema(['title', 'note', 'place'], { list: true }) });
+    else if (pathname.endsWith('/route_filter_fields/')) await route.fulfill({ json: { fields: filters.map((name) => ({ name, py_type: 'string' })) } });
     else if (pathname.endsWith('/schema_create/')) await route.fulfill({ json: itemSchema(['title'], { required: ['title'] }) });
     else {
       const rows = ['a', 'b', 'c'].map((id) => ({
@@ -419,7 +420,8 @@ async function openSplit(page: Page, width: number, path = '/items', dark = fals
       await route.fulfill({ json: { data: rows, links: { next: null }, meta: { pagination: { count: 3, limit: 20, offset: 0 } } } });
     }
   });
-  await page.goto(`${origin}/split.html?path=${encodeURIComponent(path)}${dark ? '&mode=dark' : ''}`);
+  const query = `${dark ? '&mode=dark' : ''}${filters.length > 0 ? `&filters=${filters.join(',')}` : ''}`;
+  await page.goto(`${origin}/split.html?path=${encodeURIComponent(path)}${query}`);
   await expect(page.locator('[data-bz="row:a"]')).toBeVisible();
 }
 
@@ -437,6 +439,22 @@ for (const [width, path] of [
     expect(await tableOverflow(page)).toBeLessThanOrEqual(0);
     expect(await scrollsSideways(page)).toBe(false);
     if (path !== '/items') await expect(page.locator('[data-bz="screen:item-card"]')).toBeVisible();
+  });
+}
+
+for (const width of [1100, 1280, 1422]) {
+  test(`the row of the filters keeps its lines when the user filters at ${String(width)} px: the reset has its place`, async ({ page }) => {
+    await openSplit(page, width, '/items', false, ['title', 'note', 'place', 'code', 'city']);
+    const plate = page.locator('[data-slot="filter-row"]');
+    const layout = () =>
+      plate.evaluate((row) => [
+        row.getBoundingClientRect().height,
+        ...[...row.querySelectorAll('input')].map((it) => `${String(it.getBoundingClientRect().x)},${String(it.getBoundingClientRect().y)}`),
+      ]);
+    const before = await layout();
+    await page.locator('[data-bz="field:$search"]').fill('Item');
+    await expect(page.locator('[data-bz="action:reset-filters"]')).toBeVisible();
+    expect(await layout()).toEqual(before);
   });
 }
 

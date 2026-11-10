@@ -576,14 +576,13 @@ export function ResourceCalendar({
       {filterList.length > 0 && (
         <FilterRow
           tools={
-            userFilter.filter && (
-              <ResetFilters
-                onReset={() => {
-                  setFilterKey((it) => it + 1);
-                  setUserFilter({ filter: undefined, equal: {} });
-                }}
-              />
-            )
+            <ResetFilters
+              shown={userFilter.filter !== undefined}
+              onReset={() => {
+                setFilterKey((it) => it + 1);
+                setUserFilter({ filter: undefined, equal: {} });
+              }}
+            />
           }
         >
           <FilterBar

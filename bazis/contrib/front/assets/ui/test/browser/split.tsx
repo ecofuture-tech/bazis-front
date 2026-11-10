@@ -18,7 +18,7 @@
 // (`assets/playwright/test/shell.spec.ts`, served by Vite with the aliases of
 // `vitest.config.ts` and the Tailwind of a product), what jsdom does not lay out: the rows of
 // the list beside the card, Escape that closes it, the dialog of a changed form, the soft
-// tones of the statuses, an unavailable primary button, the widths of the sidebar. The query: `path` shown first, `mode=dark` the dark mode; the backend
+// tones of the statuses, the row of the filters that keeps its lines, an unavailable primary button, the widths of the sidebar. The query: `path` shown first, `mode=dark` the dark mode, `filters` those of the list; the backend
 // is the route of the test.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -42,6 +42,8 @@ import { Button } from '@/components/ui/button';
 const ITEMS = '/api/test/item/' as never;
 
 const query = new URLSearchParams(window.location.search);
+/** The filters of the list beside its search (`filters`: their fields, by commas). */
+const FILTERS = query.get('filters')?.split(',');
 if (query.get('mode') === 'dark') document.documentElement.classList.add('dark');
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 const api = createClient<paths>({ baseUrl: window.location.origin, language: 'en' });
@@ -55,6 +57,7 @@ function List() {
         entity="item"
         columns={['title', 'note', 'place']}
         layout="table"
+        {...(FILTERS === undefined ? {} : { search: true, filters: FILTERS })}
         onOpen={(id) => void navigate(`/items/${id}`)}
       />
     </Screen>

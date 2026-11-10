@@ -6568,7 +6568,7 @@ Its props, `FilterBarProps`:
 
 #### ResetFilters
 
-`ResetFilters(props: { onReset: () => void; }): Element`: Clears the filters of the user (`action:reset-filters`), shown while he has any; it goes with them, the focus to the search or to the first filter of its screen.
+`ResetFilters(props: { shown?: boolean; onReset: () => void; }): Element`: Clears the filters of the user (`action:reset-filters`), shown while he has any (`shown`, by default); it goes with them, the focus to the search or to the first filter of its screen.
 
 #### ListFilter
 
