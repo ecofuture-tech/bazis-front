@@ -260,13 +260,15 @@ function useMoreRight(): [(element: HTMLDivElement | null) => void, boolean] {
   return [setElement, more];
 }
 
-function SortButton({ label, direction, onClick }: { label: ReactNode; direction: 'ascending' | 'descending' | undefined; onClick: () => void }) {
+/** The header of a column sorted by: the arrows after its label, before it over numbers (the label over their right edge). */
+function SortButton({ label, direction, numeric, onClick }: { label: ReactNode; direction: 'ascending' | 'descending' | undefined; numeric: boolean; onClick: () => void }) {
   const Icon = direction === 'ascending' ? ArrowUp : direction === 'descending' ? ArrowDown : ChevronsUpDown;
   return (
     <button
       type="button"
       className={cn(
         'group/sort -mx-1 inline-flex items-center gap-1 rounded px-1 py-0.5 hover:text-foreground focus-visible:ring-focus focus-visible:outline-none',
+        numeric && 'flex-row-reverse',
         direction && 'text-primary-ink hover:text-primary-ink',
       )}
       onClick={onClick}
@@ -768,6 +770,7 @@ export function ResourceList({
                         <SortButton
                           label={fields.title(name)}
                           direction={direction(name)}
+                          numeric={isNumeric(fields.fields.get(name))}
                           onClick={() => {
                             toggle(name);
                           }}
