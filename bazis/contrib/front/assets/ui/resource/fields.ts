@@ -542,7 +542,7 @@ export function formatValue(
     const format = field?.kind === 'attribute' ? field.format : null;
     if (format === 'date-time') return formatDateTime(value, language);
     if (format === 'date') return formatDate(value, language);
-    if (format === 'decimal') return formatDecimal(value, language);
+    if (format === 'decimal') return formatDecimal(value, language, display === 'plain' ? { useGrouping: false } : undefined);
     // a TimeField (`08:00:00`): its hours and minutes, read as that time wherever the user is
     const time = format === 'time' ? /^(\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?$/.exec(value) : null;
     if (time) return formatTime(new Date(2000, 0, 1, Number(time[1]), Number(time[2])), language);

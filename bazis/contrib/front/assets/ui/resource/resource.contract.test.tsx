@@ -619,6 +619,11 @@ describe('FieldValue', () => {
     expect(formatValue(amount, '12.000')).toBe('12.000');
     expect(formatValue(amount, '12.000', { language: 'ru', t: (key) => key })).toBe('12,000');
     expect(formatValue(amount, '45000.10', { language: 'ru', t: (key) => key })).toMatch(/^45\s000,10$/);
+    // `plain` without the separators of the thousands; a zero and a negative with their digits
+    expect(formatValue(amount, '45000.10', { language: 'ru', t: (key) => key }, 'plain')).toBe('45000,10');
+    expect(formatValue(amount, '18770.5', undefined, 'plain')).toBe('18770.5');
+    expect(formatValue(amount, '0.00', { language: 'ru', t: (key) => key })).toBe('0,00');
+    expect(formatValue(amount, '-12500.50', { language: 'ru', t: (key) => key })).toMatch(/^-12\s500,50$/);
     // a TimeField: its hours and minutes, without its seconds; another text as it is
     const opens = attribute('opens', 'string', { format: 'time' });
     expect(formatValue(opens, '08:00:00', { language: 'ru', t: (key) => key })).toBe('08:00');
