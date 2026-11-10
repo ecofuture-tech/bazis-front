@@ -239,7 +239,7 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   `group=<field>:day|month`; the days folded into the weeks of the language; an average is a
   sum and a count, the group without a value never shown), drawn by recharts (`chart-view.tsx`,
   lazy) as a ring, bars or a line in the colors of the series of the theme (`--chart-1` …
-  `--chart-6`), a status in the color of its tone (`statuses` of the theme, that of its badge,
+  `--chart-6`; the scale in the language, as wide as its longest number), a status in the color of its tone (`statuses` of the theme, that of its badge,
   `--color-<tone>`; `tone` of a value of `Chart`); `chart:<id>` with the states of its list (`empty` when every value is 0, the message of a 400 `ERR_AGGREGATE` as its error) and
   each value as text, `value:<key>` with its number in `data-value` (the legend of a ring, a
   list for the screen readers under bars and a line).

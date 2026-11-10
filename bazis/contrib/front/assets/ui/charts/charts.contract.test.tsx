@@ -25,14 +25,16 @@ import type { ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { Filter } from '@/bazis/client';
-import { isoDate, weekStart } from '@/bazis/i18n';
+import { isoDate, LanguageProvider, weekStart } from '@/bazis/i18n';
 import { Chart, StatusChart, TimeChart } from '@/bazis/ui/charts';
-import { Backend, errors, ITEMS, listDocument, renderWithBazis } from '@/bazis/ui/testing';
+import { Backend, errors, ITEMS, listDocument, renderWithBazis, testLanguages } from '@/bazis/ui/testing';
 
 interface Drawn {
   data?: readonly { key: string; value: number; fill: string; fillOpacity: number }[];
   children?: ReactNode;
   ticks?: readonly number[];
+  tickFormatter?: (value: number) => string;
+  width?: number;
 }
 
 // the tones of the statuses of the theme, whatever those of the product that runs the test
@@ -65,7 +67,14 @@ vi.mock('recharts', () => {
     CartesianGrid: nothing,
     Tooltip: nothing,
     XAxis: nothing,
-    YAxis: ({ ticks }: Drawn) => <span data-bz="drawn:scale" data-ticks={JSON.stringify(ticks)} />,
+    YAxis: ({ ticks, tickFormatter, width }: Drawn) => (
+      <span
+        data-bz="drawn:scale"
+        data-ticks={JSON.stringify(ticks)}
+        data-labels={JSON.stringify(ticks?.map((it) => tickFormatter?.(it) ?? String(it)))}
+        data-width={width}
+      />
+    ),
   };
 });
 
@@ -128,6 +137,34 @@ describe('Chart', () => {
       ['x', 1, 'var(--chart-1)'],
       ['y', 0, 'var(--chart-1)'],
     ]);
+  });
+
+  it('labels its scale in the language, as wide as its longest number: never a digit cut', async () => {
+    const scale = async (values: { key: string; label: string; value: number }[], language: string) => {
+      const { unmount } = render(
+        <LanguageProvider store={testLanguages(language)}>
+          <Chart id="sums" label="Sums" values={values} />
+        </LanguageProvider>,
+      );
+      const drawn = await screen.findByTestId('drawn:scale');
+      const result = { labels: JSON.parse(drawn.getAttribute('data-labels') ?? '[]') as string[], width: Number(drawn.getAttribute('data-width')) };
+      unmount();
+      return result;
+    };
+    const large = [
+      { key: 'x', label: 'X', value: 1200 },
+      { key: 'y', label: 'Y', value: 322423 },
+    ];
+    const english = await scale(large, 'en');
+    expect(english.labels).toEqual(['0', '322,423']);
+    // the seven characters of its longest label (7 px each at 12 px) and the gap to the plot
+    expect(english.width).toBeGreaterThanOrEqual(7 * 7 + 12);
+    expect((await scale(large, 'ru')).labels[1]).toMatch(/^322\s423$/);
+    // a sum of millions shortened, a small one as it is
+    expect((await scale([{ key: 'm', label: 'M', value: 1_250_000 }], 'en')).labels).toEqual(['0', '1.3M']);
+    const small = await scale([{ key: 's', label: 'S', value: 7 }], 'en');
+    expect(small.labels).toEqual(['0', '7']);
+    expect(small.width).toBeLessThan(english.width);
   });
 
   it('draws a value of a tone in the color of the tone, the others in the colors of the series', async () => {
