@@ -82,7 +82,7 @@ for (const width of [390, 768, 1100, 1280, 1422]) {
 
 test('the lines of the filters of a row are on one bottom, the fields 36px high', async ({ page }) => {
   await open(page, 1422);
-  const groups = page.locator('[data-slot="field-group"]');
+  const groups = page.locator('[data-slot="filter-row"]').first().locator('[data-slot="field-group"]');
   const bottoms = await groups.evaluateAll((all) => all.map((it) => Math.round(it.getBoundingClientRect().bottom)));
   expect(bottoms).toHaveLength(4);
   expect(new Set(bottoms).size).toBe(1);
@@ -106,6 +106,29 @@ test('a field is 44px high on a touch screen, its text 16px on a phone, the sear
   await expect(search).toBeVisible();
   expect(await search.evaluate((it) => getComputedStyle(it).fontSize)).toBe('16px');
   await context.close();
+});
+
+test('the tools of a line of a section stay one group: beside its sort, or under it as wide as the line', async ({ page }) => {
+  await open(page, 1280);
+  for (const [width, beside] of [
+    ['20rem', false],
+    ['36rem', true],
+    ['45rem', true],
+  ] as const) {
+    const row = page.getByTestId(`line:${width}`);
+    const [sort, view, add] = await Promise.all(
+      [row.locator('[data-slot="field-group"]'), row.getByRole('button', { name: 'View' }), row.getByRole('button', { name: 'Add an item' })].map(
+        async (it) => (await it.boundingBox()) ?? { x: 0, y: 0, width: 0, height: 0 },
+      ),
+    );
+    // never a ladder: the buttons on one line
+    expect(Math.round(view.y)).toBe(Math.round(add.y));
+    if (beside) expect(Math.round(sort.y + sort.height)).toBe(Math.round(add.y + add.height));
+    else {
+      expect(view.y).toBeGreaterThan(sort.y + sort.height);
+      expect(Math.round(sort.width)).toBe(Math.round((await row.locator('[data-slot="filter-row"] > div').boundingBox())?.width ?? 0));
+    }
+  }
 });
 
 test('the line of a filter is lit while its select, picker or calendar is open', async ({ page }) => {

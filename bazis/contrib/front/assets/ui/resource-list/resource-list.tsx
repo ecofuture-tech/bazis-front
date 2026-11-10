@@ -711,7 +711,11 @@ export function ResourceList({
         )}
       {(header === null ? searchable || filterList.length > 0 || actions.length > 0 || viewMenu : filterList.length > 0 || sorts) && (
         // a plate with a search, the filters or the sort, not the tools alone
-        <FilterRow plate={(header === null && searchable) || filterList.length > 0 || sorts} tools={header === null ? tools : undefined}>
+        <FilterRow
+          plate={(header === null && searchable) || filterList.length > 0 || sorts}
+          line={nested}
+          tools={header === null ? tools : undefined}
+        >
           {header === null && searchField}
           {filterList.length > 0 && (
             <FilterBar

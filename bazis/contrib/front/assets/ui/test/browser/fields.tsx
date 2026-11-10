@@ -15,8 +15,9 @@
 // A page of the fields for the tests of their look in a browser
 // (`assets/playwright/test/fields.spec.ts`, served by Vite with the aliases of `vitest.config.ts`
 // and the Tailwind of a product): the row of the filters of a list (a select, the picker of a
-// relation, a range of dates, an input) and the fields of a form in a dialog (an input, a native
-// select, the picker of a relation, a date); the backend is the route of the test.
+// relation, a range of dates, an input), the line of the sort and the tools of a list in a section
+// of a card, as wide as 20rem, 36rem and 45rem, and the fields of a form in a dialog (an input, a
+// native select, the picker of a relation, a date); the backend is the route of the test.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -74,6 +75,39 @@ function Filters() {
   );
 }
 
+function Lines() {
+  return (
+    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4">
+      {['20rem', '36rem', '45rem'].map((width) => (
+        <div key={width} data-testid={`line:${width}`} style={{ width, maxWidth: '100%' }}>
+          <FilterRow
+            line
+            tools={
+              <>
+                <Button type="button" variant="outline">
+                  View
+                </Button>
+                <Button type="button">Add an item</Button>
+              </>
+            }
+          >
+            <FilterField label="Sort" id={`sort-${width}`} kind="select" filled={false}>
+              <Select value="default">
+                <SelectTrigger id={`sort-${width}`} className={filterWidth('select')}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent position="popper" align="start">
+                  <SelectItem value="default">By default</SelectItem>
+                </SelectContent>
+              </Select>
+            </FilterField>
+          </FilterRow>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function Form() {
   const [owner, setOwner] = useState<string | null>(null);
   const [due, setDue] = useState('');
@@ -116,6 +150,7 @@ if (root) {
         <BazisProvider client={api} session="test" language="en">
           <main className="grid gap-6 bg-background p-4 md:p-8">
             <Filters />
+            <Lines />
             <Form />
           </main>
         </BazisProvider>
