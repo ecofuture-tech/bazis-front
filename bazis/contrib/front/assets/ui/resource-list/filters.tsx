@@ -348,14 +348,14 @@ export function ResetFilters({ onReset }: { onReset: () => void }) {
  * labels; narrower (a list beside its card, a phone) a grid of cells of one width, two from 28rem
  * (a range of dates takes both, the next filters filling the cell it leaves), the label and the
  * control of a filter filling its cell, the tools at the end of the second column (of the line on
- * a phone).
+ * a phone), wrapping there rather than past the edge.
  */
 export function FilterRow({ plate = true, tools, children }: { plate?: boolean; tools?: ReactNode; children: ReactNode }) {
   return (
     <div data-plate={plate || undefined} className={cn('@container', plate && 'surface px-(--space-card) py-[calc(var(--space-card)/2)]')}>
       <div className="grid grid-flow-dense grid-cols-1 items-end gap-x-6 gap-y-3 @md:grid-cols-2 @3xl:flex">
         <div className="contents @3xl:flex @3xl:min-w-0 @3xl:flex-1 @3xl:flex-wrap @3xl:items-end @3xl:gap-x-6 @3xl:gap-y-3">{children}</div>
-        {tools !== undefined && <div className="col-span-full ml-auto flex shrink-0 gap-2 @md:col-span-1 @md:col-start-2">{tools}</div>}
+        {tools !== undefined && <div className="col-span-full flex min-w-0 flex-wrap justify-end gap-2 @md:col-span-1 @md:col-start-2 @3xl:shrink-0">{tools}</div>}
       </div>
     </div>
   );
