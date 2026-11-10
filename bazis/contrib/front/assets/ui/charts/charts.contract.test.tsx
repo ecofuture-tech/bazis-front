@@ -165,6 +165,15 @@ describe('Chart', () => {
     const small = await scale([{ key: 's', label: 'S', value: 7 }], 'en');
     expect(small.labels).toEqual(['0', '7']);
     expect(small.width).toBeLessThan(english.width);
+    // a largest value with a fraction, its digits whole (322 449,7 hours)
+    const hours = await scale([{ key: 'h', label: 'H', value: 322449.7 }], 'ru');
+    expect(hours.labels[1]).toMatch(/^322\s449,7$/);
+    expect(hours.width).toBeGreaterThanOrEqual(9 * 7 + 12);
+    expect((await scale([{ key: 'q', label: 'Q', value: 0.25 }], 'en')).labels).toEqual(['0', '0.25']);
+    // all zero, no scale: the empty state of the chart
+    render(<Chart id="zero" label="Zero" values={[{ key: 'z', label: 'Z', value: 0 }]} />);
+    expect(await screen.findByTestId('state:empty')).toBeTruthy();
+    expect(screen.queryByTestId('drawn:scale')).toBeNull();
   });
 
   it('draws a value of a tone in the color of the tone, the others in the colors of the series', async () => {

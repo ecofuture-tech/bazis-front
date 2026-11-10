@@ -396,11 +396,20 @@ test('the tiles of a dashboard leave no hole: rows of four at most from xl, the 
     });
   };
   const shape = (all: { tiles: number; filled: boolean; even: boolean }[]) => all.map((it) => [it.tiles, it.filled && it.even]);
+  expect(shape(await rows(1280, 1))).toEqual([[1, true]]);
+  expect(shape(await rows(1280, 2))).toEqual([[2, true]]);
   expect(shape(await rows(1280, 3))).toEqual([[3, true]]);
+  expect(shape(await rows(1280, 4))).toEqual([[4, true]]);
   expect(shape(await rows(1280, 5))).toEqual([[4, true], [1, true]]);
   expect(shape(await rows(1280, 6))).toEqual([[4, true], [2, true]]);
+  expect(shape(await rows(1280, 7))).toEqual([[4, true], [3, true]]);
   expect(shape(await rows(1280, 8))).toEqual([[4, true], [4, true]]);
   expect(shape(await rows(768, 3))).toEqual([[2, true], [1, true]]);
+  // a phone: two a row, the last of an odd number the whole row
+  expect(shape(await rows(390, 1))).toEqual([[1, true]]);
+  expect(shape(await rows(390, 2))).toEqual([[2, true]]);
+  expect(shape(await rows(390, 3))).toEqual([[2, true], [1, true]]);
+  expect(shape(await rows(390, 7))).toEqual([[2, true], [2, true], [2, true], [1, true]]);
 });
 
 for (const width of [768, 390]) {
