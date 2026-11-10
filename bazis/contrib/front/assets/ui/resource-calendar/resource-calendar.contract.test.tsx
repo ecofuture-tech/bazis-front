@@ -322,10 +322,15 @@ describe('ResourceCalendar', () => {
     );
     const title = await screen.findByTestId<HTMLInputElement>('field:title');
     expect(screen.getByTestId('field:owner')).toBeTruthy();
+    // the place of the reset is kept by the width of the line of the navigation, its container
+    const place = document.querySelector('[data-slot="reset-place"]');
+    expect(place?.closest('.\\@container')?.contains(screen.getByTestId('action:previous-period'))).toBe(true);
     fireEvent.change(title, { target: { value: 'plan' } });
     await waitFor(() => {
       expect(lists(server).some((it) => it.includes('title__$search=plan') && it.includes('at__gte='))).toBe(true);
     });
+    expect(await screen.findByTestId('action:reset-filters')).toBeTruthy();
+    expect(document.querySelector('[data-slot="reset-place"]')).toBeNull();
     // a text is no value of a new item; the related item of a filter is, for a field of the form
     fireEvent.click(await screen.findByTestId('action:add'));
     expect(onAdd).toHaveBeenLastCalledWith({ at: new Date(2026, 9, 15).toISOString() });

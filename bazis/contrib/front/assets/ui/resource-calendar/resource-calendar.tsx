@@ -500,8 +500,8 @@ export function ResourceCalendar({
   return (
     <div data-bz={`calendar:${entity}`} data-from={from} data-to={to} className="grid grid-cols-[minmax(0,1fr)] gap-4">
       {/* the line of the navigation: the period, its filters, the views; on the bottom of the
-          controls of the filters, under their labels */}
-      <div className="flex flex-wrap items-end gap-2">
+          controls of the filters, under their labels; the container of the place of the reset */}
+      <div className="@container flex flex-wrap items-end gap-2">
         <div className="flex items-center gap-1">
           <Button
             type="button"
