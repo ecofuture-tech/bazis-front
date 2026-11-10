@@ -116,11 +116,10 @@ test('the tools of a line of a section stay one group: beside its sort, or under
     ['45rem', true],
   ] as const) {
     const row = page.getByTestId(`line:${width}`);
-    const [sort, view, add] = await Promise.all(
-      [row.locator('[data-slot="field-group"]'), row.getByRole('button', { name: 'View' }), row.getByRole('button', { name: 'Add an item' })].map(
-        async (it) => (await it.boundingBox()) ?? { x: 0, y: 0, width: 0, height: 0 },
-      ),
-    );
+    const box = async (it: Locator) => (await it.boundingBox()) ?? { x: 0, y: 0, width: 0, height: 0 };
+    const sort = await box(row.locator('[data-slot="field-group"]'));
+    const view = await box(row.getByRole('button', { name: 'View' }));
+    const add = await box(row.getByRole('button', { name: 'Add an item' }));
     // never a ladder: the buttons on one line
     expect(Math.round(view.y)).toBe(Math.round(add.y));
     if (beside) expect(Math.round(sort.y + sort.height)).toBe(Math.round(add.y + add.height));

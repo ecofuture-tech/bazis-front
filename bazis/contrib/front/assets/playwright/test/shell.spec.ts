@@ -464,7 +464,7 @@ for (const dark of [false, true]) {
     const lines = () =>
       page.locator('[data-bz^="row:"]').evaluateAll((rows) =>
         rows.map((row) => {
-          const [first, second] = [...row.children].map((cell) => getComputedStyle(cell));
+          const [first, second] = [...row.children].map((cell) => getComputedStyle(cell)) as [CSSStyleDeclaration, CSSStyleDeclaration];
           return [getComputedStyle(row).borderBottomWidth, first.borderBottomWidth, first.borderBottomColor === second.borderBottomColor, first.position];
         }),
       );
