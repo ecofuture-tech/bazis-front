@@ -140,7 +140,9 @@ export function LoginForm({
   );
 
   return (
-    <Card className="w-full max-w-sm gap-6 shadow-lg">
+    // a block of the theme (`surface` of `Card`: its border and its shadow `shadow.lift-1`), never
+    // a shadow of its own
+    <Card className="w-full max-w-sm gap-6">
       <CardHeader className="gap-1.5">
         <CardTitle>
           <h1 className="font-heading text-2xl">{title ?? t('login.title')}</h1>
