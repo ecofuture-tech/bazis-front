@@ -199,7 +199,8 @@ DEFAULTS = {
     'shadow.lift-primary': ('shadow', '0 0 #0000', None),
     'shadow.lift-primary-hover': ('shadow', '0 0 #0000', None),
     'shadow.lift-primary-active': ('shadow', '0 0 #0000', None),
-    'shadow.ring-focus': ('shadow', '0 0 0 3px color-mix(in srgb, var(--ring) 50%, transparent)', None),
+    # a gap of the page between the control and a solid ring: seen on a filled button too
+    'shadow.ring-focus': ('shadow', '0 0 0 2px var(--background), 0 0 0 4px var(--ring)', None),
     'shadow.field-focus': ('shadow', '0 0 0 3px color-mix(in srgb, var(--ring) 50%, transparent)', None),
     'shadow.nav-active': ('shadow', '0 0 #0000', None),
     'motion.fast': ('duration', '100ms', None),

@@ -81,7 +81,7 @@
   --shadow-lift-primary: 0 0 #0000;
   --shadow-lift-primary-hover: 0 0 #0000;
   --shadow-lift-primary-active: 0 0 #0000;
-  --shadow-ring-focus: 0 0 0 3px color-mix(in srgb, var(--ring) 50%, transparent);
+  --shadow-ring-focus: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
   --shadow-field-focus: 0 0 0 3px color-mix(in srgb, var(--ring) 50%, transparent);
   --shadow-nav-active: 0 0 #0000;
   --motion-fast: 100ms;
@@ -360,7 +360,7 @@
     --field-line: color-mix(in srgb, var(--muted-foreground) 60%, transparent);
     --field-line-hover: color-mix(in srgb, var(--muted-foreground) 85%, transparent);
     --field-line-focus: var(--ring);
-    --shadow-ring-focus: 0 0 0 3px color-mix(in srgb, var(--ring) 50%, transparent);
+    --shadow-ring-focus: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
     --shadow-field-focus: 0 0 0 3px color-mix(in srgb, var(--ring) 50%, transparent);
     --shadow-lift-primary: 0 0 #0000;
     --shadow-lift-primary-hover: 0 0 #0000;

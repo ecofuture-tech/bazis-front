@@ -65,7 +65,7 @@
   --shadow-lift-primary: 0 1px 2px color-mix(in srgb, var(--primary) 30%, transparent), 0 3px 8px -2px color-mix(in srgb, var(--primary) 28%, transparent);
   --shadow-lift-primary-hover: 0 2px 4px color-mix(in srgb, var(--primary) 28%, transparent), 0 8px 18px -4px color-mix(in srgb, var(--primary) 34%, transparent);
   --shadow-lift-primary-active: 0 1px 1px color-mix(in srgb, var(--primary) 30%, transparent);
-  --shadow-ring-focus: 0 0 0 1px var(--ring), 0 0 0 4px color-mix(in srgb, var(--ring) 18%, transparent);
+  --shadow-ring-focus: 0 0 0 2px var(--background), 0 0 0 4px var(--ring), 0 0 0 7px color-mix(in srgb, var(--ring) 18%, transparent);
   --shadow-field-focus: 0 1px 0 0 var(--primary);
   --shadow-nav-active: 0 1px 2px rgb(0 0 0 / 0.16), 0 3px 8px -3px rgb(0 0 0 / 0.26);
   --card-foreground: var(--foreground);
@@ -407,7 +407,7 @@
     --field-line: color-mix(in srgb, var(--muted-foreground) 60%, transparent);
     --field-line-hover: color-mix(in srgb, var(--muted-foreground) 85%, transparent);
     --field-line-focus: var(--primary);
-    --shadow-ring-focus: 0 0 0 1px var(--ring), 0 0 0 4px color-mix(in srgb, var(--ring) 18%, transparent);
+    --shadow-ring-focus: 0 0 0 2px var(--background), 0 0 0 4px var(--ring), 0 0 0 7px color-mix(in srgb, var(--ring) 18%, transparent);
     --shadow-field-focus: 0 1px 0 0 var(--primary);
     --shadow-lift-primary: 0 1px 2px color-mix(in srgb, var(--primary) 30%, transparent), 0 3px 8px -2px color-mix(in srgb, var(--primary) 28%, transparent);
     --shadow-lift-primary-hover: 0 2px 4px color-mix(in srgb, var(--primary) 28%, transparent), 0 8px 18px -4px color-mix(in srgb, var(--primary) 34%, transparent);

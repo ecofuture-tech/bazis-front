@@ -266,7 +266,7 @@ def test_a_design_without_layers_keeps_its_look():
     assert mapping['--default-transition-duration'] == 'var(--motion-base)'
     # the surfaces and the controls as the components drew them before their tokens: the borders,
     # the background of an outline button and its hover, the focus ring of a field, the shadow of
-    # a card and of a popover, no shadow of the primary button, the focus ring of shadcn/ui; flat
+    # a card and of a popover, no shadow of the primary button; flat
     # backgrounds; the line of a field of the muted text, about 2.7:1 at rest
     ring = '0 0 0 3px color-mix(in srgb, var(--ring) 50%, transparent)'
     assert {name: light[name] for name in (
@@ -284,7 +284,8 @@ def test_a_design_without_layers_keeps_its_look():
         '--shadow-lift-05': 'var(--shadow-xs)', '--shadow-lift-05-hover': 'var(--shadow-sm)',
         '--shadow-lift-05-active': 'var(--shadow-xs)',
         '--shadow-lift-1': 'var(--shadow-xs)', '--shadow-lift-2': 'var(--shadow-md)', '--shadow-lift-primary': '0 0 #0000',
-        '--shadow-ring-focus': ring,
+        # a gap of the page and a solid ring, seen on a filled button too
+        '--shadow-ring-focus': '0 0 0 2px var(--background), 0 0 0 4px var(--ring)',
         '--surface-card': 'none', '--surface-control': 'none',
     }
     # no glow of the paper and no gradient of the sidebar; the current link of the sidebar on its
