@@ -236,10 +236,15 @@ describe('ResourceList', () => {
     await waitFor(() => {
       expect(within(screen.getByTestId('row:a')).getByTestId('cell:state').textContent).toBe('Finished');
     });
-    // a select named by the field, whose first option, every item, is `data-value=""`
+    // a select named by the label of the field over it, whose first option, every item, is `data-value=""`
     const control = await screen.findByTestId('field:state');
-    expect(control.getAttribute('role')).toBe('combobox');
-    expect(control.getAttribute('aria-label')).toBe('State');
+    expect(screen.getByRole('combobox', { name: 'State' })).toBe(control);
+    // its group draws the line under the control, the label over it, outside the group
+    const group = control.closest('[data-slot="field-group"]');
+    const label = screen.getByText('State', { selector: 'label' });
+    expect(group).not.toBeNull();
+    expect(group?.contains(label)).toBe(false);
+    expect(label.closest('[data-filled]')).toBeNull();
     open(control);
     const listbox = await screen.findByRole('listbox');
     expect(control.getAttribute('aria-controls')).toBe(listbox.id);
@@ -251,6 +256,8 @@ describe('ResourceList', () => {
       expect(requested(server, 'filter=state=done')).toBe(true);
     });
     expect(control.textContent).toContain('Finished');
+    // filled, its label in the color of the text
+    expect(label.closest('[data-filled]')).not.toBeNull();
     // every item again
     const count = server.requests('GET').length;
     open(control);
@@ -268,7 +275,7 @@ describe('ResourceList', () => {
       .on('GET', ITEMS, listDocument(rows));
     renderWithBazis(<ResourceList path={ITEMS as never} entity="item" columns={['title']} filters={['is_late']} />, server);
     const group = await screen.findByTestId('field:is_late');
-    expect(group.getAttribute('aria-label')).toBe('Is late');
+    expect(screen.getByRole('group', { name: 'Is late' })).toBe(group);
     const [yes, no] = within(group).getAllByRole('button');
     if (!yes || !no) throw new Error('two chips');
     fireEvent.click(yes);
@@ -288,6 +295,30 @@ describe('ResourceList', () => {
     await waitFor(() => {
       expect(server.requests('GET').slice(count).some((it) => it.startsWith(`GET ${ITEMS}?`) && !it.includes('filter'))).toBe(true);
     });
+  });
+
+  it('resets the filters of the user, shown only while he has any', async () => {
+    const server = new Backend()
+      .on('GET', `${ITEMS}schema_list/`, runtimeSchema({ is_late: { attribute: { type: 'boolean', title: 'Late' } } }, { list: true }))
+      .on('GET', `${ITEMS}route_filter_fields/`, { fields: [{ name: 'is_late', py_type: 'boolean' }] })
+      .on('GET', ITEMS, listDocument(rows));
+    renderWithBazis(<ResourceList path={ITEMS as never} entity="item" columns={['title']} filters={['is_late']} />, server);
+    const group = await screen.findByTestId('field:is_late');
+    expect(screen.queryByTestId('action:reset-filters')).toBeNull();
+    const [yes] = within(group).getAllByRole('button');
+    if (!yes) throw new Error('a chip');
+    fireEvent.click(yes);
+    await waitFor(() => {
+      expect(requested(server, 'filter=is_late=true')).toBe(true);
+    });
+    const count = server.requests('GET').length;
+    fireEvent.click(await screen.findByTestId('action:reset-filters'));
+    await waitFor(() => {
+      expect(server.requests('GET').slice(count).some((it) => it.startsWith(`GET ${ITEMS}?`) && !it.includes('filter'))).toBe(true);
+    });
+    const [again] = within(await screen.findByTestId('field:is_late')).getAllByRole('button');
+    expect(again?.getAttribute('aria-pressed')).toBe('false');
+    expect(screen.queryByTestId('action:reset-filters')).toBeNull();
   });
 
   it('renders the numeric filters as numbers', async () => {

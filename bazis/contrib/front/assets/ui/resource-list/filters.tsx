@@ -19,6 +19,7 @@
 // those of the user: the core answers a filter by a field it does not list for him (hidden
 // by his field permissions, bazis-permit) with 400, so such a filter has no control.
 
+import { FunnelX } from 'lucide-react';
 import { Fragment, useState, type ReactNode } from 'react';
 
 import { Filter } from '@/bazis/client';
@@ -140,6 +141,65 @@ export function equalValues(
   );
 }
 
+/** The kinds of the controls of the filters, by which they are as wide where the row is a line. */
+export type FilterKind = 'date' | 'text' | 'relation' | 'select' | 'chips';
+
+/** The width of the control of a filter where its row is a line (a container of 48rem); its cell otherwise. */
+const WIDTHS: Record<FilterKind, string> = {
+  date: '@3xl:w-36',
+  text: '@3xl:w-40',
+  relation: '@3xl:w-48',
+  select: '@3xl:w-auto',
+  chips: '',
+};
+
+/** The width of a control of a filter of this kind: its cell where the filters are a grid, its own in a line. */
+export function filterWidth(kind: FilterKind): string {
+  return cn('w-full', WIDTHS[kind]);
+}
+
+/**
+ * A filter of the row of the filters (`FilterRow`): its label, always over its control and where
+ * the text of the control starts, in the color of the text once the filter has a value
+ * (`data-filled`); the line of the control drawn by its group (`data-slot="field-group"`), as
+ * for the range of two dates (`legend` without an `id`, its label read as the name of the group).
+ */
+export function FilterField({ label, id, kind, filled, children, 'data-bz': mark }: {
+  label: string;
+  /** The id of the control that the label names; without one the filter is a group of controls named by the label. */
+  id?: string;
+  kind: FilterKind;
+  /** Whether the filter has a value. */
+  filled: boolean;
+  /** The mark of a group of controls (`field:<field>` of the chips of a boolean). */
+  'data-bz'?: string;
+  children: ReactNode;
+}) {
+  const wrapper = cn('grid w-full min-w-0 gap-1 @3xl:w-auto', kind === 'date' && '@md:col-span-2');
+  const text = 'cursor-pointer pl-3 text-sm font-normal whitespace-nowrap text-muted-foreground in-data-filled:text-foreground';
+  const group = (
+    <div data-slot="field-group" className={cn(fieldGroupClassName, 'min-w-0 gap-2', kind === 'chips' && 'pl-1')}>
+      {children}
+    </div>
+  );
+  return id === undefined ? (
+    <fieldset data-bz={mark} data-filled={filled || undefined} className={wrapper}>
+      <legend className="sr-only">{label}</legend>
+      <span aria-hidden="true" className={text}>
+        {label}
+      </span>
+      {group}
+    </fieldset>
+  ) : (
+    <div data-filled={filled || undefined} className={wrapper}>
+      <Label htmlFor={id} className={text}>
+        {label}
+      </Label>
+      {group}
+    </div>
+  );
+}
+
 interface FilterControlProps {
   filter: ListFilter;
   label: string;
@@ -154,49 +214,36 @@ function FilterControl({ filter, label, type, values, onChange }: FilterControlP
   const id = `filter-${filter.field}`;
   const { field } = filter;
   if (type === 'date' || type === 'datetime') {
+    const bounds = ['gte', 'lte'] as const;
     return (
-      // in a narrow row (`FilterRow`) the width of its cells (a fieldset is as wide as its content
-      // otherwise), both when there are two: its two dates under the label when they do not fit
-      // beside it, sharing the row; one line under the label and both dates, a dash between them
-      <fieldset
-        data-slot="field-group"
-        className={cn(fieldGroupClassName, 'flex w-full min-w-0 flex-wrap items-center gap-2 @md:col-span-2 @3xl:w-auto @3xl:flex-nowrap')}
-      >
-        <legend className="sr-only">{label}</legend>
-        <span aria-hidden="true" className="text-sm whitespace-nowrap text-muted-foreground">
-          {label}
-        </span>
-        <div className="flex min-w-0 grow items-center gap-1.5 @3xl:grow-0">
-          {(['gte', 'lte'] as const).map((bound) => (
-            <Fragment key={bound}>
-              {bound === 'lte' && (
-                <span aria-hidden="true" className="text-muted-foreground">
-                  —
-                </span>
-              )}
-              <DateInput
-                className="h-9 w-36 min-w-0 flex-1 @3xl:flex-none"
-                aria-label={t(bound === 'gte' ? 'filter.from' : 'filter.to', { label })}
-                data-bz={`field:${field}__${bound}`}
-                value={values[`${field}__${bound}`] ?? ''}
-                onChange={(value) => {
-                  onChange(`${field}__${bound}`, value);
-                }}
-              />
-            </Fragment>
-          ))}
-        </div>
-      </fieldset>
+      // its two dates side by side, a dash between them, under its label
+      <FilterField label={label} kind="date" filled={bounds.some((bound) => values[`${field}__${bound}`])}>
+        {bounds.map((bound) => (
+          <Fragment key={bound}>
+            {bound === 'lte' && (
+              <span aria-hidden="true" className="text-muted-foreground">
+                —
+              </span>
+            )}
+            <DateInput
+              className={cn('min-w-0 flex-1 @3xl:flex-none', WIDTHS.date)}
+              aria-label={t(bound === 'gte' ? 'filter.from' : 'filter.to', { label })}
+              data-bz={`field:${field}__${bound}`}
+              value={values[`${field}__${bound}`] ?? ''}
+              onChange={(value) => {
+                onChange(`${field}__${bound}`, value);
+              }}
+            />
+          </Fragment>
+        ))}
+      </FilterField>
     );
   }
   const value = values[field] ?? '';
   if (type === 'boolean' && !filter.options) {
     // a chip for each value, pressed again to show every item
     return (
-      <div role="group" aria-label={label} data-bz={`field:${field}`} className="flex items-center gap-2">
-        <span aria-hidden="true" className="text-sm whitespace-nowrap text-muted-foreground">
-          {label}
-        </span>
+      <FilterField label={label} kind="chips" filled={value !== ''} data-bz={`field:${field}`}>
         {(['true', 'false'] as const).map((it) => (
           <Button
             key={it}
@@ -211,64 +258,62 @@ function FilterControl({ filter, label, type, values, onChange }: FilterControlP
             {t(it === 'true' ? 'value.yes' : 'value.no')}
           </Button>
         ))}
-      </div>
+      </FilterField>
     );
   }
   if (filter.options) {
     const { options } = filter;
-    // a chip of the toolbar named by the field: its label, then the choice
     return (
-      <Select
-        value={value || EVERY}
-        onValueChange={(next) => {
-          onChange(field, next === EVERY ? '' : next);
-        }}
-      >
-        <SelectTrigger data-bz={`field:${field}`} aria-label={label} className="w-full @3xl:w-auto">
-          {/* the choice at the end of a narrow row, by the arrow */}
-          <span aria-hidden="true" className="mr-auto text-muted-foreground">
-            {label}
-          </span>
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent position="popper" align="start">
-          <SelectItem value={EVERY} data-value="">
-            {t('filter.all')}
-          </SelectItem>
-          {options.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              {option.label}
+      <FilterField label={label} id={id} kind="select" filled={value !== ''}>
+        <Select
+          value={value || EVERY}
+          onValueChange={(next) => {
+            onChange(field, next === EVERY ? '' : next);
+          }}
+        >
+          <SelectTrigger id={id} data-bz={`field:${field}`} className={filterWidth('select')}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent position="popper" align="start">
+            <SelectItem value={EVERY} data-value="">
+              {t('filter.all')}
             </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+            {options.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </FilterField>
     );
   }
   const relation = relationOf(type);
   const relationType = relation === null ? undefined : typeAt(relation);
-  let control;
   if (relationType !== undefined) {
-    control = (
-      <RelationPicker
-        id={id}
-        data-bz={`field:${field}`}
-        // in a narrow row as narrow as its text, at the end of its cell (a select takes the cell, its choice by its arrow)
-        className="ml-auto w-auto min-w-0 @3xl:ml-0 @3xl:w-48 @3xl:flex-none"
-        label={label}
-        relation={relationType}
-        value={value || null}
-        placeholder={t('filter.all')}
-        onChange={(next) => {
-          onChange(field, next ?? '');
-        }}
-      />
+    return (
+      <FilterField label={label} id={id} kind="relation" filled={value !== ''}>
+        <RelationPicker
+          id={id}
+          data-bz={`field:${field}`}
+          className={filterWidth('relation')}
+          label={label}
+          relation={relationType}
+          value={value || null}
+          placeholder={t('filter.all')}
+          onChange={(next) => {
+            onChange(field, next ?? '');
+          }}
+        />
+      </FilterField>
     );
-  } else {
-    control = (
+  }
+  return (
+    <FilterField label={label} id={id} kind="text" filled={value !== ''}>
       <Input
         id={id}
         data-bz={`field:${field}`}
-        className="h-9 w-40 min-w-0 flex-1 @3xl:flex-none"
+        className={filterWidth('text')}
         type={type !== undefined && NUMBERS.has(type) ? 'number' : 'text'}
         step={type === 'integer' ? 1 : type !== undefined && NUMBERS.has(type) ? 'any' : undefined}
         value={value}
@@ -276,31 +321,32 @@ function FilterControl({ filter, label, type, values, onChange }: FilterControlP
           onChange(field, event.target.value);
         }}
       />
-    );
-  }
-  // in a narrow row the width of its cell, its control at its end (an input taking the rest of
-  // it); one line under the label and the control
+    </FilterField>
+  );
+}
+
+/** Clears the filters of the user (`action:reset-filters`), shown while he has any. */
+export function ResetFilters({ onReset }: { onReset: () => void }) {
+  const { t } = useLanguage();
   return (
-    <div data-slot="field-group" className={cn(fieldGroupClassName, 'flex w-full min-w-0 items-center gap-2 @3xl:w-auto')}>
-      <Label htmlFor={id} className="font-normal whitespace-nowrap text-muted-foreground">
-        {label}
-      </Label>
-      {control}
-    </div>
+    <Button type="button" variant="ghost" size="icon" data-bz="action:reset-filters" aria-label={t('filter.reset')} title={t('filter.reset')} onClick={onReset}>
+      <FunnelX aria-hidden="true" />
+    </Button>
   );
 }
 
 /**
  * The row of the filters of a list, a calendar or a board, with the search and the tools of a
- * list: one line that wraps where its container is as wide as 48rem; narrower (a list beside
- * its card, a phone) a grid of cells of one width, two from 28rem (a range of dates takes both,
- * the next filters filling the cell it leaves), the label and the control of a filter filling
- * its cell, their lines aligned at the bottom.
+ * list, on a plate of its own (`plate`: with a search or a filter, not the tools alone): one line
+ * that wraps where its container is as wide as 48rem, the lines of the controls at the bottom
+ * under their labels; narrower (a list beside its card, a phone) a grid of cells of one width,
+ * two from 28rem (a range of dates takes both, the next filters filling the cell it leaves), the
+ * label and the control of a filter filling its cell.
  */
-export function FilterRow({ children }: { children: ReactNode }) {
+export function FilterRow({ plate = true, children }: { plate?: boolean; children: ReactNode }) {
   return (
-    <div className="@container">
-      <div className="grid grid-flow-dense grid-cols-1 items-end gap-x-4 gap-y-3 @md:grid-cols-2 @3xl:flex @3xl:flex-wrap @3xl:items-center">{children}</div>
+    <div className={cn('@container', plate && 'surface px-(--space-card) py-[calc(var(--space-card)/2)]')}>
+      <div className="grid grid-flow-dense grid-cols-1 items-end gap-x-6 gap-y-3 @md:grid-cols-2 @3xl:flex @3xl:flex-wrap">{children}</div>
     </div>
   );
 }

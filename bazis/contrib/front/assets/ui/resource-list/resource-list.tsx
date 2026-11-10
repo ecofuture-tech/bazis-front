@@ -25,7 +25,7 @@
 // loading one is the skeleton of the rows, the empty one with the creation of an item).
 
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, ChevronsUpDown, Search, SearchX } from 'lucide-react';
-import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
+import { useEffect, useId, useState, type ComponentType, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 import { Filter, nextPage, pagination, prevPage, type CustomActionName } from '@/bazis/client';
@@ -58,7 +58,7 @@ import { cn } from '@/lib/utils';
 import { BulkBar, type BulkAction } from './bulk.js';
 import { cardRoles, CardsSkeleton, CardsView } from './cards.js';
 import { ViewMenu } from './columns.js';
-import { EVERY, FilterBar, FilterRow, listFilters, type ListFilter } from './filters.js';
+import { EVERY, FilterBar, FilterField, FilterRow, filterWidth, listFilters, ResetFilters, type ListFilter } from './filters.js';
 import { cell, FOCUS, opener, PageCheckbox, RowCheckbox, type BodyProps, type CardLayout } from './rows.js';
 
 /**
@@ -459,6 +459,9 @@ export function ResourceList({
   const fields = useListFields(path);
   const order = orderLabels(path);
   const [filter, setFilter] = useState<Filter | undefined>();
+  // the filters of the user start again empty when he resets them
+  const [filterKey, setFilterKey] = useState(0);
+  const sortId = useId();
   const [sort, setSort] = useState<readonly string[]>(initialSort);
   const [offset, setOffset] = useState(0);
   // a new order of the screen (the distance from the point of a nearby list, known later)
@@ -603,9 +606,17 @@ export function ResourceList({
       />
     </div>
   );
+  function reset() {
+    setFilterKey((it) => it + 1);
+    setFilter(undefined);
+    setSearchText('');
+    setSearch('');
+    setOffset(0);
+  }
   const tools = (
     // at the end of the row of the filters, of a row of its own where they are a grid
     <div className={cn('flex gap-2', header === null && 'col-span-full ml-auto')}>
+      {filtered && <ResetFilters onReset={reset} />}
       {viewMenu && (
         <ViewMenu
           columns={hideable}
@@ -654,10 +665,12 @@ export function ResourceList({
           caption,
         )}
       {(header === null ? searchable || filterList.length > 0 || actions.length > 0 || viewMenu : filterList.length > 0 || sorts) && (
-        <FilterRow>
+        // a plate with a search or a filter, the tools alone without one
+        <FilterRow plate={(header === null && searchable) || filterList.length > 0}>
           {header === null && searchField}
           {filterList.length > 0 && (
             <FilterBar
+              key={filterKey}
               path={path}
               filters={filterList}
               ready={fields.ready}
@@ -669,37 +682,36 @@ export function ResourceList({
             />
           )}
           {sorts && (
-            <Select
-              value={sort[0] ?? EVERY}
-              onValueChange={(next) => {
-                setSort(next === EVERY ? [] : [next]);
-                setOffset(0);
-              }}
-            >
-              {/* as a filter of the row: the width of its cell where they are a grid */}
-              <SelectTrigger aria-label={t('list.sort')} className="w-full @3xl:w-auto">
-                <span aria-hidden="true" className="mr-auto text-muted-foreground">
-                  {t('list.sort')}
-                </span>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent position="popper" align="start">
-                <SelectItem value={EVERY} data-value="">
-                  {t('list.sort_default')}
-                </SelectItem>
-                {sortable.flatMap((name) => {
-                  const label = order.get(name) ?? name;
-                  return [
-                    <SelectItem key={label} value={label}>
-                      {fields.title(name)} ↑
-                    </SelectItem>,
-                    <SelectItem key={`-${label}`} value={`-${label}`}>
-                      {fields.title(name)} ↓
-                    </SelectItem>,
-                  ];
-                })}
-              </SelectContent>
-            </Select>
+            // as a filter of the row
+            <FilterField label={t('list.sort')} id={sortId} kind="select" filled={sort.length > 0}>
+              <Select
+                value={sort[0] ?? EVERY}
+                onValueChange={(next) => {
+                  setSort(next === EVERY ? [] : [next]);
+                  setOffset(0);
+                }}
+              >
+                <SelectTrigger id={sortId} className={filterWidth('select')}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent position="popper" align="start">
+                  <SelectItem value={EVERY} data-value="">
+                    {t('list.sort_default')}
+                  </SelectItem>
+                  {sortable.flatMap((name) => {
+                    const label = order.get(name) ?? name;
+                    return [
+                      <SelectItem key={label} value={label}>
+                        {fields.title(name)} ↑
+                      </SelectItem>,
+                      <SelectItem key={`-${label}`} value={`-${label}`}>
+                        {fields.title(name)} ↓
+                      </SelectItem>,
+                    ];
+                  })}
+                </SelectContent>
+              </Select>
+            </FilterField>
           )}
           {header === null && tools}
         </FilterRow>

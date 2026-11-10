@@ -111,6 +111,7 @@ export const ru: Messages = {
   'file.unavailable_hint': 'Открыть файл может только загрузивший его пользователь',
   'filter.all': 'Все',
   'filter.from': '{label} с',
+  'filter.reset': 'Сбросить фильтры',
   'filter.to': '{label} по',
   'filter.unavailable': 'Фильтры сейчас недоступны.',
   'form.back': 'Назад',

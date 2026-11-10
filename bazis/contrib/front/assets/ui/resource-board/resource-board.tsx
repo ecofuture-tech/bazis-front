@@ -50,7 +50,7 @@ import {
 } from '@/bazis/ui/resource';
 import { statusName, statusOf, transitName, transitTarget } from '@/bazis/ui/status-badge';
 import { errorState, StatePanel, toast, type ViewState } from '@/bazis/ui/state-panel';
-import { FilterBar, FilterRow, listFilters, type ListFilter } from '@/bazis/ui/resource-list';
+import { FilterBar, FilterRow, listFilters, ResetFilters, type ListFilter } from '@/bazis/ui/resource-list';
 import { inDeclaredOrder, listedTransit, useRunTransit, type DeclaredTransit, type TransitRun } from '@/bazis/ui/transit-bar';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -223,6 +223,8 @@ export function ResourceBoard({
   const statuses = columns ?? workflowStatuses(type);
   const [limits, setLimits] = useState<Readonly<Record<string, number>>>({});
   const [userFilter, setUserFilter] = useState<Filter | undefined>();
+  // the filters of the user start again empty when he resets them
+  const [filterKey, setFilterKey] = useState(0);
   const filter = screenFilter && userFilter ? Filter.and(screenFilter, userFilter) : (screenFilter ?? userFilter);
   const meta = useListFields(path);
   const filterList = listFilters(filters, meta);
@@ -270,6 +272,7 @@ export function ResourceBoard({
       {filterList.length > 0 && (
         <FilterRow>
           <FilterBar
+            key={filterKey}
             path={path}
             filters={filterList}
             ready={meta.ready}
@@ -279,6 +282,17 @@ export function ResourceBoard({
               setLimits({});
             }}
           />
+          {userFilter && (
+            <div className="col-span-full ml-auto">
+              <ResetFilters
+                onReset={() => {
+                  setFilterKey((it) => it + 1);
+                  setUserFilter(undefined);
+                  setLimits({});
+                }}
+              />
+            </div>
+          )}
         </FilterRow>
       )}
       {run.open === null && run.mutation.isError && (

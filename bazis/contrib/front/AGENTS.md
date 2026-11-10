@@ -6495,11 +6495,15 @@ Its props, `FilterBarProps`:
 
 #### FilterRow
 
-`FilterRow(props: { children: ReactNode; }): Element`: The row of the filters of a list, a calendar or a board, with the search and the tools of a list: one line that wraps where its container is as wide as 48rem; narrower (a list beside its card, a phone) a grid of cells of one width, two from 28rem (a range of dates takes both, the next filters filling the cell it leaves), the label and the control of a filter filling its cell, their lines aligned at the bottom.
+`FilterRow(props: { plate?: boolean; children: ReactNode; }): Element`: The row of the filters of a list, a calendar or a board, with the search and the tools of a list, on a plate of its own (`plate`: with a search or a filter, not the tools alone): one line that wraps where its container is as wide as 48rem, the lines of the controls at the bottom under their labels; narrower (a list beside its card, a phone) a grid of cells of one width, two from 28rem (a range of dates takes both, the next filters filling the cell it leaves), the label and the control of a filter filling its cell.
 
 #### listFilters
 
 `listFilters(filters: readonly (string | ListFilter)[], fields: Fields): ListFilter[]`: The filters of a list, a board or a calendar, given by the name of their field or as they are: a field with choices in the list schema is filtered by a select of its choices, by their labels.
+
+#### ResetFilters
+
+`ResetFilters(props: { onReset: () => void; }): Element`: Clears the filters of the user (`action:reset-filters`), shown while he has any.
 
 #### ListFilter
 

@@ -54,7 +54,7 @@ import {
   useAnyLists,
   useListFields,
 } from '@/bazis/ui/resource';
-import { FilterBar, FilterRow, listFilters, type FilterValues, type ListFilter } from '@/bazis/ui/resource-list';
+import { FilterBar, FilterRow, listFilters, ResetFilters, type FilterValues, type ListFilter } from '@/bazis/ui/resource-list';
 import { errorState, StatePanel, type ViewState } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -273,6 +273,8 @@ export function ResourceCalendar({
   const meta = useListFields(path);
   const filterList = listFilters(filters, meta);
   const [userFilter, setUserFilter] = useState<{ filter: Filter | undefined; equal: FilterValues }>({ filter: undefined, equal: {} });
+  // the filters of the user start again empty when he resets them
+  const [filterKey, setFilterKey] = useState(0);
   const filter = screenFilter && userFilter.filter ? Filter.and(screenFilter, userFilter.filter) : (screenFilter ?? userFilter.filter);
   const firstDay = weekStart(language);
   const days = periodDays(parseDay(anchor), view, firstDay);
@@ -527,6 +529,7 @@ export function ResourceCalendar({
       {filterList.length > 0 && (
         <FilterRow>
           <FilterBar
+            key={filterKey}
             path={path}
             filters={filterList}
             ready={meta.ready}
@@ -535,6 +538,16 @@ export function ResourceCalendar({
               setUserFilter({ filter: next, equal });
             }}
           />
+          {userFilter.filter && (
+            <div className="col-span-full ml-auto">
+              <ResetFilters
+                onReset={() => {
+                  setFilterKey((it) => it + 1);
+                  setUserFilter({ filter: undefined, equal: {} });
+                }}
+              />
+            </div>
+          )}
         </FilterRow>
       )}
       {state === 'loaded' || state === 'empty' ? (

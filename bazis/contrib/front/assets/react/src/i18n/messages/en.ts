@@ -111,6 +111,7 @@ export const en: Messages = {
   'file.unavailable_hint': 'Only the user who uploaded the file can open it',
   'filter.all': 'All',
   'filter.from': '{label} from',
+  'filter.reset': 'Reset the filters',
   'filter.to': '{label} to',
   'filter.unavailable': 'The filters are not available now.',
   'form.back': 'Back',
