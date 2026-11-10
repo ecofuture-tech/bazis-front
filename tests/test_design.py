@@ -550,6 +550,9 @@ def test_one_color_mode(mode):
     assert '.dark {' not in css and 'prefers-color-scheme' not in css
     assert f'html {{\n    color-scheme: {mode};\n  }}' in css
     assert f', the {mode} mode only. */' in css
+    # less motion when the system asks for it, in the base of every theme
+    assert theme.REDUCED_MOTION in css.split('@layer base {', 1)[1]
+    assert 'animation-duration: 0.01ms !important;' in theme.REDUCED_MOTION
     assert 'dark: false,' in files[theme.THEME_TS]
     # the variant `dark:` of Tailwind follows the mode
     variant = '&:is(:root *)' if mode == 'dark' else '&:is(.dark *)'

@@ -145,6 +145,18 @@ CONTROL = {
 #: the focus ring (`focus-visible:ring-focus`): `shadow.ring-focus` over the shadow of the element
 RING_FOCUS = {'--tw-ring-shadow': 'var(--shadow-ring-focus)', 'box-shadow': SHADOWS}
 
+#: the system asks for less motion: the animations and the transitions end at once (a dialog, a
+#: menu and a toast appear and go, a spinner stands still), the page scrolls without a glide
+REDUCED_MOTION = (
+    '  @media (prefers-reduced-motion: reduce) {\n'
+    '    *,\n    ::before,\n    ::after {\n'
+    '      animation-duration: 0.01ms !important;\n'
+    '      animation-iteration-count: 1 !important;\n'
+    '      transition-duration: 0.01ms !important;\n'
+    '      scroll-behavior: auto !important;\n'
+    '    }\n  }'
+)
+
 #: the glow of the paper, two radial lights at the top corners of the page under its content,
 #: only when a layer defines `color.glow-a` or `color.glow-b` (a design without them draws
 #: nothing over the page)
@@ -374,6 +386,7 @@ def render_css(settings: dict, theme: dict | None, defined: dict) -> str:
         '  h1,\n  h2,\n  h3 {\n    font-family: var(--font-heading);\n    font-weight: var(--font-weight-heading);\n'
         '    letter-spacing: var(--font-tracking-heading);\n  }',
         '  ::selection {\n    background-color: color-mix(in srgb, var(--primary) 22%, transparent);\n  }',
+        REDUCED_MOTION,
         *(f'  {it}' for it in PRESET_BASE[settings['preset']]),
         '}',
     ]
