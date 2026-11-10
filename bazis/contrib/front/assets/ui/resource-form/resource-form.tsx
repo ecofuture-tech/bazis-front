@@ -20,7 +20,7 @@
 // as a page, as the theme composes the forms.
 
 import { LoaderCircle } from 'lucide-react';
-import { type ReactNode, type SubmitEvent } from 'react';
+import { useState, type ReactNode, type SubmitEvent } from 'react';
 
 import { ApiError, type ErrorObject } from '@/bazis/client';
 import { useLanguage, type Translate } from '@/bazis/i18n';
@@ -38,6 +38,8 @@ import {
 import { errorState, StatePanel, toast } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+
+import { useReportDirty } from './form-surface.js';
 
 export type ResourceFormProps = (
   | {
@@ -156,6 +158,10 @@ export function ResourceFormBody({
   const { uploading, onBusy } = useUploads();
   const { t } = useLanguage();
   const message = useErrorMessage();
+  // the fields that the user changed: a form with one of them still changed is dirty (a fixed or an
+  // initial value is not a change of the user)
+  const [touched, setTouched] = useState<ReadonlySet<string>>(() => new Set());
+  useReportDirty(form.status === 'ready' && form.dirty.some((name) => touched.has(name)));
 
   if (form.status !== 'ready') {
     const state = form.status === 'loading' ? 'loading' : errorState(form.error);
@@ -213,6 +219,7 @@ export function ResourceFormBody({
           disabled={form.isSubmitting}
           onChange={(value) => {
             form.setValue(field.name, value);
+            if (!touched.has(field.name)) setTouched(new Set([...touched, field.name]));
           }}
           onBusy={onBusy(field.name)}
         />

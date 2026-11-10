@@ -29,6 +29,7 @@ import { XIcon } from "lucide-react"
 import { Dialog as SheetPrimitive } from "radix-ui"
 
 import { useLanguage } from "@/bazis/i18n"
+import { useDialogFocus } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 
 function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
@@ -74,12 +75,16 @@ function SheetContent({
   children,
   side = "right",
   showCloseButton = true,
+  onOpenAutoFocus,
+  onCloseAutoFocus,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: "top" | "right" | "bottom" | "left"
   showCloseButton?: boolean
 }) {
   const { t } = useLanguage()
+  // its first link (a menu), back to its button once closed
+  const focus = useDialogFocus("a[href]", { onOpenAutoFocus, onCloseAutoFocus })
   return (
     <SheetPortal>
       <SheetOverlay />
@@ -98,6 +103,7 @@ function SheetContent({
           className
         )}
         {...props}
+        {...focus}
       >
         {children}
         {showCloseButton && (

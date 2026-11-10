@@ -993,7 +993,8 @@
       "target": "src/components/ui",
       "requires": {
         "assets": [
-          "i18n"
+          "i18n",
+          "dialog"
         ]
       },
       "files": [

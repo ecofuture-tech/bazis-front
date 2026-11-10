@@ -72,15 +72,69 @@ function DialogOverlay({
   )
 }
 
+/** The fields of a form, which a dialog focuses first rather than its buttons. */
+const FIELDS =
+  "input:not([type=hidden]):not(:disabled), textarea:not(:disabled), select:not(:disabled), [role=combobox]:not(:disabled)"
+
+/**
+ * The focus of a dialog or a sheet (Bazis): on open the first element of `first` in it, also one
+ * that shows once its content loads while the focus is where the dialog put it; once closed back
+ * to the element that had it before, also when the state of a screen opened it (no trigger).
+ */
+function useDialogFocus(
+  first: string,
+  {
+    onOpenAutoFocus,
+    onCloseAutoFocus,
+  }: Pick<React.ComponentProps<typeof DialogPrimitive.Content>, "onOpenAutoFocus" | "onCloseAutoFocus">
+) {
+  const opener = React.useRef<HTMLElement | null>(null)
+  return {
+    onOpenAutoFocus: (event: Event) => {
+      opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+      onOpenAutoFocus?.(event)
+      const content = event.target
+      if (event.defaultPrevented || !(content instanceof HTMLElement)) return
+      const found = content.querySelector<HTMLElement>(first)
+      if (found) {
+        event.preventDefault()
+        found.focus()
+        return
+      }
+      let initial: Element | null = null
+      queueMicrotask(() => {
+        initial = document.activeElement
+      })
+      const observer = new MutationObserver(() => {
+        const shown = content.querySelector<HTMLElement>(first)
+        if (!shown) return
+        observer.disconnect()
+        if (document.activeElement === initial) shown.focus()
+      })
+      observer.observe(content, { childList: true, subtree: true })
+    },
+    onCloseAutoFocus: (event: Event) => {
+      onCloseAutoFocus?.(event)
+      const element = opener.current
+      if (event.defaultPrevented || !element?.isConnected || element === document.body) return
+      event.preventDefault()
+      element.focus()
+    },
+  }
+}
+
 function DialogContent({
   className,
   children,
   showCloseButton = true,
+  onOpenAutoFocus,
+  onCloseAutoFocus,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
 }) {
   const { t } = useLanguage()
+  const focus = useDialogFocus(FIELDS, { onOpenAutoFocus, onCloseAutoFocus })
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay />
@@ -91,6 +145,7 @@ function DialogContent({
           className
         )}
         {...props}
+        {...focus}
       >
         {children}
         {showCloseButton && (
@@ -182,4 +237,5 @@ export {
   DialogPortal,
   DialogTitle,
   DialogTrigger,
+  useDialogFocus,
 }

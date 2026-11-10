@@ -18,7 +18,7 @@
 // so the scenarios find it either way.
 
 import { ArrowLeft } from 'lucide-react';
-import { useEffect, type ReactNode } from 'react';
+import { createContext, use, useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 import { THEME } from '@/bazis/generated/theme';
@@ -37,6 +37,23 @@ export interface FormSurfaceProps {
   mode?: 'dialog' | 'page';
   /** The form: `ResourceForm`, a form of the screen. */
   children: ReactNode;
+}
+
+/** Tells the surface around a form whether the user changed it (`ResourceFormBody`). */
+const DirtyContext = createContext<((dirty: boolean) => void) | null>(null);
+
+/** Reports to the surface around it whether the user changed the form; nothing outside one. */
+export function useReportDirty(dirty: boolean): void {
+  const report = use(DirtyContext);
+  useEffect(() => {
+    report?.(dirty);
+  }, [report, dirty]);
+  useEffect(
+    () => () => {
+      report?.(false);
+    },
+    [report],
+  );
 }
 
 function FormPage({ open, onClose, title, description, children }: Omit<FormSurfaceProps, 'mode'>) {
@@ -71,22 +88,63 @@ function FormPage({ open, onClose, title, description, children }: Omit<FormSurf
 /** A form in a dialog or as a page, as the theme composes the forms. */
 export function FormSurface({ mode = THEME.composition.forms, ...props }: FormSurfaceProps) {
   const { open, onClose, title, description, children } = props;
+  const { t } = useLanguage();
+  // a form that the user changed is not closed by a click beside it, and asks first when closed
+  const [dirty, setDirty] = useState(false);
+  const [asking, setAsking] = useState(false);
   if (mode === 'page') return <FormPage {...props} />;
   return (
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        if (!next) onClose();
+        if (next) return;
+        if (dirty) setAsking(true);
+        else onClose();
       }}
     >
       {/* the title set apart from the first field a little more than the fields from each other */}
-      <DialogContent className="max-h-[calc(100dvh-2rem)] gap-8 overflow-y-auto sm:max-w-lg" {...(description === undefined ? { 'aria-describedby': undefined } : {})}>
+      <DialogContent
+        className="max-h-[calc(100dvh-2rem)] gap-8 overflow-y-auto sm:max-w-lg"
+        {...(description === undefined ? { 'aria-describedby': undefined } : {})}
+        onInteractOutside={(event) => {
+          if (dirty) event.preventDefault();
+        }}
+      >
         {/* on a phone too at the start, as its fields */}
         <DialogHeader className="text-left">
           <DialogTitle>{title}</DialogTitle>
           {description !== undefined && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
-        {children}
+        {asking && (
+          <div role="alert" data-bz="state:discard" className="grid gap-3 rounded-lg bg-warning-soft p-3 text-sm text-warning-ink">
+            <p>{t('form.discard_question')}</p>
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                autoFocus
+                onClick={() => {
+                  setAsking(false);
+                }}
+              >
+                {t('form.keep')}
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                data-bz="action:discard"
+                onClick={() => {
+                  setAsking(false);
+                  setDirty(false);
+                  onClose();
+                }}
+              >
+                {t('form.discard')}
+              </Button>
+            </div>
+          </div>
+        )}
+        <DirtyContext value={setDirty}>{children}</DirtyContext>
       </DialogContent>
     </Dialog>
   );

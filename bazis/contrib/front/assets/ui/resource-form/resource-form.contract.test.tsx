@@ -18,6 +18,7 @@
 // while a file uploads. Keep it passing when the component is changed.
 
 import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { useState } from 'react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { Filter } from '@/bazis/client';
@@ -468,4 +469,71 @@ describe('FormSurface', () => {
       expect(onClose).toHaveBeenCalled();
     });
   }
+
+  it('focuses the first field of its form once it shows, and the button that opened it once closed', async () => {
+    const backend = new Backend().on('GET', `${ITEMS}schema_create/`, schema);
+    function Opener() {
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(true);
+            }}
+          >
+            New
+          </button>
+          <FormSurface
+            mode="dialog"
+            open={open}
+            title="New item"
+            onClose={() => {
+              setOpen(false);
+            }}
+          >
+            <ResourceForm path={ITEMS as never} fields={['title']} />
+          </FormSurface>
+        </>
+      );
+    }
+    renderWithBazis(<Opener />, backend);
+    const opener = screen.getByRole('button', { name: 'New' });
+    opener.focus();
+    fireEvent.click(opener);
+    const title = await screen.findByTestId('field:title');
+    await waitFor(() => {
+      expect(document.activeElement).toBe(title);
+    });
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(document.activeElement).toBe(opener);
+    });
+  });
+
+  it('asks before it closes a form that the user changed, never closed by a click beside it', async () => {
+    const onClose = vi.fn();
+    const backend = new Backend().on('GET', `${ITEMS}schema_create/`, schema);
+    renderWithBazis(
+      <FormSurface mode="dialog" open title="New item" onClose={onClose}>
+        <ResourceForm path={ITEMS as never} fields={['title']} />
+      </FormSurface>,
+      backend,
+    );
+    const title = await screen.findByTestId('field:title');
+    // not changed: closed at once
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+    fireEvent.change(title, { target: { value: 'Report' } });
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('state:discard').textContent).toContain('Close without saving?');
+    fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }));
+    expect(screen.queryByTestId('state:discard')).toBeNull();
+    expect(screen.getByTestId<HTMLInputElement>('field:title').value).toBe('Report');
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    fireEvent.click(screen.getByTestId('action:discard'));
+    expect(onClose).toHaveBeenCalledTimes(2);
+  });
 });
