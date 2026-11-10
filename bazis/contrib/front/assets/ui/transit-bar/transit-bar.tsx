@@ -80,13 +80,15 @@ export function TransitBar({ path, id, transits: declared = [], onDone }: Transi
             const target = transitTarget(transit.resource.type, transit.id);
             const danger = target !== null && statusTone(target) === 'danger';
             const Icon = danger ? X : ArrowRight;
+            // the first the main button, filled (unavailable, its pale fill of the primary)
+            const main = index === 0 && !danger;
             return (
               <div key={transit.id} className="grid justify-items-start gap-1">
                 <Button
                   type="button"
-                  // an unavailable transit an outline in the muted text, read in both modes
-                  variant={!transit.allowed ? 'outline' : danger ? 'destructive' : index === 0 ? 'default' : 'outline'}
-                  className={cn(!transit.allowed && 'disabled:text-muted-foreground disabled:opacity-100')}
+                  // another unavailable transit an outline in the muted text, read in both modes
+                  variant={main ? 'default' : danger && transit.allowed ? 'destructive' : 'outline'}
+                  className={cn(!transit.allowed && !main && 'disabled:text-muted-foreground disabled:opacity-100')}
                   data-bz={`transit:${transit.id}`}
                   disabled={!transit.allowed || mutation.isPending}
                   aria-describedby={transit.allowed ? undefined : `restricts-${transit.id}`}

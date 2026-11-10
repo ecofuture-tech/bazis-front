@@ -160,6 +160,13 @@ describe('TransitBar', () => {
     expect(screen.getByTestId('transit:start').getAttribute('data-variant')).toBe('outline');
   });
 
+  it('keeps an unavailable main transit the filled main button, disabled', async () => {
+    renderWithBazis(<TransitBar path={ITEMS as never} id={ITEM_ID} transits={[{ id: 'cancel' }, { id: 'start' }]} />, backend());
+    const main = await screen.findByTestId<HTMLButtonElement>('transit:cancel');
+    expect([main.disabled, main.getAttribute('data-variant')]).toEqual([true, 'default']);
+    expect(screen.getByTestId('transit:start').getAttribute('data-variant')).toBe('outline');
+  });
+
   it('asks to confirm a transit that the specs confirm, and runs it once confirmed', async () => {
     const server = backend().on('POST', `${ITEM}transit/`, { data: resource(ITEM_ID) });
     const onDone = vi.fn();

@@ -21,7 +21,8 @@
 // a product (`surfaces-<surface>.html`): what the layer `surface` computes for a card, the
 // summary of a card, an outline button and an input. And a list with its card beside it
 // (`split.html`): its rows within the list, Escape, the dialog of a changed form, the focus ring of
-// a filled button, the soft tones of the statuses in the dark mode and less motion.
+// a filled button, the soft tones of the statuses and an unavailable primary button in both modes
+// and less motion.
 
 import { fileURLToPath } from 'node:url';
 
@@ -537,6 +538,11 @@ for (const dark of [false, true]) {
         expect(Math.hypot(...ink.map((it, channel) => it - (other[channel] ?? 0)))).toBeGreaterThan(20);
       }
     }
+    // an unavailable primary button: a pale fill of the primary, apart from the page, its text read on it
+    const unavailable = '[data-testid="unavailable"]';
+    const fill = await rgbOf(page, unavailable, 'background-color');
+    expect(contrast(await rgbOf(page, unavailable, 'color'), fill)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(fill, await rgbOf(page, 'body', 'background-color'))).toBeGreaterThan(1.1);
   });
 }
 
