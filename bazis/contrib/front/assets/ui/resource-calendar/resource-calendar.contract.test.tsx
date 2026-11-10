@@ -118,6 +118,18 @@ describe('ResourceCalendar', () => {
     expect(request).toContain('page[limit]=500');
   });
 
+  it('gives a line to a field of the label with a value only', async () => {
+    renderWithBazis(
+      <ResourceCalendar path={ITEMS as never} entity="item" field="due" label={['title', 'until']} views={['week', 'month']} now={now} />,
+      new Backend()
+        .on('GET', `${ITEMS}schema_list/`, schema)
+        .on('GET', ITEMS, listDocument([item('a', { due: '2026-10-15', until: null }), item('b', { due: '2026-10-15', until: '2026-10-17' })])),
+    );
+    const day = await screen.findByTestId('day:2026-10-15');
+    expect(within(within(day).getByTestId('row:a')).queryByTestId('cell:until')).toBeNull();
+    expect(within(within(day).getByTestId('row:b')).getByTestId('cell:until')).toBeTruthy();
+  });
+
   it('shows a month at the width of a phone with the rows of the selected day only, each once', async () => {
     vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query, addEventListener() {}, removeEventListener() {} }));
     try {

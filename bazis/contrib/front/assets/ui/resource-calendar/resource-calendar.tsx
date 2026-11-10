@@ -217,8 +217,8 @@ interface ItemProps {
 
 /**
  * An item, a button that opens it: its time and the first field of its label on a line, the
- * first field on a line of its own when they do not fit together, then each other field on a
- * line, each cut to the width of the item with its whole text in its title.
+ * first field on a line of its own when they do not fit together, then each other field with a
+ * value on a line, each cut to the width of the item with its whole text in its title.
  */
 function Item({ item, label, meta, display, tone, onOpen, time, range, className }: ItemProps) {
   const [first, ...others] = label;
@@ -244,7 +244,13 @@ function Item({ item, label, meta, display, tone, onOpen, time, range, className
           value(first, 'max-w-full font-medium')
         )}
       </span>
-      {others.map((name) => value(name))}
+      {/* a line of its own for a value, none for no value (a dash under a name) */}
+      {others
+        .filter((name) => {
+          const it = fieldValue(item, name);
+          return it !== null && it !== undefined && it !== '' && !(Array.isArray(it) && !it.length);
+        })
+        .map((name) => value(name))}
     </>
   );
   const look = cn(
