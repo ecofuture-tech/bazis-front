@@ -3047,9 +3047,10 @@ named `e2e_data` (`sample/tasks/management/commands/e2e_data.py`).
 - it never creates a role, a permission, a status or a transit: a role of a `test_user` that
   the migrations did not create is an error of the command;
 - **it only adds, and runs before every run of the tests**: it never deletes a user or a
-  record, of the previous runs, of the scenarios or its own (no option such as `--clean`, also
-  at the end of a task): they stay for the user to look at, and a database shared with others
-  is never emptied. Run again, in one transaction, it finds its records by a key of their own
+  record, of the previous runs, of the scenarios or its own (no option such as `--clean`):
+  they stay for the user to look at, and the database of a product that exists, or shared, is
+  never emptied. Only the demo database of a new product, which the agent made itself, is made
+  again once at the end (drop, `migrate`, `e2e_data`, no test after). Run again, in one transaction, it finds its records by a key of their own
   (`update_or_create` by the title), creates those that are missing, sets their dates relative
   to the day of the run again and the password of the test users to the current
   `E2E_PASSWORD` (the sample moves the date of its task: `sample/tasks/e2e.py`).
@@ -4152,7 +4153,7 @@ The API of the copies that 0.6.0 changes:
 - A DecimalField in the forms, and a `Decimal` of a payload or of the body of a custom action,
   is typed on one line with a point or a comma and sent as `"2.5"` (it was a text of several
   lines, the comma refused by the backend); `objectFields` gives such a union the type
-  `string` and the format `decimal`. A tile of a `value` takes the whole row of a phone.
+  `string` and the format `decimal`.
 - `shots` reports V020 only for a role without a login; the failed login of a role with a
   `test_user` is V001 with its error.
 

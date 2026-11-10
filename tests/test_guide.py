@@ -133,6 +133,9 @@ CHOICES = [
     ('Custom actions and background work', 'Custom actions', 'is a\ntransit of bazis-statusy'),
     ('The visual check', 'What it shoots', 'a 403 of\n  `schema_list/` is the probe of `useCan`'),
     ('Protocol facts that are easy to get wrong', 'Protocol facts that are easy to get wrong', 'A count of\n  pieces is an `IntegerField`'),
+    # the database of an existing or shared product is never emptied, the demo of a new one made again
+    ('The end-to-end tests', 'The end-to-end tests', 'the database of a product that exists, or shared, is\n  never emptied'),
+    ('The end-to-end tests', 'The end-to-end tests', 'Only the demo database of a new product, which the agent made itself, is made\n  again once at the end'),
 ]
 
 
