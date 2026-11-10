@@ -19,6 +19,7 @@
 import { useCallback, useId, useState } from 'react';
 
 import type { Filter } from '@/bazis/client';
+import { useLanguage } from '@/bazis/i18n';
 import { choiceLabel, type AttributeField, type FormField } from '@/bazis/react';
 import { FIELD_BOX, FIELD_LINE, Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -101,12 +102,15 @@ function AttributeControl({ field, value, onChange, disabled, control }: {
   disabled: boolean;
   control: ControlProps;
 }) {
+  const { t } = useLanguage();
   const { readOnly } = field;
   if (field.enum) {
     return (
       <NativeSelect
         {...control}
         value={value === null || value === undefined ? '' : text(value)}
+        // none chosen: the invitation in the muted color of a placeholder
+        className={cn((value === null || value === undefined) && 'text-muted-foreground')}
         disabled={disabled || readOnly}
         aria-readonly={readOnly || undefined}
         onChange={(event) => {
@@ -114,7 +118,7 @@ function AttributeControl({ field, value, onChange, disabled, control }: {
           onChange(choice === undefined ? empty(field) : choice);
         }}
       >
-        <NativeSelectOption value="">—</NativeSelectOption>
+        <NativeSelectOption value="">{t('picker.placeholder')}</NativeSelectOption>
         {/* offered by its label (`enumDict` of the backend), sent as its value */}
         {field.enum.map((choice) => (
           <NativeSelectOption key={text(choice)} value={text(choice)}>
@@ -274,6 +278,7 @@ export function FieldInput({
   path,
   filter,
 }: FieldInputProps) {
+  const { t } = useLanguage();
   const id = useId();
   const files = useFiles();
   const points = usePoints();
@@ -329,6 +334,7 @@ export function FieldInput({
         field.many ? (
           <RelationListPicker
             {...control}
+            placeholder={t('picker.placeholder')}
             relation={field.relation}
             filter={filter}
             label={field.title}
@@ -340,6 +346,7 @@ export function FieldInput({
         ) : (
           <RelationPicker
             {...control}
+            placeholder={t('picker.placeholder')}
             relation={field.relation}
             filter={filter}
             label={field.title}

@@ -182,6 +182,7 @@ export const en: Messages = {
   'picker.failed': 'The items could not be loaded.',
   'picker.more': 'Load more',
   'picker.no_match': 'Nothing matches the search.',
+  'picker.placeholder': 'Choose…',
   'picker.search': 'Search…',
   'picker.search_label': 'Search {name}',
   'point.placeholder': 'Latitude, longitude',

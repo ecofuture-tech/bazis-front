@@ -214,14 +214,18 @@ describe('FieldInput', () => {
     // the labels are `enumDict` of the runtime schema, in the language of the backend
     const onChange = vi.fn();
     const level = attribute('level', 'integer', { enum: [1, 2], labels: { '1': 'Low', '2': 'High' }, nullable: true });
-    render(<FieldInput field={level} value={1} onChange={onChange} />);
+    const { rerender } = render(<FieldInput field={level} value={null} onChange={onChange} />);
+    // none chosen: the invitation, muted as a placeholder
+    expect(screen.getByTestId('field:level').classList.contains('text-muted-foreground')).toBe(true);
+    rerender(<FieldInput field={level} value={1} onChange={onChange} />);
     const control = screen.getByTestId<HTMLSelectElement>('field:level');
     expect([...control.options].map((it) => [it.value, it.textContent])).toEqual([
-      ['', '—'],
+      ['', 'Choose…'],
       ['1', 'Low'],
       ['2', 'High'],
     ]);
     expect(control.value).toBe('1');
+    expect(control.classList.contains('text-muted-foreground')).toBe(false);
     fireEvent.change(control, { target: { value: '2' } });
     expect(onChange).toHaveBeenLastCalledWith(2);
     fireEvent.change(control, { target: { value: '' } });

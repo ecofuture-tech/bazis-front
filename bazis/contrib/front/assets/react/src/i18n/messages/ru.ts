@@ -182,6 +182,7 @@ export const ru: Messages = {
   'picker.failed': 'Не удалось загрузить записи.',
   'picker.more': 'Загрузить ещё',
   'picker.no_match': 'Ничего не найдено.',
+  'picker.placeholder': 'Выберите…',
   'picker.search': 'Поиск…',
   'picker.search_label': 'Поиск: {name}',
   'point.placeholder': 'Широта, долгота',
