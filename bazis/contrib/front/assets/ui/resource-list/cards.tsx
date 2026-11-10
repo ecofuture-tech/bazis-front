@@ -14,7 +14,8 @@
 
 // The rows of a list as a grid of cards: the list of `composition.list: cards`, and that of a
 // phone (`composition.list_phone`), where a table would scroll sideways; composed by `card` (its
-// cover, its rubric, its title, its figure and its muted values), else by its first column.
+// cover, its rubric, its title, its figure and its muted values), else by its first column, the
+// first column of an image a thumbnail beside it.
 
 import type { Tone } from '@/bazis/generated/theme';
 import { useLanguage } from '@/bazis/i18n';
@@ -40,9 +41,14 @@ const CARD_TONES: Readonly<Record<Tone, string>> = {
  */
 const GRID = 'grid grid-cols-[minmax(0,1fr)] gap-4 @xl:grid-cols-2 @4xl:grid-cols-3';
 
-/** The roles of the columns in a card: those of `card` among the columns, else the first column as the title. */
+/**
+ * The roles of the columns in a card: those of `card` among the columns, else the first column as
+ * the title, beside it the first column of an image.
+ */
 interface Roles {
   media?: string | undefined;
+  /** The image beside the title of a card without `card` (a table on a phone). */
+  thumb?: string | undefined;
   eyebrow?: string | undefined;
   title?: string | undefined;
   figure?: string | undefined;
@@ -51,15 +57,19 @@ interface Roles {
   rest: readonly string[];
 }
 
-/** The column of each role of a card, by `card`; its defaults: the first column of an image is the cover, the first other one the title. */
+/**
+ * The column of each role of a card, by `card`; its defaults: the first column of an image is the
+ * cover, the first other one the title. Without `card` that image is a thumbnail beside the title.
+ */
 export function cardRoles(
   columns: readonly string[],
   display: BodyProps['display'],
   card: CardLayout | undefined,
 ): Roles {
   if (card === undefined) {
-    const [title, ...rest] = columns;
-    return { title, meta: [], rest };
+    const thumb = columns.find((name) => display[name] === 'image');
+    const [title, ...rest] = columns.filter((name) => name !== thumb);
+    return { thumb, title, meta: [], rest };
   }
   const shown = (name: string | undefined) => (name !== undefined && columns.includes(name) ? name : undefined);
   const media = card.media === undefined ? columns.find((name) => display[name] === 'image') : shown(card.media);
@@ -93,7 +103,7 @@ function empty(row: ResourceObject, name: string): boolean {
 export function CardsView(props: BodyProps) {
   const { rows, columns, fields, onOpen, selected, hidden, selection, icon: Icon } = props;
   const { t } = useLanguage();
-  const { media, eyebrow, title, figure, meta, rest } = cardRoles(columns, props.display, props.card);
+  const { media, thumb, eyebrow, title, figure, meta, rest } = cardRoles(columns, props.display, props.card);
   // a value without its label, which the readers of the screen hear before it
   const label = (name: string) => <span className="sr-only">{fields.title(name)}: </span>;
   return (
@@ -142,8 +152,13 @@ export function CardsView(props: BodyProps) {
                     )}
                   </div>
                 )}
-                {(title !== undefined || eyebrow !== undefined || selection) && (
-                  <div className="flex items-start gap-3">
+                {(title !== undefined || thumb !== undefined || eyebrow !== undefined || selection) && (
+                  <div className={cn('flex gap-3', thumb === undefined ? 'items-start' : 'items-center')}>
+                    {thumb !== undefined && (
+                      <div data-bz={`cell:${thumb}`} className={cn('shrink-0', hidden(thumb) && 'hidden')}>
+                        {cell(props, row, thumb)}
+                      </div>
+                    )}
                     <div className="grid min-w-0 flex-1 gap-1">
                       {eyebrow !== undefined && (
                         <p

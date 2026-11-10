@@ -72,9 +72,12 @@ function typeNames(accept: string, { language, t }: Pick<LanguageContextValue, '
   return new Intl.ListFormat(language, { type: 'disjunction' }).format([...new Set(names)]);
 }
 
-/** Whether a field takes the images that are reduced to its limit (`fitImage`). */
+/**
+ * Whether a field names the images that are reduced to its limit (`fitImage`): one whose types
+ * are images; a field of any file (a price list) still reduces an image but does not say so.
+ */
 function reducesImages(accept: string | undefined): boolean {
-  return [
+  return !!accept && [
     ['a.jpg', 'image/jpeg'],
     ['a.png', 'image/png'],
     ['a.webp', 'image/webp'],

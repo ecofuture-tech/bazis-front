@@ -920,6 +920,38 @@ describe('ResourceList', () => {
       expect(within(screen.getByTestId('row:a')).getByTestId('cell:done')).toBeTruthy();
       expect(screen.getByTestId('state:loaded').querySelector('table')).toBeNull();
       unmount();
+      // the image of a row a thumbnail beside its title, not a title of its own
+      const thumbed = renderWithBazis(
+        <ResourceList
+          path={ITEMS as never}
+          entity="item"
+          columns={['photo', 'title', 'count']}
+          display={{ photo: 'image' }}
+          layout="table"
+          phoneLayout="cards"
+        />,
+        new Backend()
+          .on(
+            'GET',
+            `${ITEMS}schema_list/`,
+            runtimeSchema(
+              {
+                title: { attribute: { type: 'string', title: 'Title' } },
+                photo: { attribute: { type: 'string', title: 'Photo' } },
+                count: { attribute: { type: 'integer', title: 'Count' } },
+              },
+              { list: true },
+            ),
+          )
+          .on('GET', ITEMS, listDocument([resource('a', { title: 'Tent', photo: 'tent.png', count: 3 })])),
+      );
+      await screen.findByTestId('state:loaded');
+      const card = screen.getByTestId('row:a');
+      const heading = within(card).getByTestId('cell:title');
+      expect(heading.tagName).toBe('H3');
+      expect(heading.parentElement?.parentElement?.firstElementChild).toBe(within(card).getByTestId('cell:photo'));
+      expect([...card.querySelectorAll('dt')].map((it) => it.textContent)).toEqual(['Count']);
+      thumbed.unmount();
       renderWithBazis(
         <ResourceList path={ITEMS as never} entity="item" columns={['title', 'done']} layout="table" phoneLayout="table" />,
         backend(listDocument(rows)),

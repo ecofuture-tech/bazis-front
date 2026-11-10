@@ -156,7 +156,8 @@ export interface ResourceListProps {
   phoneLayout?: 'table' | 'cards';
   /**
    * The composition of a card of the grid (`list.card` of the spec): its cover, its rubric, its
-   * title, its figure and its muted values; without it, the first column is the title.
+   * title, its figure and its muted values; without it, the first column is the title, the first
+   * column of an image a thumbnail beside it.
    */
   card?: CardLayout | undefined;
   /** The density of the rows of the table, which the user may change; that of the theme by default. */

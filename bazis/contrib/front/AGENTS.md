@@ -6613,7 +6613,7 @@ Its props, `ResourceListProps`:
 - `icon?: ComponentType<{ className?: string; }>`: The icon of the entity (such as an icon of lucide-react): in the empty state, and the cover of a card without its image.
 - `layout?: 'table' | 'cards'`: A table or a grid of cards; `composition.list` of the theme by default.
 - `phoneLayout?: 'table' | 'cards'`: The list on a phone, below the breakpoint `md` (cards, where a table would scroll sideways); `composition.list_phone` of the theme by default.
-- `card?: CardLayout | undefined`: The composition of a card of the grid (`list.card` of the spec): its cover, its rubric, its title, its figure and its muted values; without it, the first column is the title.
+- `card?: CardLayout | undefined`: The composition of a card of the grid (`list.card` of the spec): its cover, its rubric, its title, its figure and its muted values; without it, the first column is the title, the first column of an image a thumbnail beside it.
 - `density?: Theme['density']`: The density of the rows of the table, which the user may change; that of the theme by default.
 - `selection?: readonly string[]`: The ids of the selected rows (`selection` of `onSelectionChange`).
 - `onSelectionChange?: (ids: readonly string[]) => void`: Makes the rows selectable, a checkbox each (`select:<id>`, and `select:all` for the rows of the page): called with the ids selected, also those of other pages.

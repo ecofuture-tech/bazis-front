@@ -41,7 +41,7 @@ export interface BodyProps {
   selection: ReadonlySet<string> | undefined;
   /** Selects rows, or clears them. */
   onSelect: (ids: readonly string[], selected: boolean) => void;
-  /** The composition of a card of the grid; without it, the first column is the title. */
+  /** The composition of a card of the grid; without it, the first column is the title, the first column of an image beside it. */
   card: CardLayout | undefined;
   /** The icon of the entity: the cover of a card without its image. */
   icon: ComponentType<{ className?: string }> | undefined;
