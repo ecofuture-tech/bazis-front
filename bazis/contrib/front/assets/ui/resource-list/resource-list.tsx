@@ -316,7 +316,8 @@ function TableView(
         const value = fieldValue(row, name);
         return value === null || ((typeof value === 'string' || typeof value === 'number') && String(value).length <= SHORT_TEXT);
       }));
-  // the columns of texts of several lines on the page (an item a line: the items of a booking)
+  // the columns of texts of several lines on the page (an item a line: the items of a booking),
+  // each line kept whole where it can
   const lined = new Set(
     columns.filter((name) =>
       rows.some((row) => {
@@ -410,7 +411,7 @@ function TableView(
                       fits
                         ? 'w-px'
                         : cn(
-                            lined.has(name) ? 'whitespace-pre' : 'whitespace-pre-line wrap-anywhere',
+                            'whitespace-pre-line wrap-anywhere',
                             index > 0 ? ((typeof shown === 'string' && DISPLAY_WIDTHS[shown]) || 'min-w-32 max-w-56') : 'max-w-48',
                           ),
                       isNumeric(field) && 'text-right',
@@ -418,7 +419,13 @@ function TableView(
                       hidden(name) && 'hidden',
                     )}
                   >
-                    {cell(props, row, name)}
+                    {lined.has(name) ? (
+                      // its lines whole up to 12rem: the column no narrower than its longest line
+                      // there, a longer line wrapping within it
+                      <span className="inline-block w-max max-w-48 align-top">{cell(props, row, name)}</span>
+                    ) : (
+                      cell(props, row, name)
+                    )}
                   </TableCell>
                 );
               })}

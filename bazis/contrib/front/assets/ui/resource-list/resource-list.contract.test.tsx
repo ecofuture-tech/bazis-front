@@ -415,8 +415,9 @@ describe('ResourceList', () => {
       .on('GET', ITEMS, listDocument([resource('a', { title: 'A long name', items: 'Tent × 1\nStove × 2' }), resource('b', { title: 'Another long name', items: 'Kayak × 1' })]));
     renderWithBazis(<ResourceList path={ITEMS as never} entity="item" columns={['title', 'items']} />, server);
     const row = await screen.findByTestId('row:b');
-    expect(within(row).getByTestId('cell:items').classList.contains('whitespace-pre')).toBe(true);
-    expect(within(row).getByTestId('cell:title').classList.contains('whitespace-pre-line')).toBe(true);
+    // the lines in a box as wide as the longest of them, up to 12rem: the column no narrower
+    expect(within(row).getByTestId('cell:items').firstElementChild?.className).toContain('w-max max-w-48');
+    expect(within(row).getByTestId('cell:title').querySelector('.w-max')).toBeNull();
   });
 
   it('shows the range of a single page without the buttons of the pages', async () => {
