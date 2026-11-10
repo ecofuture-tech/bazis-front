@@ -659,6 +659,14 @@ export function ResourceList({
   );
   // the sort of the cards stays over them with the filters
   const sorts = view === 'cards' && sortable.length > 0;
+  // the rows of the page among the items
+  const range = (
+    <span className="tabular-nums">
+      {count === undefined
+        ? t('list.range', { from: offset + 1, to: offset + rows.length })
+        : t('list.range_of', { from: offset + 1, to: offset + rows.length, count })}
+    </span>
+  );
 
   return (
     // busy until the rows are those of the search typed and of the page asked for; the
@@ -802,43 +810,44 @@ export function ResourceList({
           </div>
         </StatePanel>
       )}
-      {document && rows.length > 0 && (
-        <nav aria-label={t('list.pages')} className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
-          <span className="tabular-nums">
-            {count === undefined
-              ? t('list.range', { from: offset + 1, to: offset + rows.length })
-              : t('list.range_of', { from: offset + 1, to: offset + rows.length, count })}
-          </span>
-          <span className="flex gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              data-bz="action:prev-page"
-              disabled={offset === 0 || prevPage(document) === null}
-              onClick={() => {
-                setOffset(Math.max(0, prevPage(document)?.offset ?? 0));
-              }}
-            >
-              <ChevronLeft />
-              {t('list.previous')}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              data-bz="action:next-page"
-              disabled={nextPage(document) === null}
-              onClick={() => {
-                setOffset(nextPage(document)?.offset ?? offset);
-              }}
-            >
-              {t('list.next')}
-              <ChevronRight />
-            </Button>
-          </span>
-        </nav>
-      )}
+      {document &&
+        rows.length > 0 &&
+        (offset === 0 && nextPage(document) === null ? (
+          // one page: its range, without the buttons of the pages
+          <p className="text-sm text-muted-foreground">{range}</p>
+        ) : (
+          <nav aria-label={t('list.pages')} className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
+            {range}
+            <span className="flex gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                data-bz="action:prev-page"
+                disabled={offset === 0 || prevPage(document) === null}
+                onClick={() => {
+                  setOffset(Math.max(0, prevPage(document)?.offset ?? 0));
+                }}
+              >
+                <ChevronLeft />
+                {t('list.previous')}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                data-bz="action:next-page"
+                disabled={nextPage(document) === null}
+                onClick={() => {
+                  setOffset(nextPage(document)?.offset ?? offset);
+                }}
+              >
+                {t('list.next')}
+                <ChevronRight />
+              </Button>
+            </span>
+          </nav>
+        ))}
     </div>
   );
 }

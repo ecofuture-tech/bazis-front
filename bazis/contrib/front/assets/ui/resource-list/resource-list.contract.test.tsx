@@ -376,6 +376,14 @@ describe('ResourceList', () => {
     expect(within(screen.getByTestId('row:a')).getByTestId('cell:number').className).not.toContain('min-w-48');
   });
 
+  it('shows the range of a single page without the buttons of the pages', async () => {
+    renderWithBazis(<ResourceList path={ITEMS as never} entity="item" columns={['title']} />, backend(listDocument(rows, { count: 2 })));
+    const loaded = await screen.findByTestId('state:loaded');
+    expect(loaded.parentElement?.textContent).toContain('1–2 of 2');
+    expect(screen.queryByRole('navigation', { name: 'Pages' })).toBeNull();
+    expect(screen.queryByTestId('action:next-page')).toBeNull();
+  });
+
   it('requests the search, the filters and the next page', async () => {
     const server = backend(listDocument(rows, { count: 45, next: `${ITEMS}?page%5Blimit%5D=20&page%5Boffset%5D=20` }));
     renderWithBazis(
