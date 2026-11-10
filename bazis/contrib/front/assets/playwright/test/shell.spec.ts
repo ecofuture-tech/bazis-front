@@ -458,6 +458,28 @@ for (const width of [1100, 1280, 1422]) {
   });
 }
 
+for (const dark of [false, true]) {
+  test(`the line under a row runs under its sticky first cell as under the others, at rest, hovered and selected (${dark ? 'dark' : 'light'})`, async ({ page }) => {
+    await openSplit(page, 1280, '/items/a', dark);
+    const lines = () =>
+      page.locator('[data-bz^="row:"]').evaluateAll((rows) =>
+        rows.map((row) => {
+          const [first, second] = [...row.children].map((cell) => getComputedStyle(cell));
+          return [getComputedStyle(row).borderBottomWidth, first.borderBottomWidth, first.borderBottomColor === second.borderBottomColor, first.position];
+        }),
+      );
+    // the selected row, one at rest (then hovered), the last one without a line
+    const expected = [
+      ['0px', '1px', true, 'sticky'],
+      ['0px', '1px', true, 'sticky'],
+      ['0px', '0px', true, 'sticky'],
+    ];
+    expect(await lines()).toEqual(expected);
+    await page.locator('[data-bz="row:b"]').hover();
+    expect(await lines()).toEqual(expected);
+  });
+}
+
 test('Escape closes the card beside its list, the focus back on its row', async ({ page }) => {
   await openSplit(page, 1280);
   await page.locator('[data-bz="row:a"]').focus();

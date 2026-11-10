@@ -199,11 +199,12 @@ const SEARCH_DELAY = 300;
  * checkboxes of the selection, a column of 2.5rem whatever the density, its `min-width`: a table
  * wider than its list gives a column no more than its content otherwise): the rows are opaque, the
  * hover mixed with the card, so that its cells take the color of their row (`bg-inherit`) over
- * the columns that scroll under them, never over the line under their row (`bg-clip-padding`), and
+ * the columns that scroll under them; the line under a row is that of each of its cells (a table
+ * of separate borders), which a sticky cell carries instead of covering it (`bg-clip-padding`); they
  * draw the focus ring of their row, which they cover; the leftmost one draws the mark of a tone or of
  * the selection of its row (`--row-mark`).
  */
-const ROW = 'border-line-6 bg-card hover:bg-[color-mix(in_oklab,var(--color-accent)_75%,var(--color-card))] has-aria-expanded:bg-[color-mix(in_oklab,var(--color-accent)_75%,var(--color-card))]';
+const ROW = 'border-0 *:border-b *:border-line-6 last:*:border-b-0 bg-card hover:bg-[color-mix(in_oklab,var(--color-accent)_75%,var(--color-card))] has-aria-expanded:bg-[color-mix(in_oklab,var(--color-accent)_75%,var(--color-card))]';
 /** A cell of the header: on the card, set apart by a firmer line (a shadow: the cell is sticky). */
 const HEAD = 'sticky top-0 z-10 bg-card shadow-[inset_0_-1px_0_var(--color-line-16)]';
 const STICKY = 'sticky z-[1] bg-inherit bg-clip-padding';
@@ -315,7 +316,7 @@ function TableView(
         return value === null || ((typeof value === 'string' || typeof value === 'number') && String(value).length <= SHORT_TEXT);
       }));
   return (
-    <table data-slot="table" className="w-full caption-bottom text-sm">
+    <table data-slot="table" className="w-full caption-bottom border-separate border-spacing-0 text-sm">
       <TableHeader>
         <TableRow className="group/head border-transparent hover:bg-transparent">
           {selection && (
