@@ -307,14 +307,26 @@ def render_preload(faces: list[fonts.Face]) -> str:
     ])
 
 
+#: the widest content of a screen under the top bar when no token gives `size.content`: that
+#: of 0.12, a page 72rem wide with its padding
+TOPBAR_CONTENT = 'calc(72rem - 2 * var(--space-page-x))'
+
+
+def values(settings: dict, defined: dict, dark: bool) -> dict[str, str]:
+    """The CSS variables of the tokens in a mode, without the derived colors, with the width of the content of the top bar."""
+    result = {k: v for k, v in design.variables(defined, dark=dark).items() if k not in design.DERIVED}
+    if settings['navigation'] == 'topbar' and 'size.content' not in defined:
+        result['--size-content'] = TOPBAR_CONTENT
+    return result
+
+
 def render_css(settings: dict, theme: dict | None, defined: dict) -> str:
     modes = design.modes(theme, defined)
     # `mode: light` or `dark`: the one mode, whatever the tokens have
     only = None if (theme or {}).get('mode', 'both') == 'both' else modes[0]
-    first = {k: v for k, v in design.variables(defined, dark=modes[0] == design.DARK).items() if k not in design.DERIVED}
+    first = values(settings, defined, modes[0] == design.DARK)
     night = {
-        k: v for k, v in design.variables(defined, dark=True).items()
-        if k not in design.DERIVED and first.get(k) != v
+        k: v for k, v in values(settings, defined, True).items() if first.get(k) != v
     } if len(modes) == 2 else None
     named = {design.light_name(it) for it in defined}
     surfaces = design.SURFACES if named.intersection(design.SURFACE_TOKENS) else design.SURFACES_FLAT

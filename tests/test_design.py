@@ -886,6 +886,18 @@ def test_the_shell_and_the_composition_of_a_product():
     assert (light['--size-sidebar'], light['--size-content']) == ('17rem', '80rem')
 
 
+def test_the_content_under_a_top_bar():
+    # as wide as in 0.12 (a page of 72rem with its padding) until size.content gives it, in both modes
+    data = {'spec': 'bazis-design/1', 'preset': 'workspace', 'navigation': 'topbar', 'palette': 'frost'}
+    css = theme.render(Specs(theme=data))[theme.THEME_CSS]
+    assert root_block(css, ':root')['--size-content'] == 'calc(72rem - 2 * var(--space-page-x))'
+    assert '--size-content' not in root_block(css, '.dark')
+    assert root_block(theme.render(Specs(theme={**data, 'preset': 'portal', 'navigation': 'sidebar'}))[theme.THEME_CSS], ':root')['--size-content'] == '80rem'
+    tokens = {'size': {'content': {'$type': 'dimension', '$value': '80rem'}}}
+    css = theme.render(Specs(theme=data, tokens=tokens))[theme.THEME_CSS]
+    assert root_block(css, ':root')['--size-content'] == '80rem'
+
+
 def test_the_state_of_a_sidebar_under_a_top_bar():
     # the top bar of the preset portal has no sidebar to collapse
     theme_doc = Document('design', 'spec/design/theme.yaml', {
