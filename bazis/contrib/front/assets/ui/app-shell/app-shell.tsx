@@ -895,7 +895,7 @@ export function AppShell({
               </div>
             </div>
           </header>
-          <main id={CONTENT} tabIndex={-1} className="mx-auto w-full max-w-6xl min-w-0 flex-1 px-4 py-8 outline-none md:px-(--space-page-x) md:py-12">
+          <main id={CONTENT} tabIndex={-1} className="w-full min-w-0 flex-1 px-4 py-8 outline-none md:px-(--space-page-x) md:py-12">
             <ItemsContext value={links}>{children}</ItemsContext>
           </main>
           <Toaster />
