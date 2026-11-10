@@ -121,3 +121,22 @@ def test_template_names_existing_sections():
     assert any(title.startswith(API) for title in SECTIONS)
     named.discard('the `API:` sections')
     assert named <= set(HANDWRITTEN), named - set(HANDWRITTEN)
+
+
+#: the choices that agents built wrong without them (the trials of 0.13): the section, the
+#: subsection and what it says
+CHOICES = [
+    ('The design', 'Dark mode', 'Keep `mode: both`'),
+    ('The design', 'The top bar', 'a top bar shows about 8 at 1280 px'),
+    ('The design', 'Presets', 'is `preset: portal`'),
+    ('The design', 'Icons', 'each have an `icon` of their own'),
+    ('Custom actions and background work', 'Custom actions', 'is a\ntransit of bazis-statusy'),
+    ('The visual check', 'What it shoots', 'a 403 of\n  `schema_list/` is the probe of `useCan`'),
+    ('Protocol facts that are easy to get wrong', 'Protocol facts that are easy to get wrong', 'A count of\n  pieces is an `IntegerField`'),
+]
+
+
+@pytest.mark.parametrize(('title', 'heading', 'text'), CHOICES)
+def test_the_guide_tells_the_choices_of_a_product(title, heading, text):
+    section = SECTIONS[title]
+    assert text in (section if heading == title else subsection(section, heading))

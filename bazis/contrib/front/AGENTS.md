@@ -5,15 +5,16 @@ backend, whose contract is generated from the backend and whose protocol code is
 from this package. There are no npm packages of Bazis: the TypeScript code of the package
 is shipped as package data and copied into the product, which then owns the copy.
 
-**Status: pre-release.** The package ships `manage.py bazis_front init` (a frontend made
-from its template, with the protocol client, the React hooks and the first components
-copied into it, and the starters of the specs), `manage.py bazis_front add` (the
-components), `manage.py bazis_front contract` (the export of the contract and the
-TypeScript generated from it), `manage.py bazis_front check` (the validation of the
-specs against the contract), `manage.py bazis_front design` (the theme of the frontend
-compiled from the design of the specs), `manage.py bazis_front e2e` (the Playwright tests of
-the scenarios of the specs) and `manage.py bazis_front update` (the copies brought to a new
-version of bazis-front, merged with the changes of the product).
+**Status: below 1.0.** The API may change in the minor versions; the release notes of each
+version say what changes and how to upgrade. The package is one command, `manage.py
+bazis_front`: `init` (a frontend made from its template, with the protocol client, the React
+hooks and the first components copied into it, and the starters of the specs), `add` (the
+components), `contract` (the export of the contract and the TypeScript generated from it),
+`check` (the validation of the specs against the contract), `design` (the theme compiled from
+the design of the specs), `screens` (the screens generated from the specs), `e2e` (the
+Playwright tests of the scenarios), `shots` (the screenshots of the screens and their
+checks), `status` and `update` (the copies brought to a new version of bazis-front, merged
+with the changes of the product).
 
 ### Setup
 
@@ -600,10 +601,8 @@ states: [loading, empty, error, forbidden]
 
 A list of some of the items (a report) has `filter`, combined with the filters of the user;
 `highlight` marks the rows whose boolean field is true with a tone and its `label` (required:
-the color alone tells nothing to some users). In the screen they are `filter` of
-`ResourceList` (`Filter.where('is_overdue', true)`), `rowTone` and `rowToneLabel` (see "The
-filters of a list"); the link of the screen requires the fields of its filter
-(`requires.filters`), which every role that sees it must be able to filter by. S014 reports a
+the color alone tells nothing to some users). The link of the screen requires the fields of
+its filter (`requires.filters`), which every role that sees it must be able to filter by. S014 reports a
 value of another type than its field and a highlight by a field that is not a boolean:
 
 ```yaml
@@ -862,7 +861,8 @@ The `label` of a part is a key of the dictionaries or a text. A tile counts the 
 `display` of the field; `open` is a list of the entity, that of a row of the last items a card
 of it (S006). **A tile, a chart and the
 last items are shown to the users whom the backend lets view their entity** (`Viewable` of
-the dashboard): one dashboard serves every role of the screen, without an `extend`.
+the dashboard): one dashboard serves every role of the screen, without an `extend`; other
+parts for a role are a screen of its own (`roles`).
 `requires: {can: add}` of a part asks that the user may add an item too, as that of a link
 (S030). A chart is by `status` or by a `date`/`datetime` field per `bucket`, its `last`
 periods to the current one (S021), of the count or a `{sum: …}`/`{avg: …}` (S049);
@@ -902,8 +902,8 @@ A calendar shows the items of an entity on the days of a field `date` or `dateti
 (`field`; `end` for the items that span days), a month or a week at a time (`views`), each
 item by its `label` fields, in the tone of `tone` while its boolean field is true (S023).
 `filters` are those of a list (S008, S040): the schedule of one doctor or one room is a
-filter by the relation, not a screen of your own (the backend still decides what each user
-sees). `add` is the create form of the entity, the action `add.id`, with `field` filled with
+filter by the relation, not a screen of your own nor a color (the backend decides what each
+user sees). `add` is the create form of the entity, the action `add.id`, with `field` filled with
 the day selected (today by default) at `time` (`HH:MM`) for a date-time, its `end`
 `duration` minutes later (S042; S043 without it), and the related item or the choice that a
 filter of the user selects (a visit booked with the doctor of the schedule shown).
@@ -2307,7 +2307,10 @@ The responses carry no distance: show it from both points if the screen needs it
 **Custom actions** (a route of a route set declared with `@http_post('/<name>/')`, kind
 `other` in `actions` of the contract: an export, a report, a recount): a button that asks
 for some properties of its body and says it is done is `primitive: custom` of the specs
-(see [Custom actions of the specs](#custom-actions-of-the-specs)); in the code of a screen, call them with
+(see [Custom actions of the specs](#custom-actions-of-the-specs)). An action that an item may
+take in some of its states only (pay an invoice that is not paid, close an open case) is a
+transit of bazis-statusy, which the backend offers by the state of the item (`TransitBar`),
+not a custom action, which a card shows in every state. In the code of a screen, call them with
 `useAction(path, '<name>')` of `@/bazis/react` (`mutate(body)`; `useItemAction` for
 `<path><id>/<name>/`, `method` for another method than POST), typed by `schema.d.ts`
 (an action declared with `@http_get` that a screen shows is read with `useActionQuery`
@@ -2686,15 +2689,18 @@ scrolls in its own area as high as the screen, its header at the top, and sidewa
 instead of losing columns. On a phone a list shows cards (`composition.list_phone`).
 `portal` is a public shell: a top bar, larger type and more air, lists as grids of cards, the
 card in place of the list, forms in place of the content, softer shapes. Both have both
-modes and focus rings, and work down to the width of a phone.
+modes and focus rings, and work down to the width of a phone. A product that asks for a larger
+text and larger buttons (the public, the elderly) is `preset: portal`: there is no token of the
+size of the text.
 
 ### The top bar
 
 **The top bar** (`navigation: topbar`) never widens the page: the links that do not fit, from
 the first, are in its menu `nav:more` (More), the current link while it has the current link;
 a group keeps its heading on both sides; a phone has every link in its drawer. Choose the navigation by the look of the
-product, not by the number of its links. The scenarios and the screenshots open the screens
-by their routes, never through the menu.
+product, then check the number of its links: a top bar shows about 8 at 1280 px, so a product
+with more has a sidebar or groups, and only secondary links in `nav:more`. The scenarios and
+the screenshots open the screens by their routes, never through the menu.
 
 ### The layers: palette, fonts, shape, surface
 
@@ -2724,7 +2730,8 @@ name that the lucide-react of the template lacks), read from `THEME.icons[entity
 navigation, the empty states, the dashboard). Choose by the meaning of the entity: people
 `users` (one person `user`), a document `file-text`, money `wallet`, a deadline or a booking
 `calendar-clock`, a task `square-check`, a loan or a request `clipboard-list`, an order
-`shopping-cart`, a report `chart-column`.
+`shopping-cart`, a report `chart-column`. Tiles of a dashboard of one entity (open, overdue,
+paid) each have an `icon` of their own: by default a tile has the icon of its entity.
 
 ### Dark mode
 
@@ -2734,9 +2741,11 @@ that name and type). The theme applies them to the class `dark` of `<html>` and,
 application starts, to a dark system (unless `<html>` has the class `light`);
 `initColorMode()` of `app-shell` (called by `src/main.tsx`) sets the class from the choice of
 the user (system, light or dark, kept by the browser; the button of `AppShell`). Without the
-group `dark` there is no dark mode. `mode: light` keeps the light mode only; `mode: dark`
-puts the dark values in `:root` and turns the variant `dark:` on for every element (D010
-without them): neither has the button; `THEME.dark` is false.
+group `dark` there is no dark mode. Keep `mode: both` (the starters) with the group `dark`:
+choose `mode: light` or `mode: dark` only when the user asks for one mode only. `mode: light`
+keeps the light mode only; `mode: dark` puts the dark values in `:root` and turns the variant
+`dark:` on for every element (D010 without them): neither has the button; `THEME.dark` is
+false.
 
 ### Statuses
 
@@ -3001,7 +3010,8 @@ your own go to `frontend/e2e/custom/` ("The tests of your own" below).
   space (the no-break spaces of the groups of digits of `Intl` too): a decimal with
   `display: {currency: RUB}` is `1500 ₽` (four digits are not grouped), `15 000 ₽`,
   `15 000,50 ₽` (`15 000` matches it, `15000` does not; `fraction: always`: `15 000,00 ₽`), one
-  without `display` its digits, `1500.00`. On a card in tabs,
+  without `display` its digits in the language, `1500,00` in Russian; a whole quantity of
+  `{unit: h}` `24 h` (of `24.0`); a time `08:00`. On a card in tabs,
   `action`, `fill`, `expectValues` and `expectFieldReadonly` first show the tab of the mark
   they act on (the tab whose `aria-controls` is the hidden panel that has it).
 
@@ -3160,7 +3170,8 @@ python manage.py bazis_front shots --check   # shots.ts is that of the specs (CI
   action.
 - Once the test user is logged in, the shot also listens to the page (V011, V012, V013); a
   403 or a 404 of a `GET`, which a screen shows as its state, a request that the page
-  cancelled and the requests of the login are not reported. The fields of the filters
+  cancelled and the requests of the login are not reported (the browser logs them: a 403 of
+  `schema_list/` is the probe of `useCan`, no error). The fields of the filters
   (`route_filter_fields/`) are never a state: their 404 is reported (S040).
 - A screen is shot once again, the user still logged in, when the proxy of the dev server did
   not reach the backend (from the login on) or the page loaded again between its check and its
@@ -3179,7 +3190,8 @@ python manage.py bazis_front shots --check   # shots.ts is that of the specs (CI
   browser, no backend or frontend, no `E2E_PASSWORD`, `E2E_PORT` used: Playwright says which).
 - `shots.ts` is generated like the end-to-end tests: never edited, the hashes of the specs
   and of the file in the lock (`shots`), `--check`; `front.W008` reports a stale `shots.ts`,
-  `front.W009` a report with errors or none that can be read (a warning: CI has none). It is not a `.spec.ts`: `npm run e2e` does not run it.
+  `front.W009` a report with errors or none that can be read (a warning of `status`, not a
+  stale part: CI has none). It is not a `.spec.ts`: `npm run e2e` does not run it.
 
 ### The report
 
@@ -3241,8 +3253,7 @@ A screen is done when `shots` reports no error for it, its screenshots pass the 
 and its scenarios pass (`npm run e2e`). Fix in the specs, the screens, the design or the
 backend (the labels of the fields are titles of the backend, S018), never in `shots.ts` or
 the report, and take the screenshots again: at most three rounds; then report what is left
-with the codes and the screenshots. The errors left, or screenshots never taken, are the
-warning `front.W009` of `status`, not a stale part of the frontend.
+with the codes and the screenshots.
 
 ## The client
 
@@ -3563,10 +3574,10 @@ Every text of a screen goes through `t()`; never write a text of the interface i
 `t('tasks.title')`, `t('list.range_of', {from, to, count})`. Dates and numbers are
 formatted in the language of the interface, never in that of the browser: `formatNumber`,
 `formatDecimal`, `formatDate`, `formatDateTime`, `formatTime` with `language` (`FieldValue`
-does it for the fields, but for a `DecimalField`, a string it shows as it is: format it in
-`cells` of `ResourceList` and `values` of `ResourceCard`, a sum with the currency of the
-product, `formatDecimal(fieldValue(row, 'total'), language, {style: 'currency', currency:
-'RUB'})`, `—` for none); the names of the statuses are `statusName(type, id, language)` of
+does it for the fields, a `DecimalField` with its digits and a `TimeField` its hours and
+minutes; a sum in the currency of the product is its `display` in the specs, or in `cells` of
+`ResourceList` and `values` of `ResourceCard` `formatDecimal(fieldValue(row, 'total'),
+language, {style: 'currency', currency: 'RUB'})`, `—` for none); the names of the statuses are `statusName(type, id, language)` of
 `@/bazis/ui/status-badge`.
 
 ### The language of the interface
@@ -3739,7 +3750,10 @@ its logout endpoint.
   '<field>')`.
 - A `DecimalField` is a JSON string of its exact digits (`"45000.10"`), in the responses and
   in `contract.json` (`type: string`); a write takes a string or a number. Never compute
-  with it as a float: show it with `formatDecimal`, and let the backend sum it.
+  with it as a float: show it with `formatDecimal`, and let the backend sum it. A count of
+  pieces is an `IntegerField`; a `DecimalField` has the places of its meaning (2 for money, 1
+  for hours, not 3 for pieces: `24,000 шт.` reads as thousands). With `display: {unit}` a
+  whole quantity has no zeros (`24 шт.`), another its digits.
 - The `id` of an item of a model with an integer primary key (`FileUpload`) is a JSON number
   in its documents, a string in the relationships that reference it: compare them as
   strings.
