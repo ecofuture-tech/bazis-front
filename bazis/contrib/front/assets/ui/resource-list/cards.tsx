@@ -215,12 +215,17 @@ export function CardsView(props: BodyProps) {
                 {rest.length > 0 && (
                   <dl className="grid grid-cols-[minmax(0,1fr)] gap-2 text-sm">
                     {rest.map((name) => (
-                      <div key={name} className={cn('flex items-center justify-between gap-4', hidden(name) && 'hidden')}>
+                      <div key={name} className={cn('flex items-baseline justify-between gap-4', hidden(name) && 'hidden')}>
                         <dt className="text-muted-foreground first-letter:uppercase">{fields.title(name)}</dt>
                         <dd
                           ref={titleFromText}
                           data-bz={`cell:${name}`}
-                          className={cn('min-w-0 truncate text-right', alignsDigits(fields.fields.get(name)) && 'tabular-nums')}
+                          // a text of several lines (the items of a booking) a line each, as in a table, at
+                          // most three
+                          className={cn(
+                            'line-clamp-3 min-w-0 text-right whitespace-pre-line wrap-anywhere',
+                            alignsDigits(fields.fields.get(name)) && 'tabular-nums',
+                          )}
                         >
                           {cell(props, row, name)}
                         </dd>
