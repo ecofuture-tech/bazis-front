@@ -333,6 +333,34 @@ describe('ResourceList', () => {
       expect(screen.getByTestId<HTMLInputElement>('field:price').type).toBe('number');
     });
     expect(screen.getByTestId<HTMLInputElement>('field:rate').type).toBe('number');
+    // on a phone (one column) folded behind their button, which counts those with a value
+    const fold = screen.getByTestId('action:filters');
+    const cell = (name: string) => screen.getByTestId(`field:${name}`).closest('[data-filled], div.grid');
+    expect(fold.getAttribute('aria-expanded')).toBe('false');
+    expect(cell('price')?.className).toContain('@max-md:hidden');
+    fireEvent.change(screen.getByTestId('field:price'), { target: { value: '5' } });
+    expect(fold.textContent).toBe('Filters1');
+    fireEvent.click(fold);
+    expect(fold.getAttribute('aria-expanded')).toBe('true');
+    expect(cell('price')?.className).not.toContain('@max-md:hidden');
+  });
+
+  it('aligns the decimals to the right, a first column of short texts as wide as they are', async () => {
+    const server = new Backend()
+      .on(
+        'GET',
+        `${ITEMS}schema_list/`,
+        runtimeSchema(
+          { number: { attribute: { type: 'string', title: 'Number' } }, price: { attribute: { type: 'string', format: 'decimal', title: 'Price' } } },
+          { list: true },
+        ),
+      )
+      .on('GET', ITEMS, listDocument([resource('a', { number: '7', price: '10.50' }), resource('b', { number: '12', price: '3.00' })]));
+    renderWithBazis(<ResourceList path={ITEMS as never} entity="item" columns={['number', 'price']} />, server);
+    const price = within(await screen.findByTestId('row:a')).getByTestId('cell:price');
+    expect(price.className).toContain('text-right');
+    expect(price.className).toContain('tabular-nums');
+    expect(within(screen.getByTestId('row:a')).getByTestId('cell:number').className).not.toContain('min-w-48');
   });
 
   it('requests the search, the filters and the next page', async () => {
