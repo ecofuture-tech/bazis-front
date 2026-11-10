@@ -94,6 +94,16 @@ function RequireSession() {
   return <Outlet />;
 }
 
+/** A path of no screen: a screen with its title, the state under it. */
+function NotFound() {
+  const { t } = useLanguage();
+  return (
+    <Screen id="not-found" title={t('state.not_found.page')}>
+      <StatePanel state="not_found" />
+    </Screen>
+  );
+}
+
 export function AppRouter() {
   return (
     <GeneratedProviders>
@@ -116,11 +126,7 @@ export function AppRouter() {
             {/* a path of no screen: said so in the layout, never a silent jump home */}
             <Route
               path="*"
-              element={
-                <Screen id="not-found">
-                  <StatePanel state="not_found" />
-                </Screen>
-              }
+              element={<NotFound />}
             />
           </Route>
         </Routes>

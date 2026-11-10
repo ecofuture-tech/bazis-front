@@ -212,7 +212,7 @@ export function StatePanel({
       data-bz={`state:${state}`}
       role={failed ? 'alert' : 'status'}
       className={cn(
-        'flex flex-col items-center gap-4 rounded-xl border bg-card/60 px-6 py-12 text-center',
+        'surface flex flex-col items-center gap-4 px-6 py-12 text-center',
         className,
       )}
     >
