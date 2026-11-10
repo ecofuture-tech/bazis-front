@@ -31,11 +31,10 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { Filter } from '@/bazis/client';
 import { TRANSITS } from '@/bazis/generated/contract';
-import { THEME } from '@/bazis/generated/theme';
 import { ListCardLayout, Screen } from '@/bazis/ui/app-shell';
-import { statusName } from '@/bazis/ui/resource';
+import { SOFT_TONES, statusName } from '@/bazis/ui/resource';
 import { equalValues, filterOf, ResourceList } from '@/bazis/ui/resource-list';
-import { Backend, errors, ITEMS, listDocument, renderWithBazis, resource, runtimeSchema } from '@/bazis/ui/testing';
+import { Backend, errors, ITEMS, listDocument, renderWithBazis, resource, runtimeSchema, setTheme } from '@/bazis/ui/testing';
 
 // the menus and the selects are positioned with ResizeObserver and scroll their options into
 // view, which jsdom does not have
@@ -395,11 +394,12 @@ describe('ResourceList', () => {
         ),
       )
       .on('GET', ITEMS, listDocument([resource('a', { number: '7', price: '10.50' }), resource('b', { number: '12', price: '3.00' })]));
-    renderWithBazis(<ResourceList path={ITEMS as never} entity="item" columns={['number', 'price']} />, server);
+    renderWithBazis(<ResourceList path={ITEMS as never} entity="item" columns={['number', 'price']} layout="table" />, server);
     const price = within(await screen.findByTestId('row:a')).getByTestId('cell:price');
     expect(price.className).toContain('text-right');
     expect(price.className).toContain('tabular-nums');
-    expect(within(screen.getByTestId('row:a')).getByTestId('cell:number').className).not.toContain('min-w-48');
+    const number = within(screen.getByTestId('row:a')).getByTestId('cell:number');
+    expect([number.className.includes('min-w-48'), number.hasAttribute('data-short')]).toEqual([false, true]);
   });
 
   it('keeps each line of a text of several lines whole, a text of one line wrapping', async () => {
@@ -413,11 +413,13 @@ describe('ResourceList', () => {
         ),
       )
       .on('GET', ITEMS, listDocument([resource('a', { title: 'A long name', items: 'Tent × 1\nStove × 2' }), resource('b', { title: 'Another long name', items: 'Kayak × 1' })]));
-    renderWithBazis(<ResourceList path={ITEMS as never} entity="item" columns={['title', 'items']} />, server);
+    renderWithBazis(<ResourceList path={ITEMS as never} entity="item" columns={['title', 'items']} layout="table" />, server);
     const row = await screen.findByTestId('row:b');
     // the lines in a box as wide as the longest of them, up to 12rem: the column no narrower
     expect(within(row).getByTestId('cell:items').firstElementChild?.className).toContain('w-max max-w-48');
     expect(within(row).getByTestId('cell:title').querySelector('.w-max')).toBeNull();
+    // a first column of long texts wraps; of short ones on the page, as wide as they are (`data-short`)
+    expect(within(row).getByTestId('cell:title').hasAttribute('data-short')).toBe(false);
   });
 
   it('shows the range of a single page without the buttons of the pages', async () => {
@@ -512,6 +514,7 @@ describe('ResourceList', () => {
   });
 
   it('keeps its search and its actions over the list with the number of its items alone in the header', async () => {
+    setTheme({ composition: { list_tools: 'list' } });
     renderWithBazis(
       <Screen id="item-list" title="Items">
         <ResourceList path={ITEMS as never} entity="item" columns={['title']} search count />
@@ -544,28 +547,25 @@ describe('ResourceList', () => {
       </Screen>
     );
     // the base: the tools over the list, the filters on a plate
+    setTheme({ composition: { list_tools: 'list', filters: 'plate' } });
     const base = renderWithBazis(list(), backend(listDocument(rows)));
     await within(screen.getByTestId('list:item')).findByTestId('state:loaded');
     expect(within(screen.getByTestId('list:item')).getByTestId('field:$search')).toBeTruthy();
     expect(document.querySelector('[data-slot="filter-row"]')?.getAttribute('data-plate')).toBe('true');
     base.unmount();
-    Object.assign(THEME.composition, { list_tools: 'header', filters: 'row' });
-    try {
-      const themed = renderWithBazis(list(), backend(listDocument(rows)));
-      await within(screen.getByTestId('list:item')).findByTestId('state:loaded');
-      const tools = document.querySelector('header [data-slot="screen-tools"]');
-      if (!(tools instanceof HTMLElement)) throw new Error('No tools in the header');
-      expect(within(tools).getByTestId('field:$search')).toBeTruthy();
-      // the filters on the page, never on a surface
-      const row = document.querySelector('[data-slot="filter-row"]');
-      expect([row?.hasAttribute('data-plate'), row?.className.includes('surface')]).toEqual([false, false]);
-      themed.unmount();
-      renderWithBazis(list('list'), backend(listDocument(rows)));
-      await within(screen.getByTestId('list:item')).findByTestId('state:loaded');
-      expect(within(screen.getByTestId('list:item')).getByTestId('field:$search')).toBeTruthy();
-    } finally {
-      Object.assign(THEME.composition, { list_tools: 'list', filters: 'plate' });
-    }
+    setTheme({ composition: { list_tools: 'header', filters: 'row' } });
+    const themed = renderWithBazis(list(), backend(listDocument(rows)));
+    await within(screen.getByTestId('list:item')).findByTestId('state:loaded');
+    const tools = document.querySelector('header [data-slot="screen-tools"]');
+    if (!(tools instanceof HTMLElement)) throw new Error('No tools in the header');
+    expect(within(tools).getByTestId('field:$search')).toBeTruthy();
+    // the filters on the page, never on a surface
+    const row = document.querySelector('[data-slot="filter-row"]');
+    expect([row?.hasAttribute('data-plate'), row?.className.includes('surface')]).toEqual([false, false]);
+    themed.unmount();
+    renderWithBazis(list('list'), backend(listDocument(rows)));
+    await within(screen.getByTestId('list:item')).findByTestId('state:loaded');
+    expect(within(screen.getByTestId('list:item')).getByTestId('field:$search')).toBeTruthy();
   });
 
   for (const layout of ['table', 'cards'] as const) {
@@ -1160,6 +1160,8 @@ describe('ResourceList', () => {
   it.runIf(statusy)('shows the status of an item of a statusy model as its badge', async () => {
     if (!statusy) return;
     const { type, id } = statusy;
+    // the badge in the soft pair of its tone, that of the primary of the statuses its own
+    setTheme({ statuses: { [id]: 'primary' } });
     const server = new Backend()
       .on(
         'GET',
@@ -1174,8 +1176,8 @@ describe('ResourceList', () => {
     renderWithBazis(<ResourceList path={ITEMS as never} entity="item" columns={['title', 'status']} layout="table" />, server);
     const cell = await within(await screen.findByTestId('row:a')).findByTestId('cell:status');
     const badge = within(cell).getByTestId(`status:${id}`);
-    expect(badge.getAttribute('data-tone')).toBeTruthy();
-    expect(badge.className).toContain(`bg-${String(badge.getAttribute('data-tone'))}-soft`);
+    expect(badge.getAttribute('data-tone')).toBe('primary');
+    for (const name of SOFT_TONES.primary.split(' ')) expect(badge.classList.contains(name)).toBe(true);
     expect(badge.textContent).toBe(statusName(type, id, 'en'));
   });
 });

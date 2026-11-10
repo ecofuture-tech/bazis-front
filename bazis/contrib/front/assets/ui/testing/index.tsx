@@ -18,8 +18,9 @@
 // schemas of Bazis it answers with, a socket of bazis-ws (`FakeSocket`), and the render of
 // a component inside the providers of the hooks and a router, in English (`LanguageProvider`
 // with the language `en` fixed, unless a test passes the store of another one: the tests of
-// the contract never depend on the texts). The tests find the elements by their `data-bz`
-// (`getByTestId`). Only the tests import it.
+// the contract never depend on the texts), and the options of the theme that a test sets
+// (`setTheme`: they never depend on the theme of the product either). The tests find the
+// elements by their `data-bz` (`getByTestId`). Only the tests import it.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, configure, render, type RenderResult } from '@testing-library/react';
@@ -29,6 +30,7 @@ import { afterEach } from 'vitest';
 
 import { createClient, type ErrorObject } from '@/bazis/client';
 import type { paths } from '@/bazis/generated/schema';
+import { THEME, type Theme } from '@/bazis/generated/theme';
 import { createLanguageStore, errorMessage, LanguageProvider, translator, type LanguageStore } from '@/bazis/i18n';
 import { BazisProvider } from '@/bazis/react';
 
@@ -36,6 +38,31 @@ import { BazisProvider } from '@/bazis/react';
 configure({ testIdAttribute: 'data-bz' });
 // vitest has no globals: unmount what a test rendered
 afterEach(cleanup);
+
+/** The options of the theme that a test sets (`setTheme`). */
+const THEMED = ['shell', 'composition', 'controls', 'statuses'] as const;
+
+export type ThemeOptions = { readonly [Part in (typeof THEMED)[number]]?: Partial<Theme[Part]> };
+
+/** Those of the product, back after each test. */
+const PRODUCT_THEME = Object.fromEntries(THEMED.map((part) => [part, { ...THEME[part] }])) as Required<ThemeOptions>;
+
+afterEach(() => {
+  for (const part of THEMED) {
+    for (const key of Object.keys(THEME[part])) Reflect.deleteProperty(THEME[part], key);
+    Object.assign(THEME[part], PRODUCT_THEME[part]);
+  }
+});
+
+/**
+ * Sets options of the theme (`THEME`) for the current test over those of the product, which come
+ * back after it: a test that depends on an option sets it, so that it passes in every product
+ * (`setTheme({ composition: { list_tools: 'header' } })`; in `beforeEach` for every test of a
+ * `describe`).
+ */
+export function setTheme(options: ThemeOptions): void {
+  for (const part of THEMED) Object.assign(THEME[part], options[part]);
+}
 
 export const BASE = 'https://api.test';
 

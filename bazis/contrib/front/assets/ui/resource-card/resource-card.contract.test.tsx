@@ -27,7 +27,6 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { Filter } from '@/bazis/client';
 import type * as Contract from '@/bazis/generated/contract';
-import { THEME } from '@/bazis/generated/theme';
 import { Screen } from '@/bazis/ui/app-shell';
 import { permitted } from '@/bazis/ui/resource';
 import { RelatedList, ResourceCard } from '@/bazis/ui/resource-card';
@@ -41,6 +40,7 @@ import {
   renderWithBazis,
   resource,
   runtimeSchema,
+  setTheme,
   testLanguages,
 } from '@/bazis/ui/testing';
 
@@ -561,48 +561,44 @@ describe('RelatedList', () => {
   });
 
   it('keeps the tools of its list in its section with `composition.list_tools: header`, the header of the screen to its own list', async () => {
-    Object.assign(THEME.composition, { list_tools: 'header' });
-    try {
-      const section = (title: string) => (
-        <RelatedList
-          path={PARTS as never}
-          entity="part"
-          relation="item"
-          item={ITEM_ID}
-          itemPath={ITEMS as never}
-          columns={['name']}
-          title={title}
-          add={{ id: `add-${title}`, label: 'Add a part' }}
-        />
-      );
-      renderWithBazis(
-        <Screen id="parts" title="Parts">
-          <ResourceList path={PARTS as never} entity="part" columns={['name']} search />
-          {section('first')}
-          {section('second')}
-        </Screen>,
-        parts({ for_create: true }),
-      );
-      const lists = await screen.findAllByTestId('list:part');
-      expect(lists).toHaveLength(3);
-      await waitFor(() => {
-        expect(screen.getAllByTestId('action:add-second')).toHaveLength(1);
-      });
-      const tools = document.querySelector('header [data-slot="screen-tools"]');
-      if (!(tools instanceof HTMLElement)) throw new Error('No tools in the header');
-      // the search and the view of the list of the screen in its header, the view and the add of
-      // each section in the section
-      expect(within(tools).getAllByTestId('field:$search')).toHaveLength(1);
-      expect(within(tools).getAllByTestId('action:view')).toHaveLength(1);
-      expect(within(tools).queryByTestId('action:add-first')).toBeNull();
-      for (const [index, title] of ['first', 'second'].entries()) {
-        const list = lists[index + 1];
-        if (!list) throw new Error('No list');
-        expect(within(list).getByTestId('action:view')).toBeTruthy();
-        expect(within(list).getByTestId(`action:add-${title}`)).toBeTruthy();
-      }
-    } finally {
-      Object.assign(THEME.composition, { list_tools: 'list' });
+    setTheme({ composition: { list_tools: 'header', list: 'table' } });
+    const section = (title: string) => (
+      <RelatedList
+        path={PARTS as never}
+        entity="part"
+        relation="item"
+        item={ITEM_ID}
+        itemPath={ITEMS as never}
+        columns={['name']}
+        title={title}
+        add={{ id: `add-${title}`, label: 'Add a part' }}
+      />
+    );
+    renderWithBazis(
+      <Screen id="parts" title="Parts">
+        <ResourceList path={PARTS as never} entity="part" columns={['name']} search />
+        {section('first')}
+        {section('second')}
+      </Screen>,
+      parts({ for_create: true }),
+    );
+    const lists = await screen.findAllByTestId('list:part');
+    expect(lists).toHaveLength(3);
+    await waitFor(() => {
+      expect(screen.getAllByTestId('action:add-second')).toHaveLength(1);
+    });
+    const tools = document.querySelector('header [data-slot="screen-tools"]');
+    if (!(tools instanceof HTMLElement)) throw new Error('No tools in the header');
+    // the search and the view of the list of the screen in its header, the view and the add of
+    // each section in the section
+    expect(within(tools).getAllByTestId('field:$search')).toHaveLength(1);
+    expect(within(tools).getAllByTestId('action:view')).toHaveLength(1);
+    expect(within(tools).queryByTestId('action:add-first')).toBeNull();
+    for (const [index, title] of ['first', 'second'].entries()) {
+      const list = lists[index + 1];
+      if (!list) throw new Error('No list');
+      expect(within(list).getByTestId('action:view')).toBeTruthy();
+      expect(within(list).getByTestId(`action:add-${title}`)).toBeTruthy();
     }
   });
 

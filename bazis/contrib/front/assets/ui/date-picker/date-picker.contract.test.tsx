@@ -25,13 +25,13 @@
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { LanguageProvider } from '@/bazis/i18n';
 import type { FormField } from '@/bazis/react';
 import { DatePicker, DatePickerProvider } from '@/bazis/ui/date-picker';
 import { FieldInput } from '@/bazis/ui/resource';
-import { testLanguages } from '@/bazis/ui/testing';
+import { setTheme, testLanguages } from '@/bazis/ui/testing';
 
 const due = {
   kind: 'attribute', name: 'due', title: 'Due', type: 'string', format: 'date', enum: null, labels: null,
@@ -43,6 +43,11 @@ function day(date: Date): string {
 }
 
 describe('DatePicker', () => {
+  // the input of the dates of the language, whatever `controls.date` of the product
+  beforeEach(() => {
+    setTheme({ controls: { date: 'localized' } });
+  });
+
   it('shows the date in the numeric format of the language, marked as the input it replaces', () => {
     const onChange = vi.fn();
     const { unmount } = render(

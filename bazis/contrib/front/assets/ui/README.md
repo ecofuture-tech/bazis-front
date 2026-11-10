@@ -140,7 +140,8 @@ map of `MapProvider`), the files of bazis-uploadable (`FilesProvider`, which giv
 hooks with plain paths for the bodies of the components. `testing` is the support of the
 contract tests: a backend for the mocked `fetch` of the client (each request with the
 language it asked for, `calls[].language`), the documents and runtime schemas of Bazis,
-`renderWithBazis` (in English, or in the language of `testLanguages`), and `getByTestId`
+`renderWithBazis` (in English, or in the language of `testLanguages`), `setTheme` (the options of
+the theme that a test needs, over those of the product for its run), and `getByTestId`
 reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
 
 - **`state-panel`** is the only place where an error of the backend becomes a state: 401
