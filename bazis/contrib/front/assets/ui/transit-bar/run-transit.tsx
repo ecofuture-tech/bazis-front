@@ -31,7 +31,7 @@ import { useLanguage } from '@/bazis/i18n';
 import { objectFields, startValue, useErrorMessage } from '@/bazis/react';
 import { useItemsTransit, useTransits, type Transit, type TransitPath } from '@/bazis/react/statusy';
 import { FieldInput, ITEM_META, relatedField, statusyModel, useUploads, type FieldFilters } from '@/bazis/ui/resource';
-import { statusName, transitName, transitTarget } from '@/bazis/ui/status-badge';
+import { statusName, statusTone, transitName, transitTarget } from '@/bazis/ui/status-badge';
 import { errorState, StatePanel, toast } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -156,6 +156,9 @@ function TransitForm({ path, open, mutation, run, onCancel, filters }: TransitFo
   const values = { ...defaults(transit), ...entered };
   const fields = read.isLoading ? [] : objectFields(transit.payload ?? {});
   const target = transitTarget(transit.resource.type, transit.id);
+  // a transit to a status of the tone danger (a cancellation): its button destructive, the one that
+  // closes the dialog not a "cancel" beside it
+  const danger = target !== null && statusTone(target) === 'danger';
   // a transit without a payload is only confirmed: the status it leads to
   const question =
     transit.payload === null
@@ -204,10 +207,11 @@ function TransitForm({ path, open, mutation, run, onCancel, filters }: TransitFo
         ))}
         <DialogFooter>
           <Button type="button" variant="outline" data-bz="action:cancel" onClick={onCancel}>
-            {t('action.cancel')}
+            {t(danger ? 'action.close' : 'action.cancel')}
           </Button>
           <Button
             type="submit"
+            variant={danger ? 'destructive' : 'default'}
             data-bz={question === null ? 'action:submit' : `action:confirm-${transit.id}`}
             disabled={mutation.isPending || read.isLoading || uploading}
           >

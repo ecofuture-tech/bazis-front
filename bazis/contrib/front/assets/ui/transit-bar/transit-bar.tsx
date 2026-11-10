@@ -19,7 +19,7 @@
 // opens a dialog with its fields, and one that the specs confirm a dialog of its confirmation
 // (`useRunTransit`). A toast tells the status the item moved to.
 
-import { ArrowRight, LoaderCircle } from 'lucide-react';
+import { ArrowRight, LoaderCircle, X } from 'lucide-react';
 
 import { useLanguage } from '@/bazis/i18n';
 import { useTransits, type TransitPath } from '@/bazis/react/statusy';
@@ -28,6 +28,7 @@ import { statusTone, transitName, transitTarget } from '@/bazis/ui/status-badge'
 import { errorState, StatePanel } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 
 import { inDeclaredOrder, useRunTransit, type DeclaredTransit } from './run-transit.js';
 
@@ -71,17 +72,21 @@ export function TransitBar({ path, id, transits: declared = [], onDone }: Transi
 
   return (
     <div className="surface grid gap-3 px-(--space-card) py-3 text-card-foreground">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <span className="text-sm font-medium text-muted-foreground">{t('transit.next')}</span>
+      {/* the label on the line of the buttons, the reason of an unavailable transit under its button */}
+      <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
+        <span className="py-2 text-sm font-medium text-muted-foreground">{t('transit.next')}</span>
         <div role="group" aria-label={t('transit.group')} className="flex flex-wrap items-start gap-2">
           {inDeclaredOrder(transits.data, declared).map((transit, index) => {
             const target = transitTarget(transit.resource.type, transit.id);
             const danger = target !== null && statusTone(target) === 'danger';
+            const Icon = danger ? X : ArrowRight;
             return (
-              <div key={transit.id} className="grid gap-1">
+              <div key={transit.id} className="grid justify-items-start gap-1">
                 <Button
                   type="button"
-                  variant={danger ? 'destructive' : index === 0 ? 'default' : 'outline'}
+                  // an unavailable transit an outline in the muted text, read in both modes
+                  variant={!transit.allowed ? 'outline' : danger ? 'destructive' : index === 0 ? 'default' : 'outline'}
+                  className={cn(!transit.allowed && 'disabled:text-muted-foreground disabled:opacity-100')}
                   data-bz={`transit:${transit.id}`}
                   disabled={!transit.allowed || mutation.isPending}
                   aria-describedby={transit.allowed ? undefined : `restricts-${transit.id}`}
@@ -92,7 +97,7 @@ export function TransitBar({ path, id, transits: declared = [], onDone }: Transi
                   {mutation.isPending && mutation.variables.transit === transit.id ? (
                     <LoaderCircle className="animate-spin" aria-hidden="true" />
                   ) : (
-                    <ArrowRight aria-hidden="true" />
+                    <Icon aria-hidden="true" />
                   )}
                   {transitName(transit.resource.type, transit.id, language)}
                 </Button>
