@@ -359,6 +359,31 @@ describe('ResourceList', () => {
     expect(screen.getByTestId('action:filters').textContent).toBe('Filters');
   });
 
+  it('folds its filters beside a card whatever the width, its button shown', async () => {
+    const server = backend(listDocument(rows)).on('GET', `${ITEMS}route_filter_fields/`, {
+      fields: [{ name: 'price', py_type: 'Decimal' }, { name: 'rate', py_type: 'number' }],
+    });
+    renderWithBazis(
+      <Routes>
+        <Route
+          path="/items"
+          element={<ListCardLayout mode="split" list={<ResourceList path={ITEMS as never} entity="item" columns={['title']} filters={['price', 'rate']} />} />}
+        >
+          <Route path=":id" element={<p>card</p>} />
+        </Route>
+      </Routes>,
+      server,
+      { route: '/items/a' },
+    );
+    await screen.findByTestId('field:price');
+    const fold = screen.getByTestId('action:filters');
+    expect(fold.className).not.toContain('@md:hidden');
+    const cell = () => screen.getByTestId('field:price').closest('[data-slot="field-group"]')?.parentElement?.classList;
+    expect(cell()).toContain('hidden');
+    fireEvent.click(fold);
+    expect(cell()).not.toContain('hidden');
+  });
+
   it('aligns the decimals to the right, a first column of short texts as wide as they are', async () => {
     const server = new Backend()
       .on(

@@ -24,6 +24,7 @@ import { Fragment, useState, type ReactNode } from 'react';
 
 import { Filter } from '@/bazis/client';
 import { THEME } from '@/bazis/generated/theme';
+import { useBesideCard } from '@/bazis/ui/app-shell';
 import { useLanguage } from '@/bazis/i18n';
 import { choiceOptions, DateInput, type Fields, RelationPicker, typeAt, useAnyFilterFields } from '@/bazis/ui/resource';
 import { errorState, StatePanel } from '@/bazis/ui/state-panel';
@@ -174,7 +175,8 @@ export function filterWidth(kind: FilterKind): string {
  * plate where the text of the control starts, as the label of a field of a form otherwise), in
  * the color of the text once the filter has a value (`data-filled`); the line of the control
  * drawn by its group (`data-slot="field-group"`), as for the range of two dates (`legend` without
- * an `id`, its label read as the name of the group). Folded (`folded`), it is hidden on a phone.
+ * an `id`, its label read as the name of the group). Folded (`folded`), it is hidden on a phone and
+ * in a list beside its card (`useBesideCard`).
  */
 export function FilterField({ label, id, kind, filled, folded = false, children, 'data-bz': mark }: {
   label: string;
@@ -183,13 +185,14 @@ export function FilterField({ label, id, kind, filled, folded = false, children,
   kind: FilterKind;
   /** Whether the filter has a value. */
   filled: boolean;
-  /** Whether the filters are folded behind their button where the row is one column (a phone). */
+  /** Whether the filters are folded behind their button where the row is one column (a phone) or beside a card. */
   folded?: boolean;
   /** The mark of a group of controls (`field:<field>` of the chips of a boolean). */
   'data-bz'?: string;
   children: ReactNode;
 }) {
-  const wrapper = cn('grid w-full min-w-0 gap-1 @3xl:w-auto', kind === 'date' && '@md:col-span-2', folded && '@max-md:hidden');
+  const beside = useBesideCard();
+  const wrapper = cn('grid w-full min-w-0 gap-1 @3xl:w-auto', kind === 'date' && '@md:col-span-2', folded && (beside ? 'hidden' : '@max-md:hidden'));
   const text = 'cursor-pointer text-sm font-normal whitespace-nowrap text-muted-foreground in-data-filled:text-foreground';
   const group = (
     <div data-slot="field-group" className={cn(fieldGroupClassName, 'min-w-0 gap-2', kind === 'chips' && 'pl-1')}>
@@ -442,7 +445,8 @@ export function FilterBar({ path, filters: wanted, ready = true, resets = 0, tit
     setCleared(resets);
     setValues({});
   }
-  // on a phone the filters are folded behind their button, which counts those with a value
+  // on a phone and beside a card the filters are folded behind their button, which counts those with a value
+  const beside = useBesideCard();
   const [unfolded, setUnfolded] = useState(false);
   const filters = wanted.filter((filter) => types.has(filter.field));
   const foldable = filters.length > 1;
@@ -466,7 +470,7 @@ export function FilterBar({ path, filters: wanted, ready = true, resets = 0, tit
           size="sm"
           data-bz="action:filters"
           aria-expanded={unfolded}
-          className="justify-self-start @md:hidden"
+          className={cn('justify-self-start', !beside && '@md:hidden')}
           onClick={() => {
             setUnfolded(!unfolded);
           }}
