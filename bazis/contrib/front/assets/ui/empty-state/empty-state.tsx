@@ -43,7 +43,7 @@ export function EmptyState({ icon: Icon = Inbox, title, description, children, c
       data-bz="state:empty"
       role="status"
       className={cn(
-        'flex flex-col items-center gap-4 rounded-xl border border-dashed bg-card/60 px-6 py-12 text-center',
+        'flex flex-col items-center gap-4 rounded-xl border bg-card/60 px-6 py-12 text-center',
         className,
       )}
     >

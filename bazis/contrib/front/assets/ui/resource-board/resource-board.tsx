@@ -346,7 +346,7 @@ export function ResourceBoard({
                         <span className="text-sm text-muted-foreground tabular-nums">{formatNumber(count, language)}</span>
                       </header>
                       {items.length === 0 ? (
-                        <p className="rounded-lg border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
+                        <p className="px-3 py-6 text-center text-sm text-muted-foreground">
                           {t('board.empty_column')}
                         </p>
                       ) : (
