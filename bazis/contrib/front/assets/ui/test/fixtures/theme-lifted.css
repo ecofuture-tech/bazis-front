@@ -160,6 +160,7 @@
   --shadow-lift-primary: 0 1px 2px rgb(0 0 0 / 0.35), 0 3px 8px -2px rgb(0 0 0 / 0.3);
   --shadow-lift-primary-hover: 0 2px 4px rgb(0 0 0 / 0.35), 0 8px 18px -4px rgb(0 0 0 / 0.4);
   --shadow-lift-primary-active: 0 1px 1px rgb(0 0 0 / 0.35);
+  --popover: color-mix(in oklab, var(--card), var(--foreground) 7%);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -208,6 +209,7 @@
     --shadow-lift-primary: 0 1px 2px rgb(0 0 0 / 0.35), 0 3px 8px -2px rgb(0 0 0 / 0.3);
     --shadow-lift-primary-hover: 0 2px 4px rgb(0 0 0 / 0.35), 0 8px 18px -4px rgb(0 0 0 / 0.4);
     --shadow-lift-primary-active: 0 1px 1px rgb(0 0 0 / 0.35);
+    --popover: color-mix(in oklab, var(--card), var(--foreground) 7%);
   }
 }
 

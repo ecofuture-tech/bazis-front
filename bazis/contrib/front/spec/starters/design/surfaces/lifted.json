@@ -1,6 +1,6 @@
 {
   "$schema": "../../../schemas/tokens.schema.json",
-  "$description": "Lifted without a contour: the surfaces and the controls have no border and rest on the page by blurred shadows in the tone of a dark paper (`color.shade`: that of `frost`, the foreground with another palette), in heights (the controls, the cards, the menus and the dialogs); the fields are a bottom line, not a lifted box; the primary button with a shadow of its own color, the current link of the sidebar lifted, and one focus ring; black shadows in the dark mode, where the paper is darker than any shade.",
+  "$description": "Lifted without a contour: the surfaces and the controls have no border and rest on the page by blurred shadows in the tone of a dark paper (`color.shade`: that of `frost`, the foreground with another palette), in heights (the controls, the cards, the menus and the dialogs); the fields are a bottom line, not a lifted box; the primary button with a shadow of its own color, the current link of the sidebar lifted, and one focus ring; black shadows in the dark mode, where the paper is darker than any shade, and the menus and the popovers a step lighter than the card there (a date picker over a dialog).",
   "color": {
     "border-surface": {"$type": "color", "$value": "transparent"},
     "border-control": {"$type": "color", "$value": "transparent"},
@@ -26,6 +26,9 @@
     "nav-active": {"$type": "shadow", "$value": "0 1px 2px rgb(0 0 0 / 0.16), 0 3px 8px -3px rgb(0 0 0 / 0.26)"}
   },
   "dark": {
+    "color": {
+      "popover": {"$type": "color", "$value": "color-mix(in oklab, var(--card), var(--foreground) 7%)"}
+    },
     "shadow": {
       "xs": {"$type": "shadow", "$value": "0 1px 2px rgb(0 0 0 / 0.3), 0 2px 6px -2px rgb(0 0 0 / 0.35)"},
       "sm": {"$type": "shadow", "$value": "0 1px 2px rgb(0 0 0 / 0.3)"},

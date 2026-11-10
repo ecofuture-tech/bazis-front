@@ -222,8 +222,9 @@ export function DatePicker({
           ref={days}
           id={calendar}
           aria-label={t('date.pick')}
-          // under the start of the field, kept off the edges of the screen
+          // under the start of the field, clear of its line, kept off the edges of the screen
           align="start"
+          sideOffset={6}
           collisionPadding={16}
           className="w-auto p-0"
           // the days take the focus themselves (`toDays`), the field keeps it otherwise
