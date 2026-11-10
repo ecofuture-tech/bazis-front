@@ -117,6 +117,10 @@ describe('ResourceList', () => {
     expect(onOpen).toHaveBeenCalledWith('b');
     fireEvent.keyDown(screen.getByTestId('row:a'), { key: 'Enter' });
     expect(onOpen).toHaveBeenLastCalledWith('a');
+    // Space too, the row named by its item
+    expect(fireEvent.keyDown(screen.getByTestId('row:b'), { key: ' ' })).toBe(false);
+    expect(onOpen).toHaveBeenLastCalledWith('b');
+    expect(screen.getByTestId('row:a').getAttribute('aria-label')).toBe('First');
   });
 
   it('shows a number of `display: plain` without the separators of its thousands', async () => {

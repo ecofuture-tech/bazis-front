@@ -120,7 +120,7 @@ export function CardsView(props: BodyProps) {
                   'data-[state=selected]:border-primary',
                   onOpen && 'cursor-pointer outline-none hover:shadow-(--shadow-lift-2) focus-visible:ring-focus',
                 )}
-                {...opener(row.id, onOpen)}
+                {...opener(row, onOpen)}
               >
                 {media !== undefined && (
                   <div

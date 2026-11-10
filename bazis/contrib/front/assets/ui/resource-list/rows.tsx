@@ -21,7 +21,7 @@ import type { ComponentType, KeyboardEvent, ReactNode } from 'react';
 
 import type { Tone } from '@/bazis/generated/theme';
 import { useLanguage } from '@/bazis/i18n';
-import { ItemValue, type FieldDisplay, type Fields, type ResourceObject } from '@/bazis/ui/resource';
+import { itemName, ItemValue, type FieldDisplay, type Fields, type ResourceObject } from '@/bazis/ui/resource';
 import { Checkbox } from '@/components/ui/checkbox';
 
 export interface BodyProps {
@@ -76,17 +76,22 @@ export function cell(props: BodyProps, row: ResourceObject, name: string, media 
 // and which the area of the table, scrolling, cuts off (a shadow of the token cannot be inset)
 export const FOCUS = 'outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-inset';
 
-/** The props of a row that opens its item, by a click or Enter. */
-export function opener(id: string, onOpen: ((id: string) => void) | undefined) {
+/** The props of a row that opens its item, by a click, Enter or Space, named by the name of its item. */
+export function opener(row: ResourceObject, onOpen: ((id: string) => void) | undefined) {
   if (!onOpen) return {};
   return {
     tabIndex: 0,
+    'aria-label': itemName(row) ?? undefined,
     onClick: () => {
-      onOpen(id);
+      onOpen(row.id);
     },
     onKeyDown: (event: KeyboardEvent<HTMLElement>) => {
-      // not the Enter of a control of the row (its actions), which bubbles
-      if (event.key === 'Enter' && event.target === event.currentTarget) onOpen(id);
+      // not the key of a control of the row (its actions), which bubbles
+      if ((event.key === 'Enter' || event.key === ' ') && event.target === event.currentTarget) {
+        // Space opens it, never scrolls the page
+        event.preventDefault();
+        onOpen(row.id);
+      }
     },
   };
 }

@@ -363,7 +363,7 @@ function TableView(
                 'data-[state=selected]:bg-primary-soft data-[state=selected]:[--row-mark:var(--primary)] dark:data-[state=selected]:bg-[color-mix(in_oklab,var(--color-foreground)_9%,var(--color-card))]',
                 onOpen && cn('cursor-pointer', FOCUS),
               )}
-              {...opener(row.id, onOpen)}
+              {...opener(row, onOpen)}
             >
               {selection && (
                 <TableCell className={cn('left-0 w-10 min-w-10 px-0 py-(--space-cell-y) text-center', STICKY, LEFTMOST)}>
