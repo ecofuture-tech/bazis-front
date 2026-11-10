@@ -304,18 +304,17 @@ function TableView(
   const { rows, columns, fields, onOpen, selected, header, sorted, actionsColumn, hidden, selection } = props;
   const { t } = useLanguage();
   const { resources } = useFiles();
-  /**
-   * Whether the values of a column are as wide as they are, never wrapped: short values, files
-   * (their thumbnails), the short texts of the first column on the page (the number of a booking).
-   */
-  const compact = (field: FormField | undefined, name: string, index: number) =>
-    isShort(field) ||
-    isFile(field, resources) ||
-    (index === 0 &&
-      rows.every((row) => {
-        const value = fieldValue(row, name);
-        return value === null || ((typeof value === 'string' || typeof value === 'number') && String(value).length <= SHORT_TEXT);
-      }));
+  // the texts of the first column short on the page (the number of a booking): as wide as they
+  // are, by their values (`data-short`, which the screenshots do not make long, V015)
+  const first = columns[0];
+  const shortFirst =
+    first !== undefined &&
+    rows.every((row) => {
+      const value = fieldValue(row, first);
+      return value === null || ((typeof value === 'string' || typeof value === 'number') && String(value).length <= SHORT_TEXT);
+    });
+  /** Whether the values of a column are as wide as they are, never wrapped: short values, files (their thumbnails), the short texts of the first column. */
+  const compact = (field: FormField | undefined, index: number) => isShort(field) || isFile(field, resources) || (index === 0 && shortFirst);
   // the columns of texts of several lines on the page (an item a line: the items of a booking),
   // each line kept whole where it can
   const lined = new Set(
@@ -390,11 +389,12 @@ function TableView(
               {columns.map((name, index) => {
                 const field = fields.fields.get(name);
                 const shown = props.display[name];
-                const fits = compact(field, name, index);
+                const fits = compact(field, index);
                 return (
                   <TableCell
                     key={name}
                     data-bz={`cell:${name}`}
+                    data-short={(index === 0 && shortFirst) || undefined}
                     className={cn(
                       'px-(--space-cell-x) py-(--space-cell-y)',
                       // the first column, the name of a row, is at least 12rem but for a short value (a
