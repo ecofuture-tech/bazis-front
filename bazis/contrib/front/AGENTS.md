@@ -67,8 +67,9 @@ in `frontend/` never need to be read.
    maps", "Custom actions and background work", "The socket" and "The language"; the data
    through "The hooks" and "The client".
 7. Design the product: choose the palette, the fonts, the shape and the surface of
-   `spec/design/theme.yaml` for its domain, the icon of every entity and the tones of the
-   statuses, then generate the theme, `python manage.py bazis_front design`: "The design".
+   `spec/design/theme.yaml` for its domain (`mode: both` unless the user asks for one mode),
+   the icon of every entity and the tones of the statuses, then generate the theme, `python
+   manage.py bazis_front design`: "The design".
 8. Generate the end-to-end tests, `python manage.py bazis_front e2e`, and run them with
    `npm run e2e` against the migrated backend with the data of `e2e_data`: "The end-to-end
    tests".

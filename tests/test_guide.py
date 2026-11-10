@@ -140,3 +140,8 @@ CHOICES = [
 def test_the_guide_tells_the_choices_of_a_product(title, heading, text):
     section = SECTIONS[title]
     assert text in (section if heading == title else subsection(section, heading))
+
+
+def test_the_step_of_the_design_keeps_both_modes():
+    # the trials chose `mode: light` unasked: the step of the design says the default
+    assert '(`mode: both` unless the user asks for one mode)' in subsection(INTRODUCTION, 'Building the frontend of a product')
