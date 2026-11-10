@@ -30,7 +30,7 @@ import { Allowed, type NavRequirement } from '@/bazis/ui/app-shell';
 import type { CardAction } from '@/bazis/ui/resource-card';
 import { FormSurface, ResourceForm, type SavedDocument } from '@/bazis/ui/resource-form';
 import type { FieldFilters } from '@/bazis/ui/resource';
-import { toast } from '@/bazis/ui/state-panel';
+import { failureText, toast } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
@@ -228,7 +228,7 @@ export function useDestroyCardAction({
       },
       onError: (error) => {
         setOpen(false);
-        toast({ title: t('card.not_deleted'), description: error.message, tone: 'danger' });
+        toast({ title: t('card.not_deleted'), description: failureText(error, t) ?? t('action.failed'), tone: 'danger' });
       },
     });
   };

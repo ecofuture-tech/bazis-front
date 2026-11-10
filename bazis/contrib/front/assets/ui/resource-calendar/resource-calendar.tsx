@@ -587,7 +587,7 @@ export function ResourceCalendar({
           }
         >
           <FilterBar
-            key={filterKey}
+            resets={filterKey}
             path={path}
             filters={filterList}
             ready={meta.ready}

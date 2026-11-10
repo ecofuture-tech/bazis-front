@@ -112,7 +112,7 @@ export function TransitBar({ path, id, transits: declared = [], onDone }: Transi
         </div>
       </div>
       {open === null && mutation.isError && (
-        <StatePanel inline state={errorState(mutation.error)} error={mutation.error} message={mutation.error.message} />
+        <StatePanel inline state={errorState(mutation.error)} error={mutation.error} />
       )}
       {dialog}
     </div>

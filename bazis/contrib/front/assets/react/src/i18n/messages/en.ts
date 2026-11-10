@@ -216,6 +216,7 @@ export const en: Messages = {
   'state.loading.title': 'Loading…',
   'state.not_found.hint': 'It may have been deleted, or the link is wrong.',
   'state.not_found.title': 'Not found.',
+  'state.offline': 'The server cannot be reached. Check the connection and try again.',
   'state.retry': 'Retry',
   'toast.dismiss': 'Dismiss',
   'toast.region': 'Notifications',

@@ -319,6 +319,10 @@ describe('ResourceList', () => {
     const [again] = within(await screen.findByTestId('field:is_late')).getAllByRole('button');
     expect(again?.getAttribute('aria-pressed')).toBe('false');
     expect(screen.queryByTestId('action:reset-filters')).toBeNull();
+    // the focus that the reset leaves goes to the first control of the filters
+    await waitFor(() => {
+      expect(document.activeElement).toBe(again);
+    });
   });
 
   it('renders the numeric filters as numbers', async () => {
@@ -343,6 +347,11 @@ describe('ResourceList', () => {
     fireEvent.click(fold);
     expect(fold.getAttribute('aria-expanded')).toBe('true');
     expect(cell('price')?.className).not.toContain('@max-md:hidden');
+    // a reset clears them, unfolded as they were
+    fireEvent.click(await screen.findByTestId('action:reset-filters'));
+    expect(screen.getByTestId<HTMLInputElement>('field:price').value).toBe('');
+    expect(screen.getByTestId('action:filters').getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByTestId('action:filters').textContent).toBe('Filters');
   });
 
   it('aligns the decimals to the right, a first column of short texts as wide as they are', async () => {
@@ -551,6 +560,12 @@ describe('ResourceList', () => {
     expect(failed.textContent).toContain('The filters are not available now.');
     expect(screen.queryByTestId('field:title')).toBeNull();
     expect(screen.getByTestId('row:a')).toBeTruthy();
+    // a retry reads them again, the focus kept in the row of the filters
+    server.on('GET', `${ITEMS}route_filter_fields/`, { fields: [{ name: 'title', py_type: 'string' }] });
+    fireEvent.click(within(failed).getByTestId('action:retry'));
+    expect(await screen.findByTestId('field:title')).toBeTruthy();
+    expect(screen.queryByTestId('state:error')).toBeNull();
+    expect(document.activeElement?.closest('[data-slot="filter-row"]')).not.toBeNull();
   });
 
   it('has no control for a filter that the backend does not offer the user', async () => {

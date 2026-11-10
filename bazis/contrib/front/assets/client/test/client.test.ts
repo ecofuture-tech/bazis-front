@@ -14,7 +14,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { ApiError, createClient, Filter } from '../src/index.js';
+import { ApiError, createClient, Filter, OfflineError } from '../src/index.js';
 import type { ClientOptions, ErrorObject } from '../src/index.js';
 import type { paths } from './fixtures/schema.js';
 import { BASE, recordingFetch } from './support.js';
@@ -112,6 +112,17 @@ describe('list', () => {
     const { signal } = new AbortController();
     await api.list(PARENT, { signal });
     expect(calls[0]?.init).toEqual({ method: 'GET', headers: { Accept: ACCEPT }, signal });
+  });
+
+  it('rejects with an OfflineError when the backend cannot be reached, an abort as it is', async () => {
+    const failed = new TypeError('Failed to fetch');
+    const offline = createClient<paths>({ baseUrl: BASE, fetch: () => Promise.reject(failed) });
+    const error = await offline.list(PARENT).catch((it: unknown) => it);
+    expect(error).toBeInstanceOf(OfflineError);
+    expect((error as Error).cause).toBe(failed);
+    const aborted = new DOMException('Aborted', 'AbortError');
+    const stopped = createClient<paths>({ baseUrl: BASE, fetch: () => Promise.reject(aborted) });
+    await expect(stopped.list(PARENT)).rejects.toBe(aborted);
   });
 });
 

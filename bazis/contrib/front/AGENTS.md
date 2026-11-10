@@ -1860,9 +1860,8 @@ The props of every component are in the `API:` sections (the `Props` types of
   the runtime schema (`Field(title=_('…'))` of the payload in the backend, in the language
   of the request), else their names;
 - an error of a query is returned (`query.error`), never thrown: a refusal (4xx) is not
-  retried, a failure of the server or of the network up to three times
-  (`createQueryClient` of `src/app/providers.tsx`), a 401 ends the session; show it with
-  `StatePanel` (`errorState`).
+  retried, a failure of the server or of the network once (`createQueryClient` of
+  `src/app/providers.tsx`), a 401 ends the session; show it with `StatePanel` (`errorState`).
 
 ## Choices, filters, permissions and relationships
 
@@ -3343,7 +3342,7 @@ const result = useAsyncTask(CAPABILITIES.async_background.result_path, taskId);
 ### The errors and the runtime schemas
 
 - The errors (the template, `src/app/providers.tsx`): a query that the backend refused (4xx)
-  is not retried, a failure of the server or of the network at most three times; a 401
+  is not retried, a failure of the server or of the network once; a 401
   ends the session; the errors are not thrown but returned (`query.error`), and the
   components show them with `StatePanel`. `useAnyList`, `useAnyItem`, `useAnySchema`,
   `useAnyRelated` of `@/bazis/ui/resource` are the same hooks with plain paths, for the
@@ -4226,6 +4225,13 @@ The exports of the protocol client, `frontend/src/bazis/client/` (see "The clien
 #### errorText
 
 `errorText(error: ErrorObject): string`: The text of an error as the backend gives it: its `detail`, else its `title` or its `code`.
+
+#### OfflineError
+
+`class OfflineError extends Error`: The backend cannot be reached: the request failed without a response (no network, the server down), the error of `fetch` its `cause`.
+
+- `readonly name: "OfflineError"`
+- `constructor(cause?: unknown)`
 
 #### ErrorObject
 
@@ -6490,6 +6496,7 @@ Its props, `FilterBarProps`:
 - `path: string`
 - `filters: readonly ListFilter[]`
 - `ready?: boolean`: Whether the titles of the fields are loaded: until then, and until the types of the filters are, a skeleton.
+- `resets?: number`: The count of the resets of the user (`ResetFilters`): at each, the filters start again empty, unfolded as they were.
 - `title: (name: string) => string`: The titles of the fields.
 - `onFilter: (filter: Filter | undefined, equal: FilterValues) => void`: Called with the expression of the filters when a value changes, and the values of those that select one value of their field (`equalValues`).
 
@@ -6507,7 +6514,7 @@ Its props, `FilterBarProps`:
 
 #### ResetFilters
 
-`ResetFilters(props: { onReset: () => void; }): Element`: Clears the filters of the user (`action:reset-filters`), shown while he has any.
+`ResetFilters(props: { onReset: () => void; }): Element`: Clears the filters of the user (`action:reset-filters`), shown while he has any; it goes with them, the focus to the search or to the first filter of its screen.
 
 #### ListFilter
 
@@ -6815,6 +6822,10 @@ Its props, `StatCardProps`:
 
 `errorState(error: unknown): ErrorState`: The state of an error: 401 and 403 `forbidden`, 404 `not_found`, 422 `invalid`, else `error`.
 
+#### failureText
+
+`failureText(error: unknown, t: Translate): string | null`: The text of a failure for the user: `state.offline` when the backend cannot be reached (`OfflineError`), else the message of the error (of the backend: `ApiError`), none without one.
+
 #### queryState
 
 `queryState(query: { status: 'pending' | 'error' | 'success'; error: unknown; }, empty?: boolean): ViewState`: The state of a query of the hooks: `loading` until it has data, the state of its error, `empty` when the caller says so, else `loaded`.
@@ -6834,7 +6845,7 @@ Its props, `StatePanelProps`:
 - `error?: unknown`: The error of the state: its message is shown for `error` and `invalid`.
 - `message?: ReactNode`: Replaces the default title of the state.
 - `description?: ReactNode`: Replaces the default hint of the state (the message of an error by default).
-- `onRetry?: () => void`: Shows a retry button (`action:retry`) in the `error` state.
+- `onRetry?: () => void`: Shows a retry button (`action:retry`) in the `error` state, inline too.
 - `inline?: boolean`: One line, without the frame: inside a form or a bar.
 - `skeleton?: ReactNode`: The `loading` state: the skeleton of the content (lines of text by default).
 - `children?: ReactNode`: The content of the `loaded` state.
@@ -6946,7 +6957,7 @@ Its props, `TaskProgressProps`:
 
 #### payloadErrors
 
-`payloadErrors(error: unknown, names: readonly string[], message?: (error: ErrorObject) => string): { fields: Record<string, string[]>; others: string[]; }`: The errors of a transit: those of the fields of its payload by name (`source.pointer` `/payload/<name>`, a name of `names`), and the others (its validators, a field that the dialog does not show, an error that is not of the backend), each the text that `message` gives (in the language of the interface with `useErrorMessage`).
+`payloadErrors(error: unknown, names: readonly string[], message?: (error: ErrorObject) => string): { fields: Record<string, string[]>; others: string[]; }`: The errors of a transit: those of the fields of its payload by name (`source.pointer` `/payload/<name>`, a name of `names`), and the others (its validators, a field that the dialog does not show), each the text that `message` gives (in the language of the interface with `useErrorMessage`); an error that is not of the backend is none of them: the state of the dialog says it (`failureText`).
 
 #### useRunTransit
 

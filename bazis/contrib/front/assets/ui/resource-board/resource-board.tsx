@@ -284,7 +284,7 @@ export function ResourceBoard({
           }
         >
           <FilterBar
-            key={filterKey}
+            resets={filterKey}
             path={path}
             filters={filterList}
             ready={meta.ready}
@@ -302,7 +302,6 @@ export function ResourceBoard({
             inline
             state={errorState(run.mutation.error)}
             error={run.mutation.error}
-            message={run.mutation.error.message}
           />
         </div>
       )}

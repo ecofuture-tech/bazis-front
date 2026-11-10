@@ -19,7 +19,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { ApiError } from '@/bazis/client';
+import { ApiError, OfflineError } from '@/bazis/client';
 import { errorState, queryState, StatePanel, toast, Toaster, type ViewState } from '@/bazis/ui/state-panel';
 import '@/bazis/ui/testing';
 
@@ -59,6 +59,28 @@ describe('StatePanel', () => {
     expect(screen.getByTestId('state:error').textContent).toContain('Server down');
     fireEvent.click(screen.getByTestId('action:retry'));
     expect(retry).toHaveBeenCalledOnce();
+  });
+
+  it('says that the backend cannot be reached, never the text of the browser', () => {
+    for (const inline of [false, true]) {
+      const { unmount } = render(<StatePanel inline={inline} state="error" error={new OfflineError(new TypeError('Failed to fetch'))} />);
+      const failed = screen.getByTestId('state:error');
+      expect(failed.textContent).toContain('The server cannot be reached.');
+      expect(failed.textContent).not.toContain('Failed to fetch');
+      unmount();
+    }
+  });
+
+  it('retries inline too, the focus kept by the box of the panel', () => {
+    const retry = vi.fn();
+    render(
+      <div data-bz="holder">
+        <StatePanel inline state="error" error={new ApiError(500, [])} onRetry={retry} />
+      </div>,
+    );
+    fireEvent.click(screen.getByTestId('action:retry'));
+    expect(retry).toHaveBeenCalledOnce();
+    expect(document.activeElement).toBe(screen.getByTestId('holder'));
   });
 });
 

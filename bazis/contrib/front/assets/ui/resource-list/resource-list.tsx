@@ -692,7 +692,7 @@ export function ResourceList({
           {header === null && searchField}
           {filterList.length > 0 && (
             <FilterBar
-              key={filterKey}
+              resets={filterKey}
               path={path}
               filters={filterList}
               ready={fields.ready}

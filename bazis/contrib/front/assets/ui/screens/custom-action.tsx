@@ -29,7 +29,7 @@ import type { CustomActionName } from '@/bazis/client';
 import { useLanguage } from '@/bazis/i18n';
 import { customActionAt, useAnyAction, useAnyItemAction, useListFields, useUploads, type FieldFilters } from '@/bazis/ui/resource';
 import type { BulkAction, RowAction } from '@/bazis/ui/resource-list';
-import { errorState, StatePanel, toast } from '@/bazis/ui/state-panel';
+import { errorState, failureText, StatePanel, toast } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
@@ -163,7 +163,7 @@ export function useCustomAction({
       (error: unknown) => {
         running.current.delete(key);
         // the dialog shows the errors; without one, a toast
-        if (!asks) toast({ title: label, description: error instanceof Error ? error.message : t('action.failed'), tone: 'danger' });
+        if (!asks) toast({ title: label, description: failureText(error, t) ?? t('action.failed'), tone: 'danger' });
       },
     );
   }

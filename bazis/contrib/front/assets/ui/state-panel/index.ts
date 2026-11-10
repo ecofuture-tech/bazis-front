@@ -14,6 +14,7 @@
 
 export {
   errorState,
+  failureText,
   queryState,
   SkeletonLines,
   StatePanel,

@@ -79,11 +79,21 @@ export const EVERY = '$every';
 /** The numeric types; a `Decimal` is sent as it is written, not as a float. */
 const NUMBERS = new Set(['integer', 'number', 'Decimal']);
 
-/** The types of the filter fields of the route set by name, whether they are loaded, the error of their request. */
-function useFilterTypes(path: string): { types: ReadonlyMap<string, FieldType>; pending: boolean; error: Error | null } {
+/** The types of the filter fields of the route set by name, whether they are loaded, the error of their request and its retry. */
+function useFilterTypes(path: string): {
+  types: ReadonlyMap<string, FieldType>;
+  pending: boolean;
+  error: Error | null;
+  retry: () => void;
+} {
   const query = useAnyFilterFields(path);
   const fields = query.data?.fields ?? [];
-  return { types: new Map(fields.map((it) => [it.name, it.py_type])), pending: query.isPending, error: query.error };
+  return {
+    types: new Map(fields.map((it) => [it.name, it.py_type])),
+    pending: query.isPending,
+    error: query.error,
+    retry: () => void query.refetch(),
+  };
 }
 
 function relationOf(type: FieldType | undefined): string | null {
@@ -329,11 +339,31 @@ function FilterControl({ filter, label, type, values, onChange, folded }: Filter
   );
 }
 
-/** Clears the filters of the user (`action:reset-filters`), shown while he has any. */
+/** The first control of the filters: the search, else the first control of the row of the filters. */
+const FIRST_FILTER = '[data-bz="field:$search"], [data-slot="filter-row"] :is(input, button, select):not(:disabled)';
+
+/**
+ * Clears the filters of the user (`action:reset-filters`), shown while he has any; it goes with
+ * them, the focus to the search or to the first filter of its screen.
+ */
 export function ResetFilters({ onReset }: { onReset: () => void }) {
   const { t } = useLanguage();
   return (
-    <Button type="button" variant="outline" data-bz="action:reset-filters" aria-label={t('filter.reset')} title={t('filter.reset')} onClick={onReset}>
+    <Button
+      type="button"
+      variant="outline"
+      data-bz="action:reset-filters"
+      aria-label={t('filter.reset')}
+      title={t('filter.reset')}
+      onClick={(event) => {
+        const screen = event.currentTarget.closest('section') ?? document;
+        onReset();
+        // once the filters are rendered again empty
+        requestAnimationFrame(() => {
+          screen.querySelector<HTMLElement>(FIRST_FILTER)?.focus();
+        });
+      }}
+    >
       <FunnelX aria-hidden="true" />
       {t('filter.clear')}
     </Button>
@@ -352,7 +382,11 @@ export function ResetFilters({ onReset }: { onReset: () => void }) {
  */
 export function FilterRow({ plate = true, tools, children }: { plate?: boolean; tools?: ReactNode; children: ReactNode }) {
   return (
-    <div data-plate={plate || undefined} className={cn('@container', plate && 'surface px-(--space-card) py-[calc(var(--space-card)/2)]')}>
+    <div
+      data-slot="filter-row"
+      data-plate={plate || undefined}
+      className={cn('@container', plate && 'surface px-(--space-card) py-[calc(var(--space-card)/2)]')}
+    >
       <div className="grid grid-flow-dense grid-cols-1 items-end gap-x-6 gap-y-3 @md:grid-cols-2 @3xl:flex">
         <div className="contents @3xl:flex @3xl:min-w-0 @3xl:flex-1 @3xl:flex-wrap @3xl:items-end @3xl:gap-x-6 @3xl:gap-y-3">{children}</div>
         {tools !== undefined && <div className="col-span-full flex min-w-0 flex-wrap justify-end gap-2 @md:col-span-1 @md:col-start-2 @3xl:shrink-0">{tools}</div>}
@@ -366,6 +400,8 @@ export interface FilterBarProps {
   filters: readonly ListFilter[];
   /** Whether the titles of the fields are loaded: until then, and until the types of the filters are, a skeleton. */
   ready?: boolean;
+  /** The count of the resets of the user (`ResetFilters`): at each, the filters start again empty, unfolded as they were. */
+  resets?: number;
   /** The titles of the fields. */
   title: (name: string) => string;
   /**
@@ -380,16 +416,21 @@ export interface FilterBarProps {
  * the fields that the backend does not offer the user to filter by; the state of the error
  * when the filter fields cannot be read (not every filter hidden in silence).
  */
-export function FilterBar({ path, filters: wanted, ready = true, title, onFilter }: FilterBarProps) {
+export function FilterBar({ path, filters: wanted, ready = true, resets = 0, title, onFilter }: FilterBarProps) {
   const { t } = useLanguage();
-  const { types, pending, error } = useFilterTypes(path);
+  const { types, pending, error, retry } = useFilterTypes(path);
   const [values, setValues] = useState<FilterValues>({});
+  const [cleared, setCleared] = useState(resets);
+  if (cleared !== resets) {
+    setCleared(resets);
+    setValues({});
+  }
   // on a phone the filters are folded behind their button, which counts those with a value
   const [unfolded, setUnfolded] = useState(false);
   const filters = wanted.filter((filter) => types.has(filter.field));
   const foldable = filters.length > 1;
   const count = filters.filter(({ field }) => values[field] || values[`${field}__gte`] || values[`${field}__lte`]).length;
-  if (error) return <StatePanel inline state={errorState(error)} error={error} message={t('filter.unavailable')} />;
+  if (error) return <StatePanel inline state={errorState(error)} error={error} message={t('filter.unavailable')} onRetry={retry} />;
   if (pending || !ready) {
     return (
       <>
@@ -420,7 +461,8 @@ export function FilterBar({ path, filters: wanted, ready = true, title, onFilter
       )}
       {filters.map((filter) => (
         <FilterControl
-          key={filter.field}
+          // at a reset the controls start again, without what the user typed into them
+          key={`${filter.field}:${String(resets)}`}
           folded={foldable && !unfolded}
           filter={filter}
           label={filter.label ?? title(filter.field)}

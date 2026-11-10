@@ -68,6 +68,18 @@ function fieldOf(error: ErrorObject): string | undefined {
   return FIELD_POINTER.exec(error.source?.pointer ?? '')?.[1];
 }
 
+/**
+ * The backend cannot be reached: the request failed without a response (no network, the server
+ * down), the error of `fetch` its `cause`. The screens say so in the language of the interface.
+ */
+export class OfflineError extends Error {
+  override readonly name = 'OfflineError';
+
+  constructor(cause?: unknown) {
+    super('The backend cannot be reached.', { cause });
+  }
+}
+
 /** A response with an error status: 400 (e.g. `ERR_FILTER`), 401, 403, 404, 422... */
 export class ApiError extends Error {
   override readonly name = 'ApiError';

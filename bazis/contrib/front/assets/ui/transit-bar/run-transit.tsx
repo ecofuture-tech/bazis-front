@@ -41,8 +41,9 @@ const PAYLOAD_POINTER = /^\/payload\/([^/]+)/;
 /**
  * The errors of a transit: those of the fields of its payload by name (`source.pointer`
  * `/payload/<name>`, a name of `names`), and the others (its validators, a field that the
- * dialog does not show, an error that is not of the backend), each the text that `message`
- * gives (in the language of the interface with `useErrorMessage`).
+ * dialog does not show), each the text that `message` gives (in the language of the interface
+ * with `useErrorMessage`); an error that is not of the backend is none of them: the state of the
+ * dialog says it (`failureText`).
  */
 export function payloadErrors(
   error: unknown,
@@ -51,10 +52,7 @@ export function payloadErrors(
 ): { fields: Record<string, string[]>; others: string[] } {
   const fields: Record<string, string[]> = {};
   const others: string[] = [];
-  if (!(error instanceof ApiError)) {
-    if (error instanceof Error) others.push(error.message);
-    return { fields, others };
-  }
+  if (!(error instanceof ApiError)) return { fields, others };
   for (const item of error.errors) {
     const name = PAYLOAD_POINTER.exec(item.source?.pointer ?? '')?.[1];
     const text = message(item);
@@ -196,8 +194,13 @@ function TransitForm({ path, open, mutation, run, onCancel, filters }: TransitFo
           <DialogDescription>{transit.hint ?? question ?? t('transit.fill')}</DialogDescription>
         </DialogHeader>
         {read.isLoading && <StatePanel inline state="loading" />}
-        {mutation.isError && errors.others.length > 0 && (
-          <StatePanel inline state={errorState(mutation.error)} error={mutation.error} message={errors.others.join(' ')} />
+        {mutation.isError && (errors.others.length > 0 || !(mutation.error instanceof ApiError)) && (
+          <StatePanel
+            inline
+            state={errorState(mutation.error)}
+            error={mutation.error}
+            message={errors.others.length > 0 ? errors.others.join(' ') : undefined}
+          />
         )}
         {fields.map((field) => (
           <FieldInput

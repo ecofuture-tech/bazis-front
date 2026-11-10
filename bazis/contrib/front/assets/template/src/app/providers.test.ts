@@ -17,7 +17,7 @@ import { describe, expect, it } from 'vitest';
 
 import { clearOnLanguageChange, clearOnSessionChange, createQueryClient } from '@/app/providers';
 import { login, logout, PASSWORD_LOGIN } from '@/app/session';
-import { ApiError } from '@/bazis/client';
+import { ApiError, OfflineError } from '@/bazis/client';
 import { createLanguageStore } from '@/bazis/i18n';
 import type { Api } from '@/bazis/react';
 
@@ -82,12 +82,13 @@ describe('clearOnLanguageChange', () => {
 });
 
 describe('createQueryClient', () => {
-  it('retries a failure of the server or of the network, never a refusal of the backend', () => {
+  it('retries a failure of the server or of the network once, never a refusal of the backend', () => {
     const retry = createQueryClient().getDefaultOptions().queries?.retry;
     if (typeof retry !== 'function') throw new Error('retry is a function');
     const error = (status: number) => new ApiError(status, [{ status: String(status) }]);
     expect([403, 404, 422].map((status) => retry(0, error(status)))).toEqual([false, false, false]);
-    expect([retry(0, error(500)), retry(2, new TypeError('Failed to fetch'))]).toEqual([true, true]);
-    expect(retry(3, error(503))).toBe(false);
+    expect([retry(0, error(500)), retry(0, new OfflineError())]).toEqual([true, true]);
+    // once
+    expect([retry(1, error(503)), retry(1, new OfflineError())]).toEqual([false, false]);
   });
 });

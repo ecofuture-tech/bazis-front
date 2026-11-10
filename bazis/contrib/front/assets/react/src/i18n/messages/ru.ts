@@ -216,6 +216,7 @@ export const ru: Messages = {
   'state.loading.title': 'Загрузка…',
   'state.not_found.hint': 'Возможно, запись удалена или ссылка неверна.',
   'state.not_found.title': 'Не найдено.',
+  'state.offline': 'Нет связи с сервером. Проверьте подключение и повторите попытку.',
   'state.retry': 'Повторить',
   'toast.dismiss': 'Закрыть',
   'toast.region': 'Уведомления',
