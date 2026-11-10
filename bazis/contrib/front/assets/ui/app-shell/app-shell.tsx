@@ -241,13 +241,13 @@ export function useWide(): boolean {
 /** The id of the content of the page, which the first link of the page skips to. */
 const CONTENT = 'content';
 
-/** The first link of the page for the keyboard, shown once focused: past the navigation to the content. */
+/** The first link of the page for the keyboard, shown once focused (its padding then: `sr-only` has none): past the navigation to the content. */
 function SkipLink() {
   const { t } = useLanguage();
   return (
     <a
       href={`#${CONTENT}`}
-      className="sr-only rounded-md bg-background px-3 py-2 text-sm font-medium text-foreground shadow-(--shadow-lift-2) focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus-visible:ring-focus"
+      className="sr-only rounded-md bg-background text-sm font-medium text-foreground shadow-(--shadow-lift-2) focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:px-3 focus:py-2 focus-visible:ring-focus"
     >
       {t('shell.skip')}
     </a>
