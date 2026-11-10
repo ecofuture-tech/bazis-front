@@ -73,24 +73,34 @@ export function ListCardLayout({ list, mode = THEME.composition.list_card }: Lis
     <div
       className={cn(
         'grid grid-cols-[minmax(0,1fr)] gap-(--space-section)',
-        split && open && 'xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:items-start 2xl:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]',
+        // the two areas meet at the line between them, each with the room of the edge of the page
+        // on that side: the lines of their headers run from the edge of the page to it, as one line
+        split && open && 'xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:gap-0 2xl:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]',
       )}
     >
-      <div className={cn('min-w-0', open && (split ? 'hidden xl:block xl:[--bleed:0px]' : 'hidden'))}>
+      <div className={cn('min-w-0', open && (split ? 'hidden xl:block xl:self-start xl:pr-(--space-page-x)' : 'hidden'))}>
         <BesideCard value={split && open}>{list}</BesideCard>
       </div>
       {open && (
         <div
           className={cn(
             'min-w-0',
-            split &&
-              // its header sticks at the top of its own scroll area: not lifted into the padding of the page;
-              // the area reaches into the padding of the page on its right and has room at its end, where
-              // the shadows of the lifted blocks of the card are drawn (a scroll area clips them)
-              'xl:sticky xl:top-0 xl:-mt-(--space-section) xl:-mr-(--space-page-x) xl:max-h-dvh xl:overflow-y-auto xl:border-l xl:pr-(--space-page-x) xl:pb-(--space-page-y) xl:pl-(--space-section) xl:[--bleed:0px] xl:[--screen-lift:0px]',
+            // the line between the areas as high as the window and the list: the area is as high as
+            // the window from the top of the page to its bottom (no scroll of the page of its own)
+            split && 'xl:-mt-(--space-section) xl:-mr-(--space-page-x) xl:-mb-(--space-page-y) xl:min-h-dvh xl:border-l',
           )}
         >
-          <BesideList value={split}>{card}</BesideList>
+          <div
+            className={cn(
+              split &&
+                // its header sticks at the top of its own scroll area: not lifted into the padding of the page;
+                // room at its end, where the shadows of the lifted blocks of the card are drawn (a scroll area
+                // clips them)
+                'xl:sticky xl:top-0 xl:max-h-dvh xl:overflow-y-auto xl:px-(--space-page-x) xl:pb-(--space-page-y) xl:[--screen-lift:0px]',
+            )}
+          >
+            <BesideList value={split}>{card}</BesideList>
+          </div>
         </div>
       )}
     </div>
