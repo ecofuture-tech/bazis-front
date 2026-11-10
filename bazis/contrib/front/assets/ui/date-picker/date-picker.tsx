@@ -16,19 +16,19 @@
 // the filters of the lists below it): a text in the numeric format of the language of the
 // product (`02.11.2026`, `11/02/2026`: `controls.date: localized` of the theme, the default),
 // or `<input type="date">` of the browser (`native`), marked as the input it replaces
-// (`field:<name>`, `data-input="date"`: a scenario fills either with `2026-10-07`), and a
-// button that opens the month of the date in a popover (`calendar-view.tsx`, loaded with the
-// first one opened).
+// (`field:<name>`, `data-input="date"`: a scenario fills either with `2026-10-07`), and the
+// month of the date in a popover (`calendar-view.tsx`, loaded with the first one opened), opened
+// by a click on the field, the arrow down or the icon of the calendar.
 
 import { CalendarDays } from 'lucide-react';
-import { lazy, Suspense, useState, type ComponentProps, type ReactNode } from 'react';
+import { lazy, Suspense, useId, useRef, useState, type ComponentProps, type ReactNode } from 'react';
 
 import { THEME, type Theme } from '@/bazis/generated/theme';
 import { isoDate, useLanguage } from '@/bazis/i18n';
 import { DatesProvider, type DateInputProps } from '@/bazis/ui/resource';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
@@ -91,8 +91,11 @@ export type DatePickerProps = DateInputProps & {
 /**
  * The input of a date and its calendar: a text in the numeric format of the language of the
  * product (`02.11.2026`, whatever the language of the browser), typed in that order with any
- * separator or as `YYYY-MM-DD`, or `<input type="date">` of the browser (`mode: native`); the
- * button of the calendar in the input, none when the input is read-only.
+ * separator or as `YYYY-MM-DD`, or `<input type="date">` of the browser (`mode: native`); none
+ * when the input is read-only. The calendar opens on a click on the field, the focus staying in
+ * it to type, the month following a date typed, or on the arrow down (a second one goes to the
+ * days); on a tap or the icon with the focus on its days. A day picked, Escape or Tab closes it,
+ * the focus back in the field.
  */
 export function DatePicker({
   value,
@@ -106,11 +109,28 @@ export function DatePicker({
 }: DatePickerProps) {
   const { t, language } = useLanguage();
   const [open, setOpen] = useState(false);
+  // the month shown, and whether the days take the focus when it opens
+  const [month, setMonth] = useState<Date>(() => new Date());
+  const [toDays, setToDays] = useState(false);
   // the text being typed until the input is left: the date of the field otherwise
   const [draft, setDraft] = useState<string | null>(null);
+  const field = useRef<HTMLInputElement>(null);
+  const body = useRef<HTMLDivElement>(null);
+  const days = useRef<HTMLDivElement>(null);
+  // a tap opened the calendar: its touch does not focus the field (no keyboard)
+  const tapped = useRef(false);
+  const calendar = useId();
   const native = mode === 'native';
+  const usable = !readOnly && !disabled;
   const { order, separator } = numericFormat(language);
   const letters = PLACEHOLDERS[language.split('-')[0] ?? ''] ?? PLACEHOLDERS.en;
+
+  function show(focusDays: boolean) {
+    if (!open) setMonth(dateOf(value) ?? new Date());
+    setToDays(focusDays);
+    setOpen(true);
+  }
+
   const input: ComponentProps<'input'> = native
     ? {
         type: 'date',
@@ -131,51 +151,116 @@ export function DatePicker({
           setDraft(text);
           const typed = text.trim() === '' ? '' : typedDate(text, order);
           if (typed !== null) onChange(typed);
+          const date = typed ? dateOf(typed) : undefined;
+          if (date) setMonth(date);
         },
         onBlur: (event) => {
           setDraft(null);
           onBlur?.(event);
         },
+        ...(usable && {
+          'aria-haspopup': 'dialog' as const,
+          'aria-expanded': open,
+          'aria-controls': open ? calendar : undefined,
+          'data-state': open ? 'open' : 'closed',
+          onPointerDown: (event) => {
+            if (event.pointerType !== 'touch' && event.button === 0) show(false);
+          },
+          onPointerUp: (event) => {
+            if (event.pointerType !== 'touch') return;
+            tapped.current = true;
+            show(true);
+          },
+          onTouchEnd: (event) => {
+            if (!tapped.current) return;
+            tapped.current = false;
+            event.preventDefault();
+          },
+          onKeyDown: (event) => {
+            if (event.key !== 'ArrowDown') return;
+            event.preventDefault();
+            if (!open) show(false);
+            else days.current?.querySelector<HTMLElement>('[role="grid"] button[tabindex="0"]')?.focus();
+          },
+        }),
       };
   return (
-    <div className={cn('relative flex min-w-0 items-center', className)}>
-      <Input
-        {...rest}
-        {...input}
-        data-input="date"
-        disabled={disabled}
-        readOnly={readOnly}
-        className={cn('w-full tabular-nums', !readOnly && 'pr-10', !readOnly && native && '[&::-webkit-calendar-picker-indicator]:hidden')}
-      />
-      {!readOnly && (
-        <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger asChild>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverAnchor asChild>
+        <div ref={body} className={cn('relative flex min-w-0 items-center', className)}>
+          <Input
+            {...rest}
+            {...input}
+            ref={field}
+            data-input="date"
+            disabled={disabled}
+            readOnly={readOnly}
+            className={cn('w-full tabular-nums', !readOnly && 'pr-10', !readOnly && native && '[&::-webkit-calendar-picker-indicator]:hidden')}
+          />
+          {!readOnly && (
             <Button
               type="button"
               variant="ghost"
               size="icon-sm"
+              // the field is reached by Tab, the calendar from it
+              tabIndex={native ? undefined : -1}
               disabled={disabled}
               aria-label={t('date.pick')}
               className="absolute right-0.5 text-muted-foreground"
+              onClick={() => {
+                if (open) setOpen(false);
+                else show(true);
+              }}
             >
               <CalendarDays aria-hidden="true" />
             </Button>
-          </PopoverTrigger>
-          <PopoverContent align="end" className="w-auto p-0">
-            <Suspense fallback={<Skeleton data-bz="state:loading" aria-busy="true" className="m-3 h-72 w-64" />}>
-              <CalendarView
-                value={dateOf(value)}
-                onSelect={(date) => {
-                  setDraft(null);
-                  onChange(isoDate(date));
-                  setOpen(false);
-                }}
-              />
-            </Suspense>
-          </PopoverContent>
-        </Popover>
+          )}
+        </div>
+      </PopoverAnchor>
+      {!readOnly && (
+        <PopoverContent
+          ref={days}
+          id={calendar}
+          aria-label={t('date.pick')}
+          align="end"
+          className="w-auto p-0"
+          // the days take the focus themselves (`toDays`), the field keeps it otherwise
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
+          }}
+          // back to the field when the focus was in the calendar, closed
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            if (document.activeElement === document.body) field.current?.focus();
+          }}
+          // a click on the field or its icon while it is open is not one outside
+          onInteractOutside={(event) => {
+            if (event.target instanceof Node && body.current?.contains(event.target)) event.preventDefault();
+          }}
+          onKeyDown={(event) => {
+            if (event.key !== 'Tab') return;
+            event.preventDefault();
+            setOpen(false);
+            field.current?.focus();
+          }}
+        >
+          <Suspense fallback={<Skeleton data-bz="state:loading" aria-busy="true" className="m-3 h-72 w-64" />}>
+            <CalendarView
+              value={dateOf(value)}
+              month={month}
+              onMonthChange={setMonth}
+              autoFocus={toDays}
+              onSelect={(date) => {
+                setDraft(null);
+                onChange(isoDate(date));
+                setOpen(false);
+                field.current?.focus();
+              }}
+            />
+          </Suspense>
+        </PopoverContent>
       )}
-    </div>
+    </Popover>
   );
 }
 

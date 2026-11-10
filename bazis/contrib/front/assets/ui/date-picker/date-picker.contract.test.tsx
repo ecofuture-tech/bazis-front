@@ -16,11 +16,14 @@
 // language of the product (`02.11.2026` in Russian), takes it typed so with any separator or as
 // `2026-10-07` (the scenarios fill it so), with the marks of the input it replaces
 // (`field:<name>`, `data-input="date"`), and stays `<input type="date">` with `mode: native`
-// (`controls.date` of the theme); its button opens the month of the date, whose days give the
-// date picked: every input of a date below `DatePickerProvider` (the forms, the filters of the
-// lists). Keep it passing when the component is changed.
+// (`controls.date` of the theme); a click on it or the arrow down opens the month of the date,
+// the focus staying in it to type (the month following the date typed; a second arrow down goes
+// to the days), its icon with the focus on the days, whose days give the date picked; Escape
+// closes the calendar alone, the focus back in the field: every input of a date below
+// `DatePickerProvider` (the forms, the filters of the lists). Keep it passing when the component
+// is changed.
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -120,9 +123,70 @@ describe('DatePicker', () => {
     expect(screen.queryByRole('button', { name: day(new Date(2030, 2, 10)) })).toBeNull();
   });
 
+  it('opens its calendar on a click on the field, the focus staying in it to type', async () => {
+    function Field() {
+      const [value, setValue] = useState('2030-03-04');
+      return <DatePicker data-bz="field:due" value={value} onChange={setValue} />;
+    }
+    render(
+      <LanguageProvider store={testLanguages('en')}>
+        <Field />
+      </LanguageProvider>,
+    );
+    const input = screen.getByTestId<HTMLInputElement>('field:due');
+    expect([input.getAttribute('aria-haspopup'), input.getAttribute('aria-expanded'), input.dataset.state]).toEqual(['dialog', 'false', 'closed']);
+    input.focus();
+    fireEvent.pointerDown(input, { pointerType: 'mouse', button: 0 });
+    const dialog = await screen.findByRole('dialog', { name: 'Choose a date' });
+    expect([input.getAttribute('aria-expanded'), input.dataset.state, input.getAttribute('aria-controls')]).toEqual(['true', 'open', dialog.id]);
+    await screen.findByRole('button', { name: day(new Date(2030, 2, 9)) });
+    expect(document.activeElement).toBe(input);
+    // a date typed: its month shown
+    fireEvent.change(input, { target: { value: '05/20/2031' } });
+    expect(await screen.findByRole('button', { name: day(new Date(2031, 4, 9)) })).toBeTruthy();
+    expect(document.activeElement).toBe(input);
+    // a second click on the field keeps it open
+    fireEvent.pointerDown(input, { pointerType: 'mouse', button: 0 });
+    expect(screen.getByRole('dialog')).toBe(dialog);
+    // a day picked: closed, the focus in the field
+    fireEvent.click(screen.getByRole('button', { name: day(new Date(2031, 4, 9)) }));
+    expect(input.value).toBe('05/09/2031');
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await waitFor(() => {
+      expect(document.activeElement).toBe(input);
+    });
+  });
+
+  it('opens on the arrow down, goes to the days on a second one, and closes alone on Escape', async () => {
+    render(
+      <LanguageProvider store={testLanguages('en')}>
+        <DatePicker data-bz="field:due" value="2030-03-04" onChange={vi.fn()} />
+      </LanguageProvider>,
+    );
+    const input = screen.getByTestId<HTMLInputElement>('field:due');
+    input.focus();
+    // the focus alone does not open it
+    expect(screen.queryByRole('dialog')).toBeNull();
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    const selected = await screen.findByRole('button', { name: day(new Date(2030, 2, 4)) });
+    expect(document.activeElement).toBe(input);
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(selected);
+    fireEvent.keyDown(selected, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await waitFor(() => {
+      expect(document.activeElement).toBe(input);
+    });
+  });
+
   it('has no calendar when the input is read-only', () => {
     render(<DatePicker data-bz="field:due" value="2030-03-04" readOnly onChange={vi.fn()} />);
-    expect(screen.getByTestId('field:due').hasAttribute('readonly')).toBe(true);
+    const input = screen.getByTestId('field:due');
+    expect(input.hasAttribute('readonly')).toBe(true);
     expect(screen.queryByRole('button')).toBeNull();
+    // a click on it opens nothing
+    fireEvent.pointerDown(input, { pointerType: 'mouse', button: 0 });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(input.hasAttribute('aria-haspopup')).toBe(false);
   });
 });
