@@ -1,6 +1,6 @@
 {
   "$schema": "../../../schemas/tokens.schema.json",
-  "$description": "Cool paper with a cedar green primary and a honey brand, a deep cedar sidebar in both modes with a honey mark, its gradient and glow, the current link a flat light fill with a honey bar, the glow of the paper and the shadows in the tone of a dark paper (for `surface: lifted`). The hue of the paper is far from that of the primary (275 against 165, at least 60 apart) and its chroma low (at most 0.008), so that the paper reads as white and not as a tint of the accent. The colors of the light and the dark mode.",
+  "$description": "Cool paper with a cedar green primary and a honey brand, a deep cedar sidebar in both modes with a honey mark, its gradient and glow, the current link a flat light fill with a honey bar, a faint cool glow of the paper at its top (never of the primary: a brown stain of the dark honey) and the shadows in the tone of a dark paper (for `surface: lifted`). The hue of the paper is far from that of the primary (275 against 165, at least 60 apart) and its chroma low (at most 0.008), so that the paper reads as white and not as a tint of the accent. The colors of the light and the dark mode.",
   "color": {
     "background": {"$type": "color", "$value": "oklch(0.978 0.007 275)"},
     "foreground": {"$type": "color", "$value": "oklch(0.24 0.028 265)"},
@@ -35,8 +35,8 @@
     "sidebar-ring": {"$type": "color", "$value": "oklch(0.82 0.12 80)"},
     "shade": {"$type": "color", "$value": "oklch(0.3 0.04 270)"},
     "surface-light": {"$type": "color", "$value": "oklch(1 0 0)"},
-    "glow-a": {"$type": "color", "$value": "color-mix(in srgb, var(--primary) 14%, transparent)"},
-    "glow-b": {"$type": "color", "$value": "color-mix(in srgb, oklch(0.84 0.09 230) 10%, transparent)"}
+    "glow-a": {"$type": "color", "$value": "color-mix(in srgb, oklch(0.84 0.09 230) 7%, transparent)"},
+    "glow-b": {"$type": "color", "$value": "color-mix(in srgb, oklch(0.84 0.09 230) 5%, transparent)"}
   },
   "dark": {
     "color": {
@@ -73,8 +73,8 @@
       "sidebar-ring": {"$type": "color", "$value": "oklch(0.82 0.12 80)"},
       "shade": {"$type": "color", "$value": "oklch(0.05 0.01 270)"},
       "surface-light": {"$type": "color", "$value": "oklch(0.225 0.013 270)"},
-      "glow-a": {"$type": "color", "$value": "color-mix(in srgb, var(--primary) 16%, transparent)"},
-      "glow-b": {"$type": "color", "$value": "color-mix(in srgb, oklch(0.84 0.09 230) 8%, transparent)"}
+      "glow-a": {"$type": "color", "$value": "color-mix(in srgb, oklch(0.72 0.08 230) 8%, transparent)"},
+      "glow-b": {"$type": "color", "$value": "color-mix(in srgb, oklch(0.72 0.08 230) 4%, transparent)"}
     }
   }
 }
