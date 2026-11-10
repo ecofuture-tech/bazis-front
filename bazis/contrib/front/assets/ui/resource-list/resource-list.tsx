@@ -221,7 +221,7 @@ const CLEAR_SEARCH =
 /** The colors of a highlighted row of a table, by its tone: the soft colors of the theme. */
 const ROW_TONES: Readonly<Record<Tone, string>> = {
   neutral: 'bg-neutral-soft [--row-mark:var(--color-neutral)]',
-  primary: 'bg-primary-soft [--row-mark:var(--color-tone-primary)]',
+  primary: 'bg-tone-primary-soft [--row-mark:var(--color-tone-primary)]',
   info: 'bg-info-soft [--row-mark:var(--color-info)]',
   success: 'bg-success-soft [--row-mark:var(--color-success)]',
   warning: 'bg-warning-soft [--row-mark:var(--color-warning)]',

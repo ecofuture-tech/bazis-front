@@ -252,6 +252,11 @@ TONES = {
 
 TONE_HUES = 15
 
+#: the soft colors (`bg-<name>-soft text-<name>-ink`) and the variable each derives from: those
+#: of each tone, `primary` as `tone-primary` (its own hue in a palette), and the soft primary of
+#: the interface (the toggles, today, the sorted column), which stays that of `--primary`
+SOFT = {('tone-primary' if tone == 'primary' else tone): source for tone, source in TONES.items()} | {'primary': '--primary'}
+
 #: the tints of the avatars of the initials (`bg-avatar-<n> text-avatar-<n>-fg`), the variable
 #: of each and the parts of it in its background (over the card) and in its text (over the
 #: foreground); the last one's text is the foreground at 72 % over its background. Colors of the
@@ -268,14 +273,14 @@ def avatar(source: str, background: int, text: int | None) -> tuple[str, str]:
 
 
 #: the colors that the theme derives, each with the variable it derives from (where D009 reports
-#: it): for each tone a soft background and the text on it (`bg-<tone>-soft text-<tone>-ink`),
+#: it): for each of `SOFT` a soft background and the text on it (`bg-<name>-soft text-<name>-ink`),
 #: mixed so that the text keeps its contrast in both modes; the avatars; the lines between the
 #: rows of a surface (`border-line-6`, `line-10`; the bottom of the header of a table `line-16`).
 #: They are colors of the Tailwind theme, computed where they are used (inside the sidebar from
 #: its colors)
 DERIVED_FROM = {
-    **{f'--{tone}-soft': (f'color-mix(in srgb, var({source}) 13%, var(--card))', source) for tone, source in TONES.items()},
-    **{f'--{tone}-ink': (f'color-mix(in srgb, var({source}) 72%, var(--foreground))', source) for tone, source in TONES.items()},
+    **{f'--{name}-soft': (f'color-mix(in srgb, var({source}) 13%, var(--card))', source) for name, source in SOFT.items()},
+    **{f'--{name}-ink': (f'color-mix(in srgb, var({source}) 72%, var(--foreground))', source) for name, source in SOFT.items()},
     **{
         name: (value, source)
         for number, (source, background, text) in enumerate(AVATARS)
@@ -324,7 +329,7 @@ CONTRAST: list[tuple[str, str] | tuple[str, str, float]] = [
     # the header and the cells of a table
     ('--foreground', '--card', 0.75),
     ('--foreground', '--card', 0.8),
-    *((f'--{tone}-ink', f'--{tone}-soft') for tone in TONES),
+    *((f'--{name}-ink', f'--{name}-soft') for name in SOFT),
     *((f'--avatar-{number}-fg', f'--avatar-{number}') for number in range(len(AVATARS))),
 ]
 

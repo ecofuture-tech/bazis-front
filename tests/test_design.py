@@ -656,6 +656,21 @@ def test_the_tones_of_the_statuses_differ_in_hue():
                 assert min(apart, 360 - apart) >= design.TONE_HUES, (palette, dark, first, second)
 
 
+def test_the_soft_primary_of_the_interface_is_not_that_of_the_tone():
+    # a palette that gives the tone `primary` its own hue (forest, slate, the dark frost and pine)
+    # colors only the statuses with it: the toggles, today and the sorted column keep the primary
+    mapping = root_block(theme.render(Specs())[theme.THEME_CSS], '@theme inline')
+    assert mapping['--color-primary-soft'] == 'color-mix(in srgb, var(--primary) 13%, var(--card))'
+    assert mapping['--color-primary-ink'] == 'color-mix(in srgb, var(--primary) 72%, var(--foreground))'
+    assert mapping['--color-tone-primary-soft'] == 'color-mix(in srgb, var(--tone-primary) 13%, var(--card))'
+    assert mapping['--color-tone-primary-ink'] == 'color-mix(in srgb, var(--tone-primary) 72%, var(--foreground))'
+    for palette, dark in (('forest', False), ('forest', True), ('slate', False), ('slate', True), ('frost', True), ('pine', True)):
+        values = design.variables(design.effective_tokens({'preset': 'workspace', 'palette': palette}, None), dark=dark)
+        for part in ('soft', 'ink'):
+            interface, tone = (color.to_oklab(color.parse(values[name], values)) for name in (f'--primary-{part}', f'--tone-primary-{part}'))
+            assert interface != tone, (palette, dark, part)
+
+
 def test_a_token_of_the_product_is_a_variable_and_a_color():
     tokens = json.loads((SAMPLE_SPEC / 'design' / 'tokens.json').read_text(encoding='utf-8'))
     tokens['color']['brand'] = {'$type': 'color', '$value': '#123456'}

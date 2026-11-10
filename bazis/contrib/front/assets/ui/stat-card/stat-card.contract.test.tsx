@@ -209,7 +209,7 @@ describe('StatCard', () => {
     await waitFor(() => {
       expect(waiting.getAttribute('data-value')).toBe('3');
     });
-    expect(within(waiting).getByTestId('state:loaded').firstElementChild?.classList).toContain('text-primary-ink');
+    expect(within(waiting).getByTestId('state:loaded').firstElementChild?.classList).toContain('text-tone-primary-ink');
   });
 
   it('is not a button without onOpen', () => {

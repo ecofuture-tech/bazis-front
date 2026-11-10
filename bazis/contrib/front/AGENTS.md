@@ -2758,8 +2758,8 @@ read their defaults from `THEME`; pass a prop (`layout`, `mode`, `forms`,
 
 **Colors, radii and fonts only through the tokens.** Use the Tailwind classes of the
 theme: `bg-background`, `bg-card`, `text-foreground`, `text-muted-foreground`, `border`,
-`bg-primary text-primary-foreground`, `bg-primary-soft text-primary-ink` (and `success`,
-`warning`, `info`, `danger`, `neutral`), `rounded-lg`, a heading in `font-heading` or
+`bg-primary text-primary-foreground`, `bg-primary-soft text-primary-ink` (an accent of the
+interface; a status in `tone-primary`, `success`, `warning`, `info`, `danger`, `neutral`), `rounded-lg`, a heading in `font-heading` or
 `font-subheading` (not `font-display`, the family alone). Never a color of the
 Tailwind palette (`bg-blue-600`), a literal (`#3b82f6`, `oklch(...)`) or
 `style={{ color }}`: they break the brand and the dark mode. A color the product needs is a token

@@ -27,7 +27,7 @@ import { cell, opener, PageCheckbox, RowCheckbox, type BodyProps, type CardLayou
 /** The colors of a highlighted card, by its tone (without the light of the surface over them). */
 const CARD_TONES: Readonly<Record<Tone, string>> = {
   neutral: 'border-neutral bg-none bg-neutral-soft',
-  primary: 'border-tone-primary bg-none bg-primary-soft',
+  primary: 'border-tone-primary bg-none bg-tone-primary-soft',
   info: 'border-info bg-none bg-info-soft',
   success: 'border-success bg-none bg-success-soft',
   warning: 'border-warning bg-none bg-warning-soft',

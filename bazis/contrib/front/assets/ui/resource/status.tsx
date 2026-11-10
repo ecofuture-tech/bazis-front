@@ -26,7 +26,7 @@ import { statusName } from './fields.js';
 /** The soft colors of each tone that the theme derives from the tokens: a background and the text on it. */
 export const SOFT_TONES: Readonly<Record<Tone, string>> = {
   neutral: 'bg-neutral-soft text-neutral-ink',
-  primary: 'bg-primary-soft text-primary-ink',
+  primary: 'bg-tone-primary-soft text-tone-primary-ink',
   info: 'bg-info-soft text-info-ink',
   success: 'bg-success-soft text-success-ink',
   warning: 'bg-warning-soft text-warning-ink',

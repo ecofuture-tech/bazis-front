@@ -158,7 +158,7 @@ export function StatCard({
           className={cn(
             'font-heading text-3xl',
             rail && 'tabular-nums',
-            rail && (shown === 0 ? 'text-muted-foreground' : tone === 'primary' && 'text-primary-ink'),
+            rail && (shown === 0 ? 'text-muted-foreground' : tone === 'primary' && 'text-tone-primary-ink'),
           )}
         >
           {formatTile(
