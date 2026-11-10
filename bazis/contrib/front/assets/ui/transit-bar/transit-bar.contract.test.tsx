@@ -167,6 +167,17 @@ describe('TransitBar', () => {
     expect(screen.getByTestId('transit:start').getAttribute('data-variant')).toBe('outline');
   });
 
+  it('keeps its buttons on one line whatever is available: the reason of an unavailable one under all of them', async () => {
+    renderWithBazis(<TransitBar path={ITEMS as never} id={ITEM_ID} transits={[{ id: 'cancel' }, { id: 'start' }]} />, backend());
+    const main = await screen.findByTestId('transit:cancel');
+    const group = screen.getByRole('group');
+    expect([...group.children].map((it) => it.getAttribute('data-bz'))).toEqual(['transit:cancel', 'transit:start', 'transit:finish']);
+    const reason = screen.getByText('The task is paid');
+    expect(main.getAttribute('aria-describedby')).toBe(reason.id);
+    expect(group.contains(reason)).toBe(false);
+    expect(group.compareDocumentPosition(reason) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('asks to confirm a transit that the specs confirm, and runs it once confirmed', async () => {
     const server = backend().on('POST', `${ITEM}transit/`, { data: resource(ITEM_ID) });
     const onDone = vi.fn();

@@ -105,7 +105,7 @@ if (root) {
           <MemoryRouter initialEntries={[query.get('path') ?? '/items']}>
             <AppShell title="Product" navigation="sidebar" items={[{ screen: 'item-list', label: 'Items', to: '/items' }]}>
               <Path />
-              <div data-testid="tones" className="flex gap-2">
+              <div data-testid="tones" className="flex gap-2 bg-card p-2">
                 {(Object.keys(SOFT_TONES) as Tone[]).map((tone) => (
                   <Badge key={tone} variant="soft" data-tone={tone} className={SOFT_TONES[tone]}>
                     {tone}
@@ -114,6 +114,7 @@ if (root) {
                 <Button type="button" disabled data-testid="unavailable">
                   Confirm
                 </Button>
+                <span data-testid="muted" className="bg-muted" />
               </div>
               <Routes>
                 <Route path="/items" element={<ListCardLayout mode="split" list={<List />} />}>

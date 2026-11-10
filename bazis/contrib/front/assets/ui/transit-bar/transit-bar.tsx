@@ -70,49 +70,51 @@ export function TransitBar({ path, id, transits: declared = [], onDone }: Transi
   if (transits.isError) return <StatePanel inline state={errorState(transits.error)} error={transits.error} />;
   if (!transits.data.length) return null;
 
+  const ordered = inDeclaredOrder(transits.data, declared);
+  const restricted = ordered.filter((transit) => !transit.allowed);
   return (
     <div className="surface grid gap-3 px-(--space-card) py-3 text-card-foreground">
-      {/* the label on the line of the buttons, the reason of an unavailable transit under its button */}
-      <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
-        <span className="py-2 text-sm font-medium text-muted-foreground">{t('transit.next')}</span>
-        <div role="group" aria-label={t('transit.group')} className="flex flex-wrap items-start gap-2">
-          {inDeclaredOrder(transits.data, declared).map((transit, index) => {
-            const target = transitTarget(transit.resource.type, transit.id);
-            const danger = target !== null && statusTone(target) === 'danger';
-            const Icon = danger ? X : ArrowRight;
-            // the first the main button, filled (unavailable, its pale fill of the primary)
-            const main = index === 0 && !danger;
-            return (
-              <div key={transit.id} className="grid justify-items-start gap-1">
-                <Button
-                  type="button"
-                  // another unavailable transit an outline in the muted text, read in both modes
-                  variant={main ? 'default' : danger && transit.allowed ? 'destructive' : 'outline'}
-                  className={cn(!transit.allowed && !main && 'disabled:text-muted-foreground disabled:opacity-100')}
-                  data-bz={`transit:${transit.id}`}
-                  disabled={!transit.allowed || mutation.isPending}
-                  aria-describedby={transit.allowed ? undefined : `restricts-${transit.id}`}
-                  onClick={() => {
-                    start(id, transit);
-                  }}
-                >
-                  {mutation.isPending && mutation.variables.transit === transit.id ? (
-                    <LoaderCircle className="animate-spin" aria-hidden="true" />
-                  ) : (
-                    <Icon aria-hidden="true" />
-                  )}
-                  {transitName(transit.resource.type, transit.id, language)}
-                </Button>
-                {!transit.allowed && (
-                  <p id={`restricts-${transit.id}`} className="max-w-56 text-xs text-muted-foreground">
-                    {transit.restricts.map((it) => it.detail ?? it.title).join(' ')}
-                  </p>
-                )}
-              </div>
-            );
-          })}
-        </div>
+      {/* the label over the line of the buttons, the reasons of the unavailable transits a line each
+          under all of them: the buttons stay where they are whatever is available */}
+      <span className="text-sm font-medium text-muted-foreground">{t('transit.next')}</span>
+      <div role="group" aria-label={t('transit.group')} className="flex flex-wrap items-center gap-2">
+        {ordered.map((transit, index) => {
+          const target = transitTarget(transit.resource.type, transit.id);
+          const danger = target !== null && statusTone(target) === 'danger';
+          const Icon = danger ? X : ArrowRight;
+          // the first the main button, filled (unavailable, the muted fill)
+          const main = index === 0 && !danger;
+          return (
+            <Button
+              key={transit.id}
+              type="button"
+              // another unavailable transit an outline in the muted text, read in both modes
+              variant={main ? 'default' : danger && transit.allowed ? 'destructive' : 'outline'}
+              className={cn(!transit.allowed && !main && 'disabled:text-muted-foreground disabled:opacity-100')}
+              data-bz={`transit:${transit.id}`}
+              disabled={!transit.allowed || mutation.isPending}
+              aria-describedby={transit.allowed ? undefined : `restricts-${transit.id}`}
+              onClick={() => {
+                start(id, transit);
+              }}
+            >
+              {mutation.isPending && mutation.variables.transit === transit.id ? (
+                <LoaderCircle className="animate-spin" aria-hidden="true" />
+              ) : (
+                <Icon aria-hidden="true" />
+              )}
+              {transitName(transit.resource.type, transit.id, language)}
+            </Button>
+          );
+        })}
       </div>
+      {restricted.map((transit) => (
+        // the name of the transit before its reason when another one is unavailable too
+        <p key={transit.id} id={`restricts-${transit.id}`} className="-mt-1 text-xs text-muted-foreground">
+          {restricted.length > 1 && `${transitName(transit.resource.type, transit.id, language)}: `}
+          {transit.restricts.map((it) => it.detail ?? it.title).join(' ')}
+        </p>
+      ))}
       {open === null && mutation.isError && (
         <StatePanel inline state={errorState(mutation.error)} error={mutation.error} />
       )}

@@ -578,11 +578,12 @@ for (const dark of [false, true]) {
         expect(Math.hypot(...ink.map((it, channel) => it - (other[channel] ?? 0)))).toBeGreaterThan(20);
       }
     }
-    // an unavailable primary button: a pale fill of the primary, apart from the page, its text read on it
+    // an unavailable primary button: the neutral muted fill inside the line of the borders, its text read on it
     const unavailable = '[data-testid="unavailable"]';
     const fill = await rgbOf(page, unavailable, 'background-color');
+    expect(fill).toEqual(await rgbOf(page, '[data-testid="muted"]', 'background-color'));
     expect(contrast(await rgbOf(page, unavailable, 'color'), fill)).toBeGreaterThanOrEqual(4.5);
-    expect(contrast(fill, await rgbOf(page, 'body', 'background-color'))).toBeGreaterThan(1.1);
+    expect(await page.locator(unavailable).evaluate((it) => getComputedStyle(it).boxShadow)).toMatch(/ 0px 0px 0px 1px inset$/);
   });
 }
 
