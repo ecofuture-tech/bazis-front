@@ -2854,7 +2854,7 @@ composition:
 | `shadow.xs` (the blocks and the controls by default), `-sm`, `-md` (the popovers, the dialogs), `-lg` | the shadows of Tailwind |
 | `motion.fast`, `-base`, `-slow`, `-ease` (`duration-(--motion-fast)`, `ease-standard`; `base` and `ease` are those of every `transition`) | 100ms, 150ms, 300ms and the curve of Tailwind |
 | `size.sidebar`, `size.sidebar-rail` (the sidebar expanded and as a rail), `size.content` (the widest content of a screen) | 15rem, 4.25rem, 80rem (under `navigation: topbar` that of 0.12: `calc(72rem - 2 * var(--space-page-x))`) |
-| `color.border-surface`, `-control`, `color.control`, `-hover`, `color.field-line`, `-hover`, `-focus` (the line of a field), `color.shade`, `color.surface-light`, `shadow.lift-*`, `shadow.ring-focus`, `shadow.field-focus`, `shadow.nav-active` (`surface: lifted`) | the look before them (`DEFAULTS`); line: muted text 60%, 85% |
+| `color.border-surface`, `-control`, `color.control`, `-hover`, `color.field-line`, `-hover`, `-focus` (the line of a field), `color.shade` (set by each starter palette: a dark paper of its hue), `color.surface-light`, `shadow.lift-*`, `shadow.ring-focus`, `shadow.field-focus`, `shadow.nav-active` (`surface: lifted`) | the look before them (`DEFAULTS`); line: muted text 60%, 85% |
 | `color.sidebar-to`, `-glow`, `color.glow-a`, `-b` (`frost`); `color.nav-active`, `-bar` (the current link) | not drawn; `sidebar-accent`, none |
 
 A design that names no layer (older) keeps its look: `update` and `design` add
