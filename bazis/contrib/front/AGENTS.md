@@ -4227,7 +4227,8 @@ The API of the copies that 0.14.0 changes:
   with the zeros at its end (`values`, a `where` of `open_item`, `select` or `move`, a test of
   `e2e/custom/` or of the product: `1500,00`, `19,50 ч`) no longer finds its text, so remove
   them. A sum keeps its cents unless it is whole (`250,50 ₽`, `3600 ₽`), `fraction: always`
-  all of them.
+  all of them; a sum of a currency code that `Intl` refuses now has its cents too
+  (`12.50 euro` of `12.5`).
 - Every starter palette but `frost` defines `color.shade`, a dark paper of its hue: after
   `design` the shadows of `surface: lifted` in the light mode have a light tint of the
   palette, and with the other surfaces the inner shadow of the tabs changes (it was light in
