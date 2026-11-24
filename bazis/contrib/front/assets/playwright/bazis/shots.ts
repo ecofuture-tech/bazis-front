@@ -633,8 +633,8 @@ function audit(options: CheckOptions): Found[] {
 
   /**
    * What a finger touches to use a control: its box, the `label` around it, or its
-   * `::after` positioned over a larger area (a card that its title opens, the touch area of a
-   * checkbox), whichever has the longest shortest side.
+   * `::after` or `::before` positioned over a larger area (a card that its title opens, the
+   * touch area of a checkbox), whichever has the longest shortest side.
    */
   function target(element: Element): DOMRect {
     let best = element.getBoundingClientRect();
@@ -643,8 +643,9 @@ function audit(options: CheckOptions): Found[] {
     };
     const label = element.closest('label');
     if (label !== null) larger(label.getBoundingClientRect());
-    const after = getComputedStyle(element, '::after');
-    if (after.content !== 'none' && after.position === 'absolute') {
+    for (const pseudo of ['::after', '::before']) {
+      const area = getComputedStyle(element, pseudo);
+      if (area.content === 'none' || area.position !== 'absolute') continue;
       let block: Element | null = element;
       while (block !== null && block !== document.body && getComputedStyle(block).position === 'static') block = block.parentElement;
       // its offsets are from the padding box of the block, inside its borders
@@ -652,9 +653,9 @@ function audit(options: CheckOptions): Found[] {
       const border = container.getBoundingClientRect();
       const inner = new DOMRect(border.left + container.clientLeft, border.top + container.clientTop, container.clientWidth, container.clientHeight);
       const px = (value: string) => parseFloat(value) || 0;
-      const left = inner.left + px(after.left);
-      const top = inner.top + px(after.top);
-      larger(new DOMRect(left, top, inner.right - px(after.right) - left, inner.bottom - px(after.bottom) - top));
+      const left = inner.left + px(area.left);
+      const top = inner.top + px(area.top);
+      larger(new DOMRect(left, top, inner.right - px(area.right) - left, inner.bottom - px(area.bottom) - top));
     }
     return best;
   }
