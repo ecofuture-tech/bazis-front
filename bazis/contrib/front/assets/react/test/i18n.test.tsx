@@ -221,24 +221,45 @@ describe('the formats', () => {
     expect(formatTime(moment, 'ru')).toBe('15:04');
   });
 
-  it('format a decimal of the backend, a string, exactly with its digits after the point', () => {
-    expect(formatDecimal('45000.10', 'en')).toBe('45,000.10');
-    expect(formatDecimal('45000.10', 'ru')).toMatch(/^45\s000,10$/);
+  it('format a decimal of the backend, a string, exactly with its significant digits after the point', () => {
+    expect(formatDecimal('45000.10', 'en')).toBe('45,000.1');
+    expect(formatDecimal('45000.10', 'ru')).toMatch(/^45\s000,1$/);
+    expect(formatDecimal('12.000', 'ru')).toBe('12');
+    expect(formatDecimal('19.50', 'ru')).toBe('19,5');
     expect(formatDecimal('-7', 'en')).toBe('-7');
-    expect(formatDecimal('-0.00', 'en')).toBe('0.00');
+    expect(formatDecimal('-0.00', 'en')).toBe('0');
     expect(formatDecimal('-0.4', 'en', { maximumFractionDigits: 0 })).toBe('0');
     // more digits than a double keeps
     expect(formatDecimal('12345678901234567.89', 'en')).toBe('12,345,678,901,234,567.89');
     // a sum, in the currency of the product
     expect(formatDecimal('15000.50', 'ru', { style: 'currency', currency: 'RUB' })).toMatch(/^15\s000,50\s₽$/);
     expect(formatDecimal('1500.50', 'ru', { style: 'currency', currency: 'RUB' })).toMatch(/^1500,50\s₽$/);
+    // a whole sum without its cents, else at least its cents, never rounded
+    expect(formatDecimal('3600.00', 'ru', { style: 'currency', currency: 'RUB' })).toMatch(/^3600\s₽$/);
+    expect(formatDecimal('250.5', 'ru', { style: 'currency', currency: 'RUB' })).toMatch(/^250,50\s₽$/);
+    expect(formatDecimal('12.505', 'ru', { style: 'currency', currency: 'RUB' })).toMatch(/^12,505\s₽$/);
+    // all its cents and digits with `trailingZeroDisplay: 'auto'` given (not a default of Intl here)
+    const always = { style: 'currency', currency: 'RUB', trailingZeroDisplay: 'auto' } as Intl.NumberFormatOptions;
+    expect(formatDecimal('3600.00', 'ru', always)).toMatch(/^3600,00\s₽$/);
+    expect(formatDecimal('3600', 'ru', always)).toMatch(/^3600,00\s₽$/);
+    expect(formatDecimal('3600.000', 'ru', always)).toMatch(/^3600,000\s₽$/);
+    // a code that Intl refuses (not of ISO 4217): after the number as a unit, by the rule of the sums with two cents
+    expect(formatDecimal('45000.10', 'en', { style: 'currency', currency: 'euro' })).toBe('45,000.10\u00a0euro');
+    expect(formatDecimal('45000.00', 'en', { style: 'currency', currency: 'euro' })).toBe('45,000\u00a0euro');
+    expect(formatDecimal('12.5', 'en', { style: 'currency', currency: 'euro' })).toBe('12.50\u00a0euro');
+    expect(formatDecimal(12.5, 'en', { style: 'currency', currency: 'euro' })).toBe('12.50\u00a0euro');
+    expect(formatDecimal('12.5', 'en', { style: 'currency', currency: 'euro', maximumFractionDigits: 0 })).toBe('13\u00a0euro');
+    // a number: a whole sum without its cents, else as Intl formats it
+    expect(formatDecimal(3600, 'en', { style: 'currency', currency: 'EUR' })).toBe('€3600');
+    expect(formatDecimal(12.5, 'en', { style: 'currency', currency: 'EUR' })).toBe('€12.50');
     expect(formatDecimal('15000.50', 'en', { maximumFractionDigits: 0 })).toBe('15,001');
     // only the minimum: the maximum of Intl, never below it
     expect(formatDecimal('1.5', 'en', { minimumFractionDigits: 2 })).toBe('1.50');
     expect(formatDecimal('1.23456', 'en', { minimumFractionDigits: 2 })).toBe('1.235');
     // the exponent of Python for a small value of a field with 7 decimal places or more
-    expect(formatDecimal('0E-8', 'en')).toBe('0.00000000');
-    expect(formatDecimal('1.0E-7', 'en')).toBe('0.00000010');
+    expect(formatDecimal('0E-8', 'en')).toBe('0');
+    expect(formatDecimal('1.0E-7', 'en')).toBe('0.0000001');
+    expect(formatDecimal('120E-1', 'en')).toBe('12');
     expect(formatDecimal('1.5E+4', 'ru')).toMatch(/^15\s000$/);
     expect(formatDecimal(12345.5, 'en')).toBe('12,345.5');
     expect(formatDecimal(1234.5, 'en')).toBe('1234.5');

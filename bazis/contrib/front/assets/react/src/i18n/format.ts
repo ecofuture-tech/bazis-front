@@ -63,32 +63,73 @@ export function formatNumber(value: number, language: string, options?: Intl.Num
  * A decimal as the backend writes it: digits, the digits after the point and an exponent
  * (Python writes a small one so, `0E-8`, `1.0E-7`, for a field with 7 decimal places or more).
  */
-const DECIMAL = /^[+-]?\d+(?:\.(\d+))?(?:[eE]([+-]?\d+))?$/;
+const DECIMAL = /^[+-]?(\d+)(?:\.(\d+))?(?:[eE]([+-]?\d+))?$/;
+
+/** The digits of the cents of a currency as `Intl` writes its sums (2 of RUB and EUR); none of a code that it refuses. */
+function centsOf(currency: string | undefined, language: string): number | undefined {
+  try {
+    return new Intl.NumberFormat(language, { style: 'currency', currency }).resolvedOptions().maximumFractionDigits;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * The digits after the point of a value whose options set none: of a decimal those that are
+ * significant (`12.000` → 0, `19.50` → 1), of a sum at least its cents unless it is whole
+ * (`3600.00` → 0, `250.5` → 2) and those written with them when they are always shown; of a
+ * number those of `Intl` (undefined), a whole sum without its cents.
+ */
+function fractionDigits(value: number | RegExpExecArray, cents: number | undefined, always: boolean): number | undefined {
+  if (typeof value === 'number') return cents === undefined ? undefined : Number.isInteger(value) && !always ? 0 : cents;
+  const [, whole = '', point = '', exponent = '0'] = value;
+  // those written and those without the zeros at the end, shifted by the exponent
+  const written = point.length - Number(exponent);
+  const significant = (whole + point).replace(/0+$/, '');
+  const digits = /[1-9]/.test(significant) ? Math.max(0, written - (whole + point).length + significant.length) : 0;
+  if (cents === undefined) return digits;
+  if (always) return Math.max(written, cents);
+  return digits === 0 ? 0 : Math.max(digits, cents);
+}
 
 /**
  * A decimal of the backend: a `DecimalField` is a string in the API and in the contract
- * (`"45000.10"`, its exact digits), formatted exactly with the digits after the point that it
- * has (`45,000.10` in English, `45 000,10` in Russian, grouped as `formatNumber` groups, a
- * zero without a sign: `-0.00` is `0.00`) unless `options` sets them; a sum is
- * `{style: 'currency', currency: 'RUB'}` (`45 000,10 ₽`). It takes the value of a field as it
- * is (`fieldValue(row, 'total')`): a number is formatted as `formatNumber` does, no value
- * (null, undefined, '') is `—` as `FieldValue` shows it, another value its text.
+ * (`"45000.10"`, its exact digits), formatted with its significant digits after the point
+ * (`45,000.1` in English, `45 000,1` in Russian, `12.000` is `12`, grouped as `formatNumber`
+ * groups, a zero without a sign: `-0.00` is `0`), never rounded, unless `options` sets them. A
+ * sum is `{style: 'currency', currency: 'RUB'}`: a whole one without its cents (`3600 ₽`), else
+ * with at least the digits of its cents (`250,50 ₽`, `12,505 ₽`), and with all its digits and
+ * cents with `trailingZeroDisplay: 'auto'` of `Intl` given (`3600,00 ₽`); a code that `Intl`
+ * refuses (not of ISO 4217) after the number, as a unit (`45 000,10 euro`). It takes the value
+ * of a field as it is (`fieldValue(row, 'total')`): a number is formatted as `formatNumber`
+ * does (a whole sum without its cents), no value (null, undefined, '') is `—` as `FieldValue`
+ * shows it, another value its text.
  */
 export function formatDecimal(value: unknown, language: string, options?: Intl.NumberFormatOptions): string {
   if (value === null || value === undefined || value === '') return '—';
-  if (typeof value === 'number') return formatNumber(value, language, options);
-  if (typeof value !== 'string') return JSON.stringify(value);
-  const text = value.trim();
-  const match = DECIMAL.exec(text);
-  if (!match) return value;
-  // the digits after the point of the value: those written, shifted by the exponent
-  const digits = Math.min(Math.max(0, (match[1]?.length ?? 0) - Number(match[2] ?? 0)), 20);
-  const precision =
+  if (typeof value !== 'number' && typeof value !== 'string') return JSON.stringify(value);
+  const text = String(value).trim();
+  const match = typeof value === 'number' ? null : DECIMAL.exec(text);
+  if (typeof value === 'string' && !match) return value;
+  const currency = options?.style === 'currency' ? options.currency : undefined;
+  const cents = currency === undefined ? undefined : centsOf(currency, language);
+  // `trailingZeroDisplay` is of ES2023, which the lib of the template (ES2022) does not type
+  const always = (options as { trailingZeroDisplay?: string } | undefined)?.trailingZeroDisplay === 'auto';
+  const digits =
     options?.minimumFractionDigits === undefined && options?.maximumFractionDigits === undefined
-      ? { minimumFractionDigits: digits, maximumFractionDigits: digits }
-      : {};
+      ? fractionDigits(match ?? Number(text), currency === undefined ? undefined : (cents ?? 2), always)
+      : undefined;
+  const places = digits === undefined ? undefined : Math.min(digits, 20);
+  const refused = currency !== undefined && cents === undefined;
+  const format: Intl.NumberFormatOptions = {
+    ...SIGN,
+    ...options,
+    ...(places !== undefined && { minimumFractionDigits: places, maximumFractionDigits: places }),
+    ...(refused && { style: 'decimal', currency: undefined }),
+  };
   // Intl formats the string itself, its exponent too (ES2023), never rounded to a double first
-  return new Intl.NumberFormat(language, grouping(Number(text), { ...SIGN, ...precision, ...options })).format(text as unknown as number);
+  const shown = new Intl.NumberFormat(language, grouping(Number(text), format)).format(text as unknown as number);
+  return refused ? `${shown} ${currency}` : shown;
 }
 
 /**

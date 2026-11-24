@@ -180,7 +180,8 @@ the components), and `Intl` for the plural forms, the dates and the numbers.
   text shows its key. `translate(dictionaries, locale, key, params)` is the same as a
   function.
 - `formatNumber`, `formatDecimal` (a `DecimalField` of the backend, a string such as
-  `"45000.10"`, formatted exactly with its digits after the point), `formatDate` (a date of
+  `"45000.10"`, formatted with its significant digits after the point and never rounded,
+  `45,000.1`; a sum with its cents unless it is whole, `3600 ₽`, `250,50 ₽`), `formatDate` (a date of
   the backend, `2026-10-08`, is that day wherever the user is), `formatDateTime`,
   `formatTime`: `Intl` in the language of the interface.
 - The language of the profile: with `profile_language` of the capability `users` (a text

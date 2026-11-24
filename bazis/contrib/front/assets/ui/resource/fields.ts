@@ -519,19 +519,10 @@ export function formatValue(
   if (typeof value === 'boolean') return t(value ? 'value.yes' : 'value.no');
   // a sum or a quantity: a number, or a DecimalField (its exact digits)
   if (typeof display === 'object' && !('bar' in display) && (typeof value === 'number' || typeof value === 'string')) {
-    // a whole sum without its zero cents (`3600 ₽`, `15 000 ₽`), unless they are always shown, and
-    // a whole quantity without its zeros (`24 pcs` of a DecimalField `24.000`); else its digits
-    const always = 'currency' in display && display.fraction === 'always';
-    const whole = !always && /^-?\d+(\.0*)?$/.test(String(value).trim());
-    const digits = whole ? { minimumFractionDigits: 0, maximumFractionDigits: 0 } : {};
-    if (!('currency' in display)) return `${formatDecimal(value, language, digits)}\u00a0${display.unit}`;
-    let sum: string;
-    try {
-      sum = formatDecimal(value, language, { style: 'currency', currency: display.currency, ...digits });
-    } catch {
-      // a code that `Intl` refuses (not of ISO 4217): after the number, as a unit
-      sum = `${formatDecimal(value, language, whole ? digits : undefined)}\u00a0${display.currency}`;
-    }
+    // the digits of `formatDecimal`; the zero cents of a whole sum when they are always shown
+    if (!('currency' in display)) return `${formatDecimal(value, language)}\u00a0${display.unit}`;
+    const always = display.fraction === 'always' ? ({ trailingZeroDisplay: 'auto' } as Intl.NumberFormatOptions) : {};
+    const sum = formatDecimal(value, language, { style: 'currency', currency: display.currency, ...always });
     return display.per === undefined ? sum : `${sum} / ${t(display.per)}`;
   }
   if (typeof value === 'number') {

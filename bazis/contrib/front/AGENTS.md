@@ -3011,8 +3011,8 @@ your own go to `frontend/e2e/custom/` ("The tests of your own" below).
   space (the no-break spaces of the groups of digits of `Intl` too): a decimal with
   `display: {currency: RUB}` is `1500 ₽` (four digits are not grouped), `15 000 ₽`,
   `15 000,50 ₽` (`15 000` matches it, `15000` does not; `fraction: always`: `15 000,00 ₽`), one
-  without `display` its digits in the language, `1500,00` in Russian; a whole quantity of
-  `{unit: h}` `24 h` (of `24.0`); a time `08:00`. On a card in tabs,
+  without `display` its significant digits in the language, `1500` of `1500.00` in Russian; a
+  quantity of `{unit: ч}` `24 ч` (of `24.0`), `19,5 ч` (of `19.50`); a time `08:00`. On a card in tabs,
   `action`, `fill`, `expectValues` and `expectFieldReadonly` first show the tab of the mark
   they act on (the tab whose `aria-controls` is the hidden panel that has it).
 
@@ -3754,8 +3754,9 @@ its logout endpoint.
   in `contract.json` (`type: string`); a write takes a string or a number. Never compute
   with it as a float: show it with `formatDecimal`, and let the backend sum it. A count of
   pieces is an `IntegerField`; a `DecimalField` has the places of its meaning (2 for money, 1
-  for hours, not 3 for pieces: `24,000 шт.` reads as thousands). With `display: {unit}` a
-  whole quantity has no zeros (`24 шт.`), another its digits.
+  for hours, not 3 for pieces: `24,000 шт.` reads as thousands). It is shown with its
+  significant digits (`24 шт.` of `24.000`, `19,5 ч` of `19.50`), a sum with its cents unless
+  it is whole (`250,50 ₽`, `3600 ₽`).
 - The `id` of an item of a model with an integer primary key (`FileUpload`) is a JSON number
   in its documents, a string in the relationships that reference it: compare them as
   strings.
@@ -5111,7 +5112,7 @@ Its props, `SocketProviderProps`:
 
 #### formatDecimal
 
-`formatDecimal(value: unknown, language: string, options?: Intl.NumberFormatOptions): string`: A decimal of the backend: a `DecimalField` is a string in the API and in the contract (`"45000.10"`, its exact digits), formatted exactly with the digits after the point that it has (`45,000.10` in English, `45 000,10` in Russian, grouped as `formatNumber` groups, a zero without a sign: `-0.00` is `0.00`) unless `options` sets them; a sum is `{style: 'currency', currency: 'RUB'}` (`45 000,10 ₽`).
+`formatDecimal(value: unknown, language: string, options?: Intl.NumberFormatOptions): string`: A decimal of the backend: a `DecimalField` is a string in the API and in the contract (`"45000.10"`, its exact digits), formatted with its significant digits after the point (`45,000.1` in English, `45 000,1` in Russian, `12.000` is `12`, grouped as `formatNumber` groups, a zero without a sign: `-0.00` is `0`), never rounded, unless `options` sets them.
 
 #### formatNumber
 
