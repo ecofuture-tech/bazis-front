@@ -5902,7 +5902,7 @@ Its props, `NotificationCenterProps`:
 
 - `NotificationCenterProps`: the props of `NotificationCenter`, listed with it
 
-## API: the components: resource
+## API: the components: resource (dates, field-input, field-value, fields, files, points)
 
 The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
 
@@ -6243,6 +6243,24 @@ Its props, `FileViewProps`:
 - `onChange: (value: LatLng | null) => void`
 - `disabled: boolean`
 
+#### The types and the constants of `@/bazis/ui/resource`
+
+- `DateInputProps`: the props of `DateInput`, listed with it
+- `type FieldFilters = Readonly<Record<string, Filter>>`: The filters of the pickers of the relationships of a form by their fields (`filters` of the specs).
+- `FieldInputProps`: the props of `FieldInput`, listed with it
+- `FieldValueProps`: the props of `FieldValue`, listed with it
+- `ItemValueProps`: the props of `ItemValue`, listed with it
+- `type FieldDisplay = 'plain' | 'phone' | 'image' | 'avatar' | 'chips' | { currency: string; fraction?: 'auto' | 'always'; per?: string; } | { unit: string; } | { bar: number; }`: How the value of a field is shown (`display` of the field of an entity of the specs): `plain`, a number without the separators of its thousands (a code, a year); `phone`, a phone number to call; `{currency}`, a sum in the currency (ISO 4217), without zero cents unless `fraction: always`, then ` / ` and the text of `per` (`3600 ₽ / сутки`); `{unit}`, a quantity, a no-break space and its unit; `{bar}`, a number with a bar of its share of the maximum; `image`, a file as its thumbnail; `avatar`, a name after its initials; `chips`, the parts of a text (by commas) or the related items.
+- `FILE_RESOURCES: readonly string[]`: The resources of the uploaded files of the contract; none without bazis-uploadable.
+- `FileViewProps`: the props of `FileView`, listed with it
+- `POINT_FIELDS: Readonly<Record<string, readonly string[]>>`: The point fields of the contract (`format: point`) by the path of each route set of their resource.
+
+## API: the components: resource (hooks, relation, status, relation-picker)
+
+The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
+
+### `@/bazis/ui/resource`
+
 #### text
 
 `text(value: unknown): string`: A value as text: a JSON value that is not a string, a number or a boolean as JSON.
@@ -6338,15 +6356,6 @@ Its props, `RelationPickerProps`:
 
 #### The types and the constants of `@/bazis/ui/resource`
 
-- `DateInputProps`: the props of `DateInput`, listed with it
-- `type FieldFilters = Readonly<Record<string, Filter>>`: The filters of the pickers of the relationships of a form by their fields (`filters` of the specs).
-- `FieldInputProps`: the props of `FieldInput`, listed with it
-- `FieldValueProps`: the props of `FieldValue`, listed with it
-- `ItemValueProps`: the props of `ItemValue`, listed with it
-- `type FieldDisplay = 'plain' | 'phone' | 'image' | 'avatar' | 'chips' | { currency: string; fraction?: 'auto' | 'always'; per?: string; } | { unit: string; } | { bar: number; }`: How the value of a field is shown (`display` of the field of an entity of the specs): `plain`, a number without the separators of its thousands (a code, a year); `phone`, a phone number to call; `{currency}`, a sum in the currency (ISO 4217), without zero cents unless `fraction: always`, then ` / ` and the text of `per` (`3600 ₽ / сутки`); `{unit}`, a quantity, a no-break space and its unit; `{bar}`, a number with a bar of its share of the maximum; `image`, a file as its thumbnail; `avatar`, a name after its initials; `chips`, the parts of a text (by commas) or the related items.
-- `FILE_RESOURCES: readonly string[]`: The resources of the uploaded files of the contract; none without bazis-uploadable.
-- `FileViewProps`: the props of `FileView`, listed with it
-- `POINT_FIELDS: Readonly<Record<string, readonly string[]>>`: The point fields of the contract (`format: point`) by the path of each route set of their resource.
 - `ITEM_META: readonly string[]`: The meta of the retrieve of an item that its card reads (`ResourceCard`) and the transits of the card (`TransitBar`): one request for both.
 - `useAnyAction: (path: string, name: string) => ActionMutation<unknown, Readonly<Record<string, unknown>>>`: `useAction(path, name)`: a custom action of the route set (POST), `mutateAsync(body)`.
 - `useAnyActionFile: (path: string, name: string) => ActionMutation<SavedFile, Readonly<Record<string, unknown>>>`: `useActionFile(path, name)`: a custom action of the route set that answers a file, saved; resolves to its name and its meta.

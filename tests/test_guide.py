@@ -14,7 +14,7 @@
 
 """
 The layout of the guide (`bazis/contrib/front/AGENTS.md`) that bazis-mcp serves section by
-section: its handwritten sections fit in one retrieval, and the names of sections that the
+section: its sections fit in one retrieval, and the names of sections that the
 introduction and the template `AGENTS.md` refer to are its `## ` headings.
 """
 
@@ -32,8 +32,7 @@ TEMPLATE = (FRONT / 'assets' / 'template' / 'AGENTS.md').read_text(encoding='utf
 #: `GUIDE_LIMIT` of bazis-mcp (`bazis.contrib.mcp.catalog`): the most bytes of the JSON
 #: string of a section that `package_guide` returns whole; a longer one is cut into parts
 GUIDE_LIMIT = 30_000
-#: the generated end of the guide (`scripts/gen_api_reference.mjs`), cut by bazis-mcp
-#: into parts as needed
+#: the generated end of the guide (`scripts/gen_api_reference.mjs`)
 API = 'API: '
 
 
@@ -93,8 +92,8 @@ def test_narrative_section_keeps_its_budget(title):
     assert len(text) <= BUDGETS[title], f'"{title or "the introduction"}": {len(text)} characters'
 
 
-@pytest.mark.parametrize('title', HANDWRITTEN)
-def test_handwritten_section_fits_in_one_retrieval(title):
+@pytest.mark.parametrize('title', SECTIONS)
+def test_section_fits_in_one_retrieval(title):
     size = len(json.dumps(SECTIONS[title], ensure_ascii=False).encode('utf-8')) - 2
     assert size <= GUIDE_LIMIT, f'"{title}": {size} bytes of JSON, over {GUIDE_LIMIT}: split it'
 

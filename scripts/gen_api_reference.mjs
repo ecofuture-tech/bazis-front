@@ -36,6 +36,11 @@ const START = '## API: ';
  * 30,000 whole, so that one is read with one call.
  */
 const BUDGET = 24_000;
+/**
+ * The most bytes of a generated section, under the 30,000 of bazis-mcp by more than the note
+ * of the first one: a module whose section alone is over it is split by the files of its index.
+ */
+const LIMIT = 29_000;
 /** The longest type written out; a longer one ends with `…`. */
 const TYPE_MAX = 240;
 /** The directories of `assets/ui` that are no components. */
@@ -339,11 +344,14 @@ function render(checker) {
     return { line: described(name, docOf(first)) };
   }
 
+  /**
+   * The text of a module (`text`), that of some of its exports (`render(names)`), and `split()`:
+   * its exports in parts, one per file that its index re-exports (`export … from`), in the order
+   * of the index, named by the file.
+   */
   return function module(specifier, file) {
     const source = checker.getSymbolAtLocation(file);
     if (!source) throw new Error(`${file.fileName}: no module`);
-    const parts = [];
-    const lines = [];
     const exports = checker.getExportsOfModule(source).map((exported) => ({
       name: exported.name,
       symbol: exported.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(exported) : exported,
@@ -360,16 +368,50 @@ function render(checker) {
         if (props) inlined.set(props.name.text, name);
       }
     }
-    for (const { name, symbol } of exports) {
-      const found = entry(name, symbol, inlined);
-      if (!found) continue;
-      if (found.line) lines.push(`- ${found.line}\n`);
-      else parts.push(`#### ${found.heading}\n\n${found.text}`);
-    }
-    if (lines.length) {
-      parts.push(`#### The types and the constants of ${code(specifier)}\n\n${lines.join('')}`);
-    }
-    return `### ${code(specifier)}\n\n${parts.join('\n')}`;
+    const text = (names) => {
+      const parts = [];
+      const lines = [];
+      for (const { name, symbol } of exports) {
+        if (names && !names.has(name)) continue;
+        const found = entry(name, symbol, inlined);
+        if (!found) continue;
+        if (found.line) lines.push(`- ${found.line}\n`);
+        else parts.push(`#### ${found.heading}\n\n${found.text}`);
+      }
+      if (lines.length) {
+        parts.push(`#### The types and the constants of ${code(specifier)}\n\n${lines.join('')}`);
+      }
+      return `### ${code(specifier)}\n\n${parts.join('\n')}`;
+    };
+    const split = () => {
+      const files = new Map();
+      for (const statement of file.statements) {
+        const exported =
+          ts.isExportDeclaration(statement) ||
+          ts.isExportAssignment(statement) ||
+          (ts.canHaveModifiers(statement) &&
+            (ts.getModifiers(statement) ?? []).some((it) => it.kind === ts.SyntaxKind.ExportKeyword));
+        if (!exported) continue;
+        if (!ts.isExportDeclaration(statement) || !statement.moduleSpecifier) {
+          throw new Error(`${specifier} has an export without \`from\`: its exports cannot be split by file`);
+        }
+        const clause = statement.exportClause;
+        const names = !clause
+          ? checker.getExportsOfModule(checker.getSymbolAtLocation(statement.moduleSpecifier)).map((it) => it.name)
+          : ts.isNamedExports(clause)
+            ? clause.elements.map((it) => it.name.text)
+            : [clause.name.text];
+        const from = statement.moduleSpecifier.text;
+        files.set(from, [...(files.get(from) ?? []), ...names]);
+      }
+      return [...files].map(([from, names]) => ({
+        name: from.replace(/^\.\//, '').replace(/\.js$/, ''),
+        from,
+        names,
+        text: text(new Set(names)),
+      }));
+    };
+    return { text: text(), render: text, split };
   };
 }
 
@@ -395,32 +437,60 @@ function reference() {
     return module(specifier, source);
   };
 
+  // the modules of a group in sections within BUDGET, each titled with its modules; a module
+  // whose section alone is over LIMIT is split by the files that its index re-exports, in
+  // sections of its own titled with them
   const sections = [];
   for (const group of GROUPS) {
-    const rendered = group.modules.map((entry) => ({
-      name: entry[0].split('/').at(-1),
-      text: moduleOf(group.tsconfig, entry),
-    }));
-    // the modules of a group in sections within BUDGET, each titled with its modules
-    const packs = [[]];
-    for (const it of rendered) {
-      const pack = packs.at(-1);
-      if (pack.length && size(pack.concat(it).map((m) => m.text).join('\n')) > BUDGET) {
-        packs.push([it]);
-      } else {
-        pack.push(it);
+    const alone = (name) => (group.named ? `${group.title}: ${name}` : group.title);
+    const section = (title, texts) => `${START}${title}\n\n${group.intro}\n\n${texts.join('\n')}`;
+    const pack = (items) => {
+      const packs = [];
+      for (const it of items) {
+        const last = packs.at(-1);
+        if (!last || size(last.concat(it).map((m) => m.text).join('\n')) > BUDGET) packs.push([it]);
+        else last.push(it);
       }
+      return packs;
+    };
+    // the packs of the group in order: of modules (`title` null), or of the parts of a module
+    const packs = [];
+    let run = [];
+    for (const entry of group.modules) {
+      const [specifier] = entry;
+      const name = specifier.split('/').at(-1);
+      const { text, render, split } = moduleOf(group.tsconfig, entry);
+      if (size(section(alone(name), [text])) <= LIMIT) {
+        run.push({ name, text });
+        continue;
+      }
+      packs.push(...pack(run).map((it) => ({ title: null, it })));
+      run = [];
+      const parts = split();
+      for (const part of parts) {
+        if (size(section(`${alone(name)} (${part.name})`, [part.text])) > LIMIT) {
+          throw new Error(
+            `the exports of \`${part.from}\` of \`${specifier}\` are over ${LIMIT.toLocaleString('en-US')} ` +
+              'bytes: split the file',
+          );
+        }
+      }
+      // a section of parts is one text of the module: its heading and its list of the types once
+      packs.push(
+        ...pack(parts).map((it) => ({
+          title: `${alone(name)} (${it.map((m) => m.name).join(', ')})`,
+          it: [{ text: render(new Set(it.flatMap((m) => m.names))) }],
+        })),
+      );
     }
-    for (const pack of packs) {
-      const title = group.named
-        ? `${group.title}: ${pack.map((it) => it.name).join(', ')}`
-        : packs.length > 1
-          ? `${group.title}: ${pack.map((it) => it.name).join(', ')}`
-          : group.title;
-      const text = `${START}${title}\n\n${group.intro}\n\n${pack.map((it) => it.text).join('\n')}`;
-      // a module alone over BUDGET is a section of its own, served whole up to 30,000 bytes
-      if (size(text) > 30_000) {
-        throw new Error(`the section "${title}" is over 30,000 bytes: split its module`);
+    packs.push(...pack(run).map((it) => ({ title: null, it })));
+    for (const { title: given, it } of packs) {
+      const title =
+        given ??
+        (group.named || packs.length > 1 ? `${group.title}: ${it.map((m) => m.name).join(', ')}` : group.title);
+      const text = section(title, it.map((m) => m.text));
+      if (size(text) > LIMIT) {
+        throw new Error(`the section "${title}" is over ${LIMIT.toLocaleString('en-US')} bytes: split its module`);
       }
       sections.push(text);
     }
