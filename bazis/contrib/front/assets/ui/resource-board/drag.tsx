@@ -36,6 +36,14 @@ function Plain({ children }: { children: ReactNode }) {
 
 const NONE: BoardDrag = { Area: Plain, Column: Plain, Card: Plain };
 
+/**
+ * The size of a column of a board, the flex item of its row (the column, or the `Column` of
+ * the drag and drop around it) and its skeleton: the columns share the width, four beside the
+ * sidebar at 1280 px, from 14rem each (more scroll in the board, each column snapped), at
+ * most 24rem (one or two never as wide as the screen).
+ */
+export const BOARD_COLUMN = 'min-w-56 max-w-96 flex-1 basis-0 snap-start';
+
 const DragContext = createContext<BoardDrag>(NONE);
 
 /** Gives the boards below it their drag and drop (`BoardDnd` of board-dnd). */

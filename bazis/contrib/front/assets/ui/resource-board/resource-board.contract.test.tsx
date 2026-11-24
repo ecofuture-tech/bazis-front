@@ -26,7 +26,7 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { TRANSITS } from '@/bazis/generated/contract';
 import { ITEM_META, useAnyItem } from '@/bazis/ui/resource';
-import { BoardDragProvider, ResourceBoard, type BoardDrag } from '@/bazis/ui/resource-board';
+import { BOARD_COLUMN, BoardDragProvider, ResourceBoard, type BoardDrag } from '@/bazis/ui/resource-board';
 import { Backend, errors, ITEMS, listDocument, renderWithBazis, resource, runtimeSchema } from '@/bazis/ui/testing';
 
 beforeAll(() => {
@@ -126,10 +126,19 @@ function CardThenBoard({ children }: { children: ReactNode }) {
   );
 }
 
+/** Whether an element has the classes of the size of a column of a board. */
+function sizedAsAColumn(element: Element): boolean {
+  return BOARD_COLUMN.split(' ').every((it) => element.classList.contains(it));
+}
+
 describe('ResourceBoard', () => {
   it('is loading, then shows a column per status, its items, its number and more of them', async () => {
     const pending = renderWithBazis(board(), new Backend().hold('GET', ITEMS).on('GET', `${ITEMS}schema_list/`, schema));
-    expect(within(screen.getByTestId('board:item')).getByTestId('state:loading')).toBeTruthy();
+    const loading = within(screen.getByTestId('board:item')).getByTestId('state:loading');
+    // the skeleton of a column per status, of the size of a column
+    const skeletons = [...loading.querySelectorAll('[aria-hidden="true"] > *')];
+    expect(skeletons.length).toBe(2);
+    expect(skeletons.every(sizedAsAColumn)).toBe(true);
     pending.unmount();
 
     const server = backend(listDocument([task('a', 'draft', { late: true })], { count: 3 }));
@@ -137,6 +146,9 @@ describe('ResourceBoard', () => {
     const draft = await screen.findByTestId('column:draft');
     expect(draft.getAttribute('data-count')).toBe('3');
     expect(screen.getByTestId('column:done')).toBeTruthy();
+    // the columns share the width of the board, none of a fixed width
+    expect(sizedAsAColumn(draft) && sizedAsAColumn(screen.getByTestId('column:done'))).toBe(true);
+    expect(draft.className).not.toMatch(/(^|\s)(w-\d|shrink-0)/);
     const row = within(draft).getByTestId('row:a');
     expect(within(row).getByTestId('cell:title').textContent).toBe('Task a');
     expect(within(row).getByTestId('cell:count').textContent).toBe('2');
