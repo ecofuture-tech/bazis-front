@@ -23,15 +23,19 @@
 // shares over their list. Marked `chart:<id>` with the states of its lists (`state:<state>`)
 // and each value `value:<key>` with the number in `data-value`: the legend of a ring or of a
 // distribution, a list for the screen readers under bars or a line. The chart in focus of a
-// dashboard (`hero` of `TimeChart`) shows the value of the current period large over it.
+// dashboard (`hero` of `TimeChart`) shows the value of the current period large over it. Its
+// numbers are those of the field of the measure, as its `display` shows them (a sum in its
+// currency, a quantity with its unit), the shares in percent.
 
 import { lazy, Suspense, useMemo, type ReactNode } from 'react';
 
 import { aggregateGroups, Filter, type AggregatesGroup } from '@/bazis/client';
 import { THEME, type Tone } from '@/bazis/generated/theme';
-import { formatNumber, isoDate, useLanguage, weekStart } from '@/bazis/i18n';
+import { formatDecimal, formatNumber, isoDate, useLanguage, weekStart, type LanguageContextValue } from '@/bazis/i18n';
 import type { ListPath } from '@/bazis/react';
 import {
+  type FieldDisplay,
+  formatValue,
   type ListDocument,
   statusName,
   titleFromText,
@@ -69,6 +73,31 @@ function seriesColor(index: number): string {
   return `var(--chart-${String((index % SERIES) + 1)})`;
 }
 
+/** The text of a number of a chart; `scale`: of its axis. */
+export type ChartFormat = (value: number, scale?: boolean) => string;
+
+/**
+ * The text of a number of a chart as `display` of its field shows it (`formatValue`: a sum in
+ * its currency, a quantity with its unit, a number without one), on the axis without what a sum
+ * is for (`per`) and shortened from a million (`1.2M`, `€1.2M`, `1.2M h`).
+ */
+function chartFormat(context: Pick<LanguageContextValue, 'language' | 't'>, display: FieldDisplay | undefined): ChartFormat {
+  return (value, scale = false) => {
+    const sum = typeof display === 'object' && 'currency' in display ? display : undefined;
+    if (!scale) return formatValue(undefined, value, context, display);
+    if (Math.abs(value) < 1_000_000) return formatValue(undefined, value, context, sum ? { ...sum, per: undefined } : display);
+    const compact = { notation: 'compact', maximumFractionDigits: 1 } as const;
+    if (sum) return formatDecimal(value, context.language, { style: 'currency', currency: sum.currency, ...compact });
+    const number = formatNumber(value, context.language, compact);
+    return typeof display === 'object' && 'unit' in display ? `${number}\u00a0${display.unit}` : number;
+  };
+}
+
+/** The display of the field of a measure (`display` of the entity); none of a number of items. */
+function displayOf(value: ChartMeasure | undefined, display: Readonly<Record<string, FieldDisplay>>): FieldDisplay | undefined {
+  return value && display['sum' in value ? value.sum : value.avg];
+}
+
 const ChartView = lazy(() => import('./chart-view.js'));
 
 export interface ChartProps {
@@ -86,6 +115,8 @@ export interface ChartProps {
    * drawing with its change on the one before, the figures `side` beside it.
    */
   hero?: { bucket: ChartBucket; side: readonly ChartSide[] } | undefined;
+  /** How its numbers are shown (`display` of the field of the measure); plain numbers without. */
+  display?: FieldDisplay | undefined;
   /** The state of what it shows: `empty` when every value is 0. */
   state?: ViewState;
   error?: unknown;
@@ -101,11 +132,12 @@ export function Chart({
   series = kind === 'donut' || kind === 'distribution',
   periods = false,
   hero,
+  display,
   state = 'loaded',
   error,
   className,
 }: ChartProps) {
-  const { language } = useLanguage();
+  const format = chartFormat(useLanguage(), display);
   const points = values.map((it, index) => ({
     ...it,
     color: it.tone ? `var(--color-${it.tone})` : seriesColor(series ? index : 0),
@@ -129,15 +161,15 @@ export function Chart({
         skeleton={<Skeleton className="h-56 w-full" />}
       >
         {kind === 'distribution' ? (
-          <Distribution points={points} />
+          <Distribution points={points} format={format} />
         ) : (
           <div className="grid gap-4">
-            {hero && <Hero values={values} {...hero} />}
+            {hero && <Hero values={values} format={format} {...hero} />}
             <div className={cn('grid gap-4', kind === 'donut' && 'sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center')}>
               {/* the drawing is for the eyes: the values are the text below it */}
               <div aria-hidden="true" className={cn('min-w-0', hero ? 'h-72' : 'h-56')}>
                 <Suspense fallback={<Skeleton data-bz="state:loading" aria-busy="true" className="size-full" />}>
-                  <ChartView kind={kind} points={points} periods={periods} />
+                  <ChartView kind={kind} points={points} periods={periods} format={format} />
                 </Suspense>
               </div>
               <ul className={cn('grid content-start gap-2 text-sm', kind !== 'donut' && 'sr-only')}>
@@ -147,7 +179,7 @@ export function Chart({
                     <span title={it.label} className="min-w-0 flex-1 truncate">
                       {it.label}
                     </span>
-                    <span className="font-medium tabular-nums">{formatNumber(it.value, language)}</span>
+                    <span className="font-medium tabular-nums">{format(it.value)}</span>
                   </li>
                 ))}
               </ul>
@@ -163,8 +195,18 @@ export function Chart({
  * The value of the current period (the last) large, its change on the one before, and the
  * figures `side` of the periods beside it: the numbers of the values themselves, no query.
  */
-function Hero({ values, bucket, side }: { values: readonly ChartValue[]; bucket: ChartBucket; side: readonly ChartSide[] }) {
-  const { language, t } = useLanguage();
+function Hero({
+  values,
+  bucket,
+  side,
+  format,
+}: {
+  values: readonly ChartValue[];
+  bucket: ChartBucket;
+  side: readonly ChartSide[];
+  format: ChartFormat;
+}) {
+  const { t } = useLanguage();
   const numbers = values.map((it) => it.value);
   const current = numbers.at(-1) ?? 0;
   const before = numbers.at(-2);
@@ -177,7 +219,7 @@ function Hero({ values, bucket, side }: { values: readonly ChartValue[]; bucket:
     <div data-slot="chart-hero" className="flex flex-wrap items-end justify-between gap-x-7 gap-y-3">
       <p className="flex items-center gap-4">
         <span data-value={current} className="font-heading text-[3.25rem] leading-none tabular-nums">
-          {formatNumber(current, language)}
+          {format(current)}
         </span>
         <span className="grid gap-0.5 text-[0.8125rem] text-muted-foreground">
           <span className="text-sm font-medium text-foreground">{t(`chart.hero.current.${bucket}`)}</span>
@@ -185,7 +227,7 @@ function Hero({ values, bucket, side }: { values: readonly ChartValue[]; bucket:
             <span>
               {current === before
                 ? t('chart.hero.same')
-                : t(`chart.hero.delta.${bucket}`, { delta: formatNumber(current - before, language, { signDisplay: 'always' }) })}
+                : t(`chart.hero.delta.${bucket}`, { delta: `${current - before >= 0 ? '+' : ''}${format(current - before)}` })}
             </span>
           )}
         </span>
@@ -199,7 +241,7 @@ function Hero({ values, bucket, side }: { values: readonly ChartValue[]; bucket:
                 <div key={it} className="grid gap-0.5 text-right">
                   <dt className="text-xs text-muted-foreground">{t(it === 'prev' ? `chart.side.prev.${bucket}` : `chart.side.${it}`)}</dt>
                   <dd data-value={figure} className="font-heading text-[1.375rem] leading-6 text-foreground/75 tabular-nums">
-                    {formatNumber(figure, language)}
+                    {format(figure)}
                   </dd>
                 </div>
               )
@@ -212,14 +254,14 @@ function Hero({ values, bucket, side }: { values: readonly ChartValue[]; bucket:
 }
 
 /** The shares of the values: their sum large, one stacked bar of them, and their list with their shares. */
-function Distribution({ points }: { points: readonly (ChartValue & { color: string })[] }) {
+function Distribution({ points, format }: { points: readonly (ChartValue & { color: string })[]; format: ChartFormat }) {
   const { language, t } = useLanguage();
   const total = points.reduce((sum, it) => sum + it.value, 0);
   return (
     <div className="grid gap-3">
       <p data-slot="chart-total" className="flex items-center gap-3">
         <span data-value={total} className="font-heading text-4xl leading-none tabular-nums">
-          {formatNumber(total, language)}
+          {format(total)}
         </span>
         <span className="text-sm font-medium">{t('chart.total')}</span>
       </p>
@@ -243,7 +285,7 @@ function Distribution({ points }: { points: readonly (ChartValue & { color: stri
             <span title={it.label} className="truncate text-foreground/75">
               {it.label}
             </span>
-            <span className="font-semibold tabular-nums">{formatNumber(it.value, language)}</span>
+            <span className="font-semibold tabular-nums">{format(it.value)}</span>
             <span className="text-right text-xs text-muted-foreground tabular-nums">
               {formatNumber(it.value / total, language, { style: 'percent', maximumFractionDigits: 0 })}
             </span>
@@ -306,11 +348,13 @@ export interface StatusChartProps {
   statuses?: readonly string[] | undefined;
   /** What it shows of a field of the items instead of their number: `{sum: 'amount'}`. */
   value?: ChartMeasure | undefined;
+  /** How the fields are shown (`display` of the entity of the specs): that of the field of `value`. */
+  display?: Readonly<Record<string, FieldDisplay>>;
   className?: string;
 }
 
 /** The number of the items of a statusy model by status, or a measure of a field of them. */
-export function StatusChart({ id, path, label, kind = 'donut', filter, statuses, value, className }: StatusChartProps) {
+export function StatusChart({ id, path, label, kind = 'donut', filter, statuses, value, display = {}, className }: StatusChartProps) {
   const { language } = useLanguage();
   const type = typeAt(path) ?? '';
   const shown = statuses ?? workflowStatuses(type);
@@ -323,6 +367,7 @@ export function StatusChart({ id, path, label, kind = 'donut', filter, statuses,
       label={label}
       kind={kind}
       series
+      display={displayOf(value, display)}
       state={shown.length ? state : 'loaded'}
       error={error}
       className={className}
@@ -376,6 +421,8 @@ export interface TimeChartProps {
   filter?: Filter | undefined;
   /** What it shows of a field of the items instead of their number: `{sum: 'amount'}`. */
   value?: ChartMeasure | undefined;
+  /** How the fields are shown (`display` of the entity of the specs): that of the field of `value`. */
+  display?: Readonly<Record<string, FieldDisplay>>;
   /**
    * The chart in focus of a dashboard (`hero` of the specs): the value of the current period
    * large over it with its change on the one before, these figures beside it.
@@ -404,6 +451,7 @@ export function TimeChart({
   last = 12,
   filter,
   value,
+  display = {},
   hero,
   now,
   className,
@@ -434,6 +482,7 @@ export function TimeChart({
       error={error}
       className={className}
       periods
+      display={displayOf(value, display)}
       hero={hero && { bucket, side: hero }}
       values={periods.map((it, index) => ({
         key: keys[index] ?? '',

@@ -5457,6 +5457,7 @@ Its props, `ChartProps`:
 - `series?: boolean`: A color of the series per value (the statuses); one color for all by default.
 - `periods?: boolean`: The values are periods, the current one the last: the bars before it lighter.
 - `hero?: { bucket: ChartBucket; side: readonly ChartSide[]; } | undefined`: The values are periods of `bucket`: the value of the current one (the last) large over the drawing with its change on the one before, the figures `side` beside it.
+- `display?: FieldDisplay | undefined`: How its numbers are shown (`display` of the field of the measure); plain numbers without.
 - `state?: ViewState`: The state of what it shows: `empty` when every value is 0.
 - `error?: unknown`
 - `className?: string`
@@ -5475,6 +5476,7 @@ Its props, `StatusChartProps`:
 - `filter?: Filter | undefined`: The items it counts; every item that the user may view without.
 - `statuses?: readonly string[] | undefined`: The statuses it shows, in this order; all of the workflow by default.
 - `value?: ChartMeasure | undefined`: What it shows of a field of the items instead of their number: `{sum: 'amount'}`.
+- `display?: Readonly<Record<string, FieldDisplay>>`: How the fields are shown (`display` of the entity of the specs): that of the field of `value`.
 - `className?: string`
 
 #### TimeChart
@@ -5493,6 +5495,7 @@ Its props, `TimeChartProps`:
 - `last?: number`: The number of the periods, the current one the last: 12 by default.
 - `filter?: Filter | undefined`
 - `value?: ChartMeasure | undefined`: What it shows of a field of the items instead of their number: `{sum: 'amount'}`.
+- `display?: Readonly<Record<string, FieldDisplay>>`: How the fields are shown (`display` of the entity of the specs): that of the field of `value`.
 - `hero?: readonly ChartSide[] | undefined`: The chart in focus of a dashboard (`hero` of the specs): the value of the current period large over it with its change on the one before, these figures beside it.
 - `now?: Date | undefined`: The current moment (the tests); the moment of the first render by default.
 - `className?: string`

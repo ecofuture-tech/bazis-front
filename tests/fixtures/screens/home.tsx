@@ -113,6 +113,7 @@ export function HomeScreen() {
               bucket="month"
               last={6}
               value={{ sum: 'hours' }}
+              display={TASK.display}
             />
           </Viewable>
         </>

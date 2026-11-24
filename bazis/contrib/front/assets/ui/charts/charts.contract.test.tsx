@@ -26,7 +26,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { Filter } from '@/bazis/client';
 import { isoDate, LanguageProvider, weekStart } from '@/bazis/i18n';
-import { Chart, StatusChart, TimeChart } from '@/bazis/ui/charts';
+import { Chart, StatusChart, TimeChart, type ChartProps } from '@/bazis/ui/charts';
 import { Backend, errors, ITEMS, listDocument, renderWithBazis, testLanguages } from '@/bazis/ui/testing';
 
 interface Drawn {
@@ -34,6 +34,7 @@ interface Drawn {
   children?: ReactNode;
   ticks?: readonly number[];
   tickFormatter?: (value: number) => string;
+  formatter?: (value: number) => string;
   width?: number;
 }
 
@@ -65,7 +66,8 @@ vi.mock('recharts', () => {
     Bar: nothing,
     Line: nothing,
     CartesianGrid: nothing,
-    Tooltip: nothing,
+    // the text of a value in a tooltip, that of a million
+    Tooltip: ({ formatter }: Drawn) => <span data-bz="drawn:tooltip" data-label={formatter?.(1_250_000)} />,
     XAxis: nothing,
     YAxis: ({ ticks, tickFormatter, width }: Drawn) => (
       <span
@@ -174,6 +176,66 @@ describe('Chart', () => {
     render(<Chart id="zero" label="Zero" values={[{ key: 'z', label: 'Z', value: 0 }]} />);
     expect(await screen.findByTestId('state:empty')).toBeTruthy();
     expect(screen.queryByTestId('drawn:scale')).toBeNull();
+  });
+
+  it('shows its numbers as the display of their field: a sum in its currency, a quantity with its unit', async () => {
+    const values = [
+      { key: 'w1', label: 'W1', value: 1000 },
+      { key: 'w2', label: 'W2', value: 1250.5 },
+    ];
+    const shown = async (display?: ChartProps['display']) => {
+      const { unmount } = render(<Chart id="weeks" label="Weeks" periods hero={{ bucket: 'week', side: ['prev', 'peak', 'total'] }} values={values} display={display} />);
+      const chart = screen.getByTestId('chart:weeks');
+      const scale = await screen.findByTestId('drawn:scale');
+      const result = {
+        hero: chart.querySelector('[data-slot="chart-hero"] p')?.textContent,
+        figures: [...chart.querySelectorAll('dd')].map((it) => it.textContent),
+        values: [...chart.querySelectorAll('[data-bz^="value:"]')].map((it) => it.textContent),
+        scale: JSON.parse(scale.getAttribute('data-labels') ?? '[]') as string[],
+        width: Number(scale.getAttribute('data-width')),
+        tooltip: screen.getByTestId('drawn:tooltip').getAttribute('data-label'),
+      };
+      unmount();
+      return result;
+    };
+    const sum = await shown({ currency: 'EUR' });
+    // the change with its sign, then the sum as the others
+    expect(sum.hero).toBe('€1250.50This week+€250.50 on the week before');
+    expect(sum.figures).toEqual(['€1000', '€1250.50', '€2250.50']);
+    expect(sum.values).toEqual(['W1€1000', 'W2€1250.50']);
+    expect(sum.scale).toEqual(['€0', '€1250.50']);
+    // as wide as its longest label with the sign of the currency
+    expect(sum.width).toBeGreaterThanOrEqual('€1250.50'.length * 7 + 12);
+    expect(sum.tooltip).toBe('€1,250,000');
+    const hours = await shown({ unit: 'h' });
+    expect(hours.hero).toBe('1250.5\u00a0hThis week+250.5\u00a0h on the week before');
+    expect(hours.figures).toEqual(['1000\u00a0h', '1250.5\u00a0h', '2250.5\u00a0h']);
+    expect(hours.scale).toEqual(['0\u00a0h', '1250.5\u00a0h']);
+    expect(hours.width).toBeGreaterThanOrEqual('1250.5 h'.length * 7 + 12);
+    expect(hours.tooltip).toBe('1,250,000\u00a0h');
+    // without a display, plain numbers; `plain` without the separators of the thousands
+    const plain = await shown();
+    expect(plain.figures).toEqual(['1000', '1250.5', '2250.5']);
+    expect(plain.scale).toEqual(['0', '1250.5']);
+    expect(plain.tooltip).toBe('1,250,000');
+    expect((await shown('plain')).tooltip).toBe('1250000');
+    // a change below the period before with the sign of the number
+    render(<Chart id="down" label="Down" periods hero={{ bucket: 'week', side: [] }} values={[...values].reverse()} display={{ currency: 'EUR' }} />);
+    expect(screen.getByTestId('chart:down').querySelector('[data-slot="chart-hero"] p')?.textContent).toBe('€1000This week-€250.50 on the week before');
+  });
+
+  it('shortens the scale from a million, with the currency or the unit, never with what a sum is for', async () => {
+    const scale = async (value: number, display: ChartProps['display']) => {
+      const { unmount } = render(<Chart id="large" label="Large" values={[{ key: 'm', label: 'M', value }]} display={display} />);
+      const result = JSON.parse((await screen.findByTestId('drawn:scale')).getAttribute('data-labels') ?? '[]') as string[];
+      const legend = screen.getByTestId('value:m').textContent;
+      unmount();
+      return [result, legend];
+    };
+    expect(await scale(1_250_000, { currency: 'EUR' })).toEqual([['€0', '€1.3M'], 'M€1,250,000']);
+    expect(await scale(1_250_000, { unit: 'h' })).toEqual([['0\u00a0h', '1.3M\u00a0h'], 'M1,250,000\u00a0h']);
+    expect(await scale(1_250_000, { currency: 'EUR', per: 'day' })).toEqual([['€0', '€1.3M'], 'M€1,250,000 / day']);
+    expect(await scale(1200, { currency: 'EUR', per: 'day' })).toEqual([['€0', '€1200'], 'M€1200 / day']);
   });
 
   it('draws a value of a tone in the color of the tone, the others in the colors of the series', async () => {
@@ -315,6 +377,23 @@ describe('StatusChart', () => {
     });
     expect(lists(sum)[0]).toContain('aggregate=sum(hours)&group=status');
     summed.unmount();
+    // the display of the field of the measure, of no other field
+    const display = { hours: { unit: 'h' }, count: { currency: 'EUR' } } as const;
+    const shown = renderWithBazis(
+      <StatusChart id="hours" path={ITEMS as never} label="Hours" statuses={['draft']} value={{ sum: 'hours' }} display={display} />,
+      sum,
+    );
+    expect(await within(screen.getByTestId('chart:hours')).findByText('7.5 h')).toBeTruthy();
+    shown.unmount();
+    // a number of items without a unit
+    const counted = renderWithBazis(
+      <StatusChart id="count" path={ITEMS as never} label="Count" statuses={['draft']} display={display} />,
+      new Backend().on('GET', ITEMS, grouped([{ group: 'draft', values: { count: 3 } }])),
+    );
+    await waitFor(() => {
+      expect(within(screen.getByTestId('chart:count')).getByTestId('value:draft').textContent).toBe('draft3');
+    });
+    counted.unmount();
     // an average by the sum and the count of the field
     const average = new Backend().on('GET', ITEMS, grouped([{ group: 'draft', values: { 'sum(hours)': '9.00', 'count(hours)': 4 } }]));
     renderWithBazis(<StatusChart id="hours" path={ITEMS as never} label="Hours" statuses={['draft']} value={{ avg: 'hours' }} />, average);

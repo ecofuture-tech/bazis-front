@@ -489,7 +489,11 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     assert '              icon: FootprintsIcon,\n' in overview
     assert '        <TimeChart\n' in overview and 'StatusChart' not in overview
     assert "              value: { max: 'due' },\n              display: TASK.display,\n" in overview
-    assert "                  value={{ avg: 'hours' }}\n" in overview
+    # the aggregate of a field shown as the display of its entity says; a count without it,
+    # although the entity of the steps has one
+    assert "                  value={{ avg: 'hours' }}\n                  display={TASK.display}\n" in overview
+    steps_chart = overview[overview.index('id="steps-by-day"'):]
+    assert 'display' not in steps_chart[:steps_chart.index('/>')]
     assert "requires={{ path: STEP.path, can: 'add' }}" in overview
     # the last items that the user must be allowed to add, not only to view
     assert "              columns: ['title'],\n              requires: { can: 'add' },\n" in overview

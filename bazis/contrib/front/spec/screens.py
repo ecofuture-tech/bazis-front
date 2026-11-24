@@ -1029,8 +1029,9 @@ def adds(spec: dict) -> bool:
 def chart(screen: Screen, index: int, spec: dict, hero: dict | None = None) -> Jsx:
     """
     A chart of the items of an entity by its status (`StatusChart`) or by a date (`TimeChart`,
-    the chart in focus with the figures of `hero`), shown to the users who may view them, and
-    add one with `requires` (`Viewable`, as the tiles and the last items).
+    the chart in focus with the figures of `hero`), its aggregate of a field shown as the display
+    of the entity says, shown to the users who may view them, and add one with `requires`
+    (`Viewable`, as the tiles and the last items).
     """
     const = screen.entity(spec['entity'])
     attrs = [Attr('id', spec['id']), Attr('path', Raw(f'{const.code}.path'))]
@@ -1044,6 +1045,8 @@ def chart(screen: Screen, index: int, spec: dict, hero: dict | None = None) -> J
         attrs.append(Attr('last', Raw(str(spec['last']))))
     if 'value' in spec:
         attrs.append(Attr('value', aggregate_value(spec['value'])))
+        if has_display(screen.product, spec['entity']):
+            attrs.append(Attr('display', Raw(f'{const.code}.display')))
     if hero is not None:
         attrs.append(Attr('hero', Arr([Str(it) for it in hero.get('side', [])])))
     name = 'StatusChart' if by_status else 'TimeChart'
