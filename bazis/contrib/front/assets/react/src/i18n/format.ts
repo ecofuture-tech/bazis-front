@@ -129,7 +129,7 @@ export function formatDecimal(value: unknown, language: string, options?: Intl.N
   };
   // Intl formats the string itself, its exponent too (ES2023), never rounded to a double first
   const shown = new Intl.NumberFormat(language, grouping(Number(text), format)).format(text as unknown as number);
-  return refused ? `${shown} ${currency}` : shown;
+  return refused ? `${shown}\u00a0${currency}` : shown;
 }
 
 /**
