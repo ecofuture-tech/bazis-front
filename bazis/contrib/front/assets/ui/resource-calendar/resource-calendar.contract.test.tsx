@@ -366,6 +366,7 @@ describe('ResourceCalendar', () => {
   });
 
   it('narrows the items by the filters of the user, and gives the add the related item filtered by', async () => {
+    setTheme({ composition: { filters: 'plate' } });
     const onAdd = vi.fn();
     const server = new Backend()
       .on('GET', `${ITEMS}schema_list/`, schema)
@@ -384,24 +385,55 @@ describe('ResourceCalendar', () => {
     );
     const title = await screen.findByTestId<HTMLInputElement>('field:title');
     expect(screen.getByTestId('field:owner')).toBeTruthy();
-    // the filters a line, which they share at any width (never a column: `fields.spec.ts` of the playwright helpers)
-    expect(title.closest('[data-slot="filter-row"]')?.hasAttribute('data-line')).toBe(true);
-    // as wide as where the filters fold (28rem, 15rem a filter): beside the period or a line of the toolbar, never a column
-    const line = title.closest('[data-slot="filter-row"]')?.parentElement;
-    expect(line?.style.minWidth).toBe('min(100%, 28rem)');
-    expect(line?.style.maxWidth).toBe('30rem');
-    // the place of the reset is kept by the width of the line of the navigation, its container
-    const place = document.querySelector('[data-slot="reset-place"]');
-    expect(place?.closest('.\\@container')?.contains(screen.getByTestId('action:previous-period'))).toBe(true);
+    // the row of the filters of a board: on the plate of the theme, never a line, over the navigation
+    const row = title.closest('[data-slot="filter-row"]');
+    if (!(row instanceof HTMLElement)) throw new Error('No row of the filters');
+    expect(row.getAttribute('data-plate')).toBe('true');
+    expect(row.hasAttribute('data-line')).toBe(false);
+    expect(row.compareDocumentPosition(screen.getByTestId('action:previous-period')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // the reset among its tools, its place kept there while it is hidden
+    expect(row.contains(document.querySelector('[data-slot="reset-place"]'))).toBe(true);
     fireEvent.change(title, { target: { value: 'plan' } });
     await waitFor(() => {
       expect(lists(server).some((it) => it.includes('title__$search=plan') && it.includes('at__gte='))).toBe(true);
     });
-    expect(await screen.findByTestId('action:reset-filters')).toBeTruthy();
+    expect(row.contains(await screen.findByTestId('action:reset-filters'))).toBe(true);
     expect(document.querySelector('[data-slot="reset-place"]')).toBeNull();
     // a text is no value of a new item; the related item of a filter is, for a field of the form
     fireEvent.click(await screen.findByTestId('action:add'));
     expect(onAdd).toHaveBeenLastCalledWith({ at: new Date(2026, 9, 15).toISOString() });
+  });
+
+  it('puts the views and the add in one group at the end of the line of the navigation, without a row of filters when it has none', async () => {
+    const add = { id: 'add', label: 'Add', onAdd: vi.fn() };
+    const backend = (create: boolean) =>
+      new Backend().on('GET', `${ITEMS}schema_list/`, schema).on('GET', ITEMS, listDocument([], { meta: { for_create: create } }));
+    /** Whether an element is in the line of the navigation, in a group of its own after the period. */
+    const atTheEnd = (element: HTMLElement) =>
+      !element.parentElement?.contains(screen.getByTestId('action:today')) &&
+      (element.parentElement?.parentElement?.contains(screen.getByTestId('action:today')) ?? false);
+    const both = renderWithBazis(
+      <ResourceCalendar path={ITEMS as never} entity="item" field="due" views={['month', 'week']} add={add} now={now} />,
+      backend(true),
+    );
+    const button = await screen.findByTestId('action:add');
+    expect(atTheEnd(button)).toBe(true);
+    expect(button.parentElement?.contains(screen.getByTestId('view:week'))).toBe(true);
+    expect(document.querySelector('[data-slot="filter-row"]')).toBeNull();
+    both.unmount();
+    // one view: the add alone in the group
+    const one = renderWithBazis(<ResourceCalendar path={ITEMS as never} entity="item" field="due" add={add} now={now} />, backend(true));
+    expect(atTheEnd(await screen.findByTestId('action:add'))).toBe(true);
+    expect(screen.queryByTestId('view:month')).toBeNull();
+    one.unmount();
+    // the user may not create: the views alone
+    renderWithBazis(
+      <ResourceCalendar path={ITEMS as never} entity="item" field="due" views={['month', 'week']} add={add} now={now} />,
+      backend(false),
+    );
+    expect(await screen.findByTestId('state:empty')).toBeTruthy();
+    expect(screen.queryByTestId('action:add')).toBeNull();
+    expect(atTheEnd(screen.getByTestId('view:week').parentElement as HTMLElement)).toBe(true);
   });
 
   it('marks an error and a forbidden list', async () => {

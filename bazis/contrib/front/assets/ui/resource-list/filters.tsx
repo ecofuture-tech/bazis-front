@@ -192,7 +192,7 @@ export function FilterField({ label, id, kind, filled, folded = false, children,
   children: ReactNode;
 }) {
   const beside = useBesideCard();
-  // in a line (`line` of the row) of 28rem to 48rem (a calendar, a section of a card) the filters
+  // in a line (`line` of the row) of 28rem to 48rem (a list in a section of a card) the filters
   // share it, each at least 10rem (a range of dates 18rem), wrapping where it has no room: never a
   // column of filters as wide as the line; narrower, a column, as on a phone
   const wrapper = cn(
