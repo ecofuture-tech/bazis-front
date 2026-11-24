@@ -22,7 +22,7 @@ in `src/bazis/` and `e2e/bazis/` need not be read. This file only says where to 
 | In this frontend | The sections of the guide of bazis-front |
 |---|---|
 | its files and who changes them, the npm commands | The frontend |
-| `../spec/` | The specs; The specs of the screens and the design; The issues of check |
+| `../spec/` | The specs; The specs of the screens and the design; The issues of check; The issues of the screens and the design |
 | `src/screens/` (the screens generated from `../spec/` by `manage.py bazis_front screens` in `src/screens/generated/`; their extensions `<id>/extend.tsx`, `extend: true`; the custom screens, `custom`), the routes and the navigation | Writing the screens; The specs of the screens and the design; Composing beyond the specs |
 | the components in `src/bazis/ui/` | The components; the `API:` sections |
 | the data of the backend (`@/bazis/react`, `@/bazis/client`) | The hooks; The client; Protocol facts that are easy to get wrong |
@@ -30,9 +30,9 @@ in `src/bazis/` and `e2e/bazis/` need not be read. This file only says where to 
 | the socket, the live updates and the notifications | The socket |
 | the texts (`src/i18n/`), the dates and the numbers | The language |
 | the login (`src/app/session.ts`) | Logins with bazis-authing |
-| the theme (`../spec/design/`, `src/bazis/generated/fonts.css` and `theme.*`) | The design; Customizing the look |
+| the theme (`../spec/design/`, `src/bazis/generated/fonts.css` and `theme.*`) | The design |
 | `e2e/` | The end-to-end tests |
-| `manage.py bazis_front update` and its conflicts | Updating the copies |
+| `manage.py bazis_front update`, its conflicts and what a new version changes | Updating the copies; Migrating the code of the product |
 
 Never edit `src/bazis/generated/`, `src/screens/generated/`, `src/bazis/client/`,
 `src/bazis/react/`, `src/bazis/i18n/`, `e2e/bazis/`, `e2e/generated/`,

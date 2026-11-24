@@ -82,7 +82,7 @@ BUDGETS = {
     'The specs of the screens and the design': 24_000,
     'Writing the screens': 15_000,
     'The end-to-end tests': 15_000,
-    'The design': 12_000,
+    'The design': 23_000,
     'The visual check': 12_000,
 }
 
@@ -135,7 +135,12 @@ CHOICES = [
     ('Protocol facts that are easy to get wrong', 'Protocol facts that are easy to get wrong', 'A count of\n  pieces is an `IntegerField`'),
     # the database of an existing or shared product is never emptied, the demo of a new one made again
     ('The end-to-end tests', 'The end-to-end tests', 'the database of a product that exists, or shared, is\n  never emptied'),
-    ('The end-to-end tests', 'The end-to-end tests', 'Only the demo database of a new product, which the agent made itself, is made\n  again once at the end'),
+    ('The end-to-end tests', 'The end-to-end tests', 'Only the database of `.env` created in this session for the new product (by\n  `create_project`, or by you when it was missing), which holds nothing but its demo data, is\n  made again once at the end (drop, `migrate`, `e2e_data`, no test after).'),
+    ('The specs of the screens and the design', 'The specs of the screens and the design', '(`tone: status`, S071; `status` in `label` too, not the color alone)'),
+    ('The specs of the screens and the design', 'The specs of the screens and the design', '`when` is for an\naction that does not change it'),
+    # the facts that the rules of bazis-mcp leave to this guide
+    ('The specs of the screens and the design', 'The specs of the screens and the design', '`BAZIS_API_AGGREGATE_GROUPS_MAX`'),
+    ('Migrating the code of the product', 'Migrating the code of the product', 'The API of the copies that 0.10.0 changes'),
 ]
 
 
