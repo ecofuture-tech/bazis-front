@@ -301,6 +301,27 @@ def test_a_related_list_shows_the_values_as_the_list_of_its_entity(tmp_path):
     assert "columns={['title', 'dt_created']}\n                display={STEP.display}\n                icon={STEP.Icon}\n" in card
 
 
+def test_a_tab_of_related_lists_only_gives_their_route_sets(tmp_path):
+    """
+    A tab that shows related lists only gives their route sets (`paths`), by which the card
+    leaves it out for a user who may view none of them; one with sections or the history too
+    gives none, being shown whatever the lists.
+    """
+    shutil.copytree(SAMPLE_SPEC, tmp_path / 'spec')
+    card = rendered(tmp_path)[f'{screens.GENERATED_DIR}/task-card.tsx']
+    assert "            id: 'steps',\n            title: t('screens.task-card.card.tabs.steps.title'),\n            paths: [STEP.path],\n" in card
+    assert card.count('paths:') == 1
+
+    # the steps with a section, then with the history
+    for details, steps in (
+        (['main'], {'sections': ['report'], 'related': ['steps'], 'history': True}),
+        (['main', 'report'], {'related': ['steps'], 'history': True}),
+    ):
+        tabs = [{'id': 'details', 'title': 'Details', 'sections': details}, {'id': 'steps', 'title': 'Steps', **steps}]
+        edit_screen(tmp_path, 'task-card', lambda data, tabs=tabs: data['card'].update(tabs=tabs))
+        assert 'paths:' not in rendered(tmp_path)[f'{screens.GENERATED_DIR}/task-card.tsx']
+
+
 def test_the_confirmation_of_a_deletion_is_titled_by_its_title(tmp_path):
     """
     The confirmation of a deletion is titled by `title` of the action, a question, and its

@@ -816,9 +816,16 @@ def status_when(when: dict) -> Obj:
 
 
 def card_tab(screen: Screen, index: int, tab: dict, related: dict, history) -> Obj:
+    """
+    A tab of a card; one of related lists only gives their route sets (`paths`), so that it is
+    left out for a user who may view none of them.
+    """
     props = [('id', Str(tab['id'])), ('title', screen.text('card', 'tabs', index, 'title'))]
     if 'sections' in tab:
         props.append(('sections', Arr([Str(it) for it in tab['sections']])))
+    elif 'related' in tab and not tab.get('history'):
+        entities = {it['id']: it['entity'] for it in screen.data['card']['related']}
+        props.append(('paths', Arr([Raw(f'{screen.entity(entities[it]).code}.path') for it in tab['related']])))
     parts = [related[it] for it in tab.get('related', [])] + ([history] if tab.get('history') else [])
     if parts:
         props.append(('content', content(parts)))

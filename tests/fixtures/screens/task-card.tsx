@@ -81,6 +81,7 @@ export function TaskCardScreen() {
           {
             id: 'steps',
             title: t('screens.task-card.card.tabs.steps.title'),
+            paths: [STEP.path],
             content: (_, meta) => (
               <RelatedList
                 path={STEP.path}

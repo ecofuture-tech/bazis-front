@@ -32,7 +32,7 @@ export type {
 export { useCreate, useDestroy, useRefreshItem, useRelationship, useUpdate } from './mutations.js';
 export type { DestroyOptions } from './mutations.js';
 export type { QueryOptions } from './keys.js';
-export { useCan, useFilterFields, useItem, useList, useLists, useSchema } from './queries.js';
+export { useCan, useFilterFields, useItem, useList, useLists, useSchema, useViewable } from './queries.js';
 export type { Can } from './queries.js';
 export { useResourceForm } from './form.js';
 export type { FixedValues, ResourceForm } from './form.js';

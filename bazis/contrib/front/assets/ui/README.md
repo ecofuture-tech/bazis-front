@@ -310,9 +310,13 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   With `tabs` (`card.tabs` of the specs) the sections are in tabs of Radix (`tab:<id>`,
   `role="tab"` with `aria-controls`), each with its sections and its `content` (a related
   section, the history: a function of the item and its meta, as `children`), a section that
-  no tab names in the first one; `children` (the transits) stay above them. Every panel stays
-  in the page, hidden while its tab is not selected, so that a scenario finds what it acts
-  on (the helpers of the end-to-end tests select its tab first).
+  no tab names in the first one shown; `children` (the transits) stay above them. A tab of
+  lists only (`paths`: their route sets, which the generator gives a tab of related sections
+  alone) is left out, its trigger and its panel, when the user may view none of them
+  (`useViewable` of the hooks: the runtime schemas of their lists), the tabs loading until the
+  backend tells; without a tab shown, the sections that no tab names are shown alone. Every
+  panel shown stays in the page, hidden while its tab is not selected, so that a scenario
+  finds what it acts on (the helpers of the end-to-end tests select its tab first).
 - **The field permissions of bazis-permit** (`<app>.<model>.field.<operation>.<selector>…
   .<field>.<restriction>`, restrictions `enable`, `readonly`, `disable`, …) are read from
   what the backend returns, never from the roles: a field that the user may not see is left

@@ -4691,6 +4691,10 @@ Its props, `BazisProviderProps`:
 
 `useSchema<K extends ItemSchemaKind>(path: SchemaPath<K>, kind: K, id: string): UseQueryResult<JsonSchema>`
 
+#### useViewable
+
+`useViewable(paths: readonly SchemaPath<'list'>[]): readonly (boolean | undefined)[]`: Whether the backend lets the current user view the items of each route set, as `useCan(path, 'view')` tells (the queries of `useSchema`): one hook for any number of them.
+
 #### useResourceForm
 
 `useResourceForm<P extends CreatePath>(path: P, options?: { id?: undefined; fixed?: FixedValues; initial?: Readonly<Record<string, unknown>>; }): ResourceForm<CreateResponse<P>>`: A form of a resource bound to its runtime schema: `schema_create/` without an id, `schema_update/` of the item with one, so that the fields are those the current user may set.
@@ -6318,6 +6322,7 @@ Its props, `RelationPickerProps`:
 - `useAnyRelated: (path: string, id: string) => UseQueryResult<ResourceObject | null>`: `useRelatedItem(path, id)`: null when the user may not view the item.
 - `useAnyResourceForm: (path: string, options: { id?: string | undefined; fixed?: Readonly<Record<string, unknown>> | undefined; initial?: Readonly<Record<string, unknown>> | undefined; }) => ResourceForm<...>`: `useResourceForm(path, {id, fixed, initial})`: a create without an id.
 - `useAnySchema: (path: string, kind: "list" | "create" | "retrieve" | "update" | "transit", id?: string | undefined) => UseQueryResult<Readonly<Record<string, unknown>>>`: `useSchema(path, kind)` of the route set, `useSchema(path, kind, id)` of an item.
+- `useAnyViewable: (paths: readonly string[]) => readonly (boolean | undefined)[]`: `useViewable(paths)`: whether the user may view the items of each route set.
 - `SOFT_TONES: Readonly<Record<Tone, string>>`: The soft colors of each tone that the theme derives from the tokens: a background and the text on it.
 - `StatusLabelProps`: the props of `StatusLabel`, listed with it
 - `PICKER_PAGE: 20`: How many items a page of the picker reads; `Load more` reads the next one.
@@ -6478,6 +6483,7 @@ Its props, `ResourceCardProps`:
 - `id: string`
 - `title: ReactNode`
 - `sections?: readonly string[]`: The ids of the sections it shows (`sections` of the card).
+- `paths?: readonly string[]`: The route sets of the lists that are all it shows (its related lists): it is left out when the user may view none of them.
 - `content?: ReactNode | ((item: ResourceObject, meta: PermitMeta | null | undefined) => ReactNode)`: What it shows after them, given the item and its permission meta, as the children of the card.
 
 #### CardAction

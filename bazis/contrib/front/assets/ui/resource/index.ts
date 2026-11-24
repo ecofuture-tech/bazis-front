@@ -83,6 +83,7 @@ export {
   useAnyRelated,
   useAnyResourceForm,
   useAnySchema,
+  useAnyViewable,
 } from './hooks.js';
 export type { FilterFieldsDocument, ItemDocument, ListDocument, SavedDocument } from './hooks.js';
 export { RelationLabel } from './relation.js';
