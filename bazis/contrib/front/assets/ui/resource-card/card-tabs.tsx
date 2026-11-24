@@ -56,7 +56,8 @@ export interface CardTabsProps {
 
 /** The tabs of a card that the user may view, the first one shown; without any, the sections that no tab names. */
 export function CardTabs({ tabs, sections, item, meta, render }: CardTabsProps) {
-  const paths = tabs.flatMap((tab) => tab.paths ?? []);
+  // a route set once, whichever lists of the tabs show it
+  const paths = [...new Set(tabs.flatMap((tab) => tab.paths ?? []))];
   const viewable = useAnyViewable(paths);
   if (viewable.includes(undefined)) return <StatePanel state="loading" skeleton={<Skeleton className="h-40 w-full rounded-xl" />} />;
   const allowed = new Set(paths.filter((_, index) => viewable[index]));

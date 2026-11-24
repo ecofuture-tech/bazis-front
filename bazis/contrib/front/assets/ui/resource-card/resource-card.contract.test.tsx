@@ -261,6 +261,30 @@ describe('ResourceCard', () => {
       expect(screen.getAllByTestId(`list:${NOTES}`)).toHaveLength(2);
     });
 
+    it('asks once whether the user may view a route set that several lists show, in one tab or in several', async () => {
+      const warn = vi.spyOn(console, 'warn');
+      const server = viewing(viewing(backend({ crud_actions: ['view'] }), PARTS, true), NOTES, false);
+      renderWithBazis(
+        <ResourceCard
+          path={ITEMS as never}
+          id={ITEM_ID}
+          sections={tabbed}
+          tabs={[
+            { id: 'parts', title: 'Parts', paths: [PARTS, PARTS], content: <Parts path={PARTS} /> },
+            { id: 'notes', title: 'Notes', paths: [NOTES], content: <Parts path={NOTES} /> },
+            { id: 'more', title: 'More', paths: [PARTS, NOTES], content: <Parts path={PARTS} /> },
+          ]}
+        />,
+        server,
+      );
+      expect(await screen.findByTestId('tab:parts')).toBeTruthy();
+      expect(screen.getByTestId('tab:more')).toBeTruthy();
+      expect(screen.queryByTestId('tab:notes')).toBeNull();
+      expect(server.requests('GET').filter((it) => it === `GET ${PARTS}schema_list/`)).toHaveLength(1);
+      expect(warn.mock.calls.filter(([message]) => String(message).includes('Duplicate Queries'))).toEqual([]);
+      warn.mockRestore();
+    });
+
     it('shows the sections of no tab alone when it shows no tab', async () => {
       renderWithBazis(
         <ResourceCard
