@@ -83,8 +83,8 @@ export type ChartFormat = (value: number, scale?: boolean) => string;
  */
 function chartFormat(context: Pick<LanguageContextValue, 'language' | 't'>, display: FieldDisplay | undefined): ChartFormat {
   return (value, scale = false) => {
-    const sum = typeof display === 'object' && 'currency' in display ? display : undefined;
     if (!scale) return formatValue(undefined, value, context, display);
+    const sum = typeof display === 'object' && 'currency' in display ? display : undefined;
     if (Math.abs(value) < 1_000_000) return formatValue(undefined, value, context, sum ? { ...sum, per: undefined } : display);
     const compact = { notation: 'compact', maximumFractionDigits: 1 } as const;
     if (sum) return formatDecimal(value, context.language, { style: 'currency', currency: sum.currency, ...compact });
