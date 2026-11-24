@@ -25,7 +25,7 @@
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { LanguageProvider } from '@/bazis/i18n';
 import type { FormField } from '@/bazis/react';
@@ -43,6 +43,12 @@ function day(date: Date): string {
 }
 
 describe('DatePicker', () => {
+  // the calendar is a chunk loaded with the first one opened (`lazy`): loaded before the tests,
+  // so that a day is found in the time of `findByRole` however busy the machine
+  beforeAll(async () => {
+    await import('./calendar-view.js');
+  });
+
   // the input of the dates of the language, whatever `controls.date` of the product
   beforeEach(() => {
     setTheme({ controls: { date: 'localized' } });
