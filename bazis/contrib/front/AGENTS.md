@@ -3011,8 +3011,8 @@ your own go to `frontend/e2e/custom/` ("The tests of your own" below).
   space (the no-break spaces of the groups of digits of `Intl` too): a decimal with
   `display: {currency: RUB}` is `1500 ₽` (four digits are not grouped), `15 000 ₽`,
   `15 000,50 ₽` (`15 000` matches it, `15000` does not; `fraction: always`: `15 000,00 ₽`), one
-  without `display` its significant digits in the language, `1500` of `1500.00` in Russian; a
-  quantity of `{unit: ч}` `24 ч` (of `24.0`), `19,5 ч` (of `19.50`); a time `08:00`. On a card in tabs,
+  without `display` its significant digits, `1500` of `1500.00`; `{unit: ч}` `24 ч` of
+  `24.0`, `19,5 ч` of `19.50`; a time `08:00`. On a card in tabs,
   `action`, `fill`, `expectValues` and `expectFieldReadonly` first show the tab of the mark
   they act on (the tab whose `aria-controls` is the hidden panel that has it).
 
