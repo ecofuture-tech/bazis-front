@@ -181,7 +181,10 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   `aria-description`, the meaning in words. With `bulk` (`list.bulk` of the specs) the rows
   are selectable without `onSelectionChange` too, and a bar above them, while rows are
   selected, has their number, a button per action (`bulk:<id>`; with `permission`, run only
-  on the rows of the page that the meta allows) and `action:clear-selection`; an action asks
+  on the rows of the page that the meta allows: `for_change`, `for_delete`, or a transit in
+  `for_transit` of the row, which the list then asks for; with `when`, only on those in its
+  statuses; a row of another page is left to the backend, and the button is disabled while
+  none of the selected rows is left to it) and `action:clear-selection`; an action asks
   to confirm (`action:confirm-bulk`), then runs on each item in turn (`run`, a request each:
   the core has no bulk endpoint; a transit without a payload, `useItemsTransit` of
   `@/bazis/react/statusy`, or a deletion; nothing is read per row first, the backend refuses

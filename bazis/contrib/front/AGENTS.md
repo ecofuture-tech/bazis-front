@@ -6579,7 +6579,7 @@ The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The co
 - `id: string`
 - `label: ReactNode`
 - `icon?: ComponentType<{ className?: string; }>`: Its icon, such as an icon of lucide-react.
-- `permission?: 'change' | 'delete'`: What the backend must allow on a row of the page (`for_change`, `for_delete` of its meta): the others are left out.
+- `permission?: 'change' | 'delete' | { transit: string; }`: What the backend must allow on a row of the page, the others left out: its change or its delete (`for_change`, `for_delete` of the meta), or a transit (in `for_transit` of the meta for the row, which the list then asks for; all the rows without that meta).
 - `when?: StatusWhen`: The statuses that a row of the page must be in (its relationship `status`): the others are left out.
 - `variant?: 'default' | 'outline' | 'destructive'`
 - `run: (id: string) => Promise<unknown>`: Runs the action on an item, rejected when its request fails: `useItemsTransit(path)` of `@/bazis/react/statusy` (`mutateAsync({id, transit})`), `useDestroy(path)`.

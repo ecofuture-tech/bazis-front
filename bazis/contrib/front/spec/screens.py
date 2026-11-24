@@ -730,7 +730,8 @@ def bulk_action(screen: Screen, const: Raw, index: int, bulk: dict) -> Obj | Raw
             screen.code.use('@/bazis/ui/status-badge', 'transitName')
             label = Call('transitName', [Raw(f'{const.code}.type'), Str(bulk['transit']), Raw('language')])
         run = Call('transit.mutateAsync', [Obj([('id', Raw('item')), ('transit', Str(bulk['transit']))])])
-        props += [('label', label), ('run', Arrow(['item'], run))]
+        # on the rows of the page whose transits (`for_transit`) have it
+        props += [('label', label), ('permission', Obj([('transit', Str(bulk['transit']))])), ('run', Arrow(['item'], run))]
     else:
         screen.hook('destroy', f'const destroy = useDestroy({const.code}.path);', '@/bazis/react', 'useDestroy')
         props += [

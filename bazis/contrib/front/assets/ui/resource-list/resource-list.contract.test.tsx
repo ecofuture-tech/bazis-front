@@ -1130,6 +1130,73 @@ describe('ResourceList', () => {
     expect(run.mock.calls.map(([id]) => id)).toEqual(['a']);
   });
 
+  it('runs a bulk transit on the rows of the page whose transits have it, and on the rows of other pages', async () => {
+    const run = vi.fn((id: string) => Promise.resolve(id));
+    const items = [resource('a', { title: 'First' }), resource('b', { title: 'Second' }), resource('c', { title: 'Third' })];
+    const start = { id: 'start-all', label: 'Start', permission: { transit: 'start' }, run };
+    const list = (selection: readonly string[], forTransit: unknown) =>
+      renderWithBazis(
+        <ResourceList
+          path={ITEMS as never}
+          entity="item"
+          columns={['title']}
+          layout="table"
+          selection={selection}
+          onSelectionChange={vi.fn()}
+          bulk={[start]}
+        />,
+        backend(listDocument(items, { meta: { for_transit: forTransit } })),
+      );
+    // the first may start, the second only finish, the third has no transit; `z` is of another page
+    const transits = { a: ['start'], b: ['finish'] };
+    const first = list(['a', 'b', 'c', 'z'], transits);
+    await screen.findByTestId('state:loaded');
+    fireEvent.click(screen.getByTestId('bulk:start-all'));
+    fireEvent.click(screen.getByTestId('action:confirm-bulk'));
+    await waitFor(() => {
+      expect(screen.queryByTestId('action:confirm-bulk')).toBeNull();
+    });
+    expect(run.mock.calls.map(([id]) => id)).toEqual(['a', 'z']);
+    first.unmount();
+    // no target among the selected rows: the action stays, disabled
+    const none = list(['b', 'c'], transits);
+    await screen.findByTestId('state:loaded');
+    expect(screen.getByTestId('bulk:start-all').hasAttribute('disabled')).toBe(true);
+    none.unmount();
+    // without the transits of the rows (no bazis-statusy), every row: the backend refuses
+    run.mockClear();
+    list(['b', 'c'], null);
+    await screen.findByTestId('state:loaded');
+    fireEvent.click(screen.getByTestId('bulk:start-all'));
+    fireEvent.click(screen.getByTestId('action:confirm-bulk'));
+    await waitFor(() => {
+      expect(run.mock.calls.map(([id]) => id)).toEqual(['b', 'c']);
+    });
+  });
+
+  it('asks for the meta that its actions read: the custom actions of the toolbar, the transits of a bulk transit', async () => {
+    const meta = async (props: Partial<Parameters<typeof ResourceList>[0]>) => {
+      const server = backend(listDocument(rows));
+      const { unmount } = renderWithBazis(<ResourceList path={ITEMS as never} entity="item" columns={['title']} {...props} />, server);
+      await screen.findByTestId('state:loaded');
+      unmount();
+      const lists = server.requests('GET').filter((it) => it.startsWith(`GET ${ITEMS}?`));
+      return [...new Set(lists.map((it) => new URLSearchParams(it.split('?')[1]).get('meta')))];
+    };
+    const run = () => Promise.resolve();
+    const BASE = 'pagination,for_create,for_change,for_delete';
+    expect(await meta({})).toEqual([BASE]);
+    // the bulk actions of a row's change or delete and a custom one read what the list has already
+    expect(await meta({ bulk: [{ id: 'archive', label: 'Archive', permission: 'change', run }, { id: 'escalate', label: 'Escalate', run }] })).toEqual([BASE]);
+    expect(await meta({ actions: [{ id: 'count', label: 'Count', onClick: vi.fn(), permission: 'action_count' }] })).toEqual([`${BASE},custom_actions`]);
+    expect(
+      await meta({
+        actions: [{ id: 'count', label: 'Count', onClick: vi.fn(), permission: 'action_count' }],
+        bulk: [{ id: 'start-all', label: 'Start', permission: { transit: 'start' }, run }],
+      }),
+    ).toEqual([`${BASE},custom_actions,for_transit`]);
+  });
+
   it('hides the columns that the user hides, keeping their cells, but the first', async () => {
     renderWithBazis(
       <ResourceList path={ITEMS as never} entity="item" columns={['title', 'done', 'count']} layout="table" />,

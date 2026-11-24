@@ -195,8 +195,6 @@ function orderLabels(path: string): ReadonlyMap<string, string> {
 }
 
 const META = ['pagination', 'for_create', 'for_change', 'for_delete'];
-/** The meta of a list with an action of the route set: the custom actions that the user may call. */
-const CUSTOM_META = [...META, 'custom_actions'];
 const SEARCH_DELAY = 300;
 
 /**
@@ -555,7 +553,13 @@ export function ResourceList({
     ...(search ? { search } : {}),
     ...(sort.length ? { sort } : {}),
     page: { limit: pageSize, offset },
-    meta: actions.some((action) => action.permission?.startsWith('action_')) ? CUSTOM_META : META,
+    // the custom actions that the user may call with an action of the route set, the transits of
+    // each row with a bulk transit
+    meta: [
+      ...META,
+      ...(actions.some((action) => action.permission?.startsWith('action_')) ? ['custom_actions'] : []),
+      ...(bulk.some((action) => typeof action.permission === 'object') ? ['for_transit'] : []),
+    ],
   };
   const list = useAnyList(path, query);
   const document = list.data;

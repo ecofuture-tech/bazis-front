@@ -35,8 +35,12 @@ export interface BulkAction {
   label: ReactNode;
   /** Its icon, such as an icon of lucide-react. */
   icon?: ComponentType<{ className?: string }>;
-  /** What the backend must allow on a row of the page (`for_change`, `for_delete` of its meta): the others are left out. */
-  permission?: 'change' | 'delete';
+  /**
+   * What the backend must allow on a row of the page, the others left out: its change or its
+   * delete (`for_change`, `for_delete` of the meta), or a transit (in `for_transit` of the meta
+   * for the row, which the list then asks for; all the rows without that meta).
+   */
+  permission?: 'change' | 'delete' | { transit: string };
   /** The statuses that a row of the page must be in (its relationship `status`): the others are left out. */
   when?: StatusWhen;
   variant?: 'default' | 'outline' | 'destructive';
@@ -59,6 +63,13 @@ export interface BulkBarProps {
   onSelect: (ids: readonly string[]) => void;
 }
 
+/** Whether the meta of the page allows the permission of an action on a row of it. */
+function allows(meta: ListDocument['meta'], permission: BulkAction['permission'], id: string): boolean {
+  if (permission === undefined) return true;
+  if (typeof permission === 'string') return permitted(meta, permission, id);
+  return meta?.for_transit == null || (meta.for_transit[id] ?? []).includes(permission.transit);
+}
+
 /** The bar of the actions on the selected rows, with the dialog that confirms one. */
 export function BulkBar({ actions, selection, rows, meta, onSelect }: BulkBarProps) {
   const { t } = useLanguage();
@@ -71,7 +82,7 @@ export function BulkBar({ actions, selection, rows, meta, onSelect }: BulkBarPro
   const targets = (action: BulkAction) =>
     selection.filter((id) => {
       const row = page.get(id);
-      return row === undefined || ((!action.permission || permitted(meta, action.permission, id)) && shownWhen(action.when, row));
+      return row === undefined || (allows(meta, action.permission, id) && shownWhen(action.when, row));
     });
   const ids = open ? targets(open) : [];
 

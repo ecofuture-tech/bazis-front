@@ -384,7 +384,8 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     places = files[f'{screens.GENERATED_DIR}/task-places.tsx']
     assert '        {...createForm}\n' in places
     assert "        filters={[{ field: 'status', options: statusOptions(TASK.type, language) }]}\n" in places
-    assert "run: (item) => transit.mutateAsync({ id: item, transit: 'start' })," in places
+    # the bulk transit on the rows of the page whose transits have it
+    assert "            permission: { transit: 'start' },\n            run: (item) => transit.mutateAsync({ id: item, transit: 'start' }),\n" in places
     # a custom action of the rows and a custom bulk action on the drafts only (`when`)
     assert "    target: 'item',\n    confirm: true,\n    when: { status: ['draft'] },\n  });\n" in places
     assert "    target: 'item',\n    when: { status: ['draft'] },\n  });\n" in places
