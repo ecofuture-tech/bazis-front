@@ -41,11 +41,13 @@ import {
   isNumeric,
   permitted,
   resourceAt,
+  shownWhen,
   useAnyList,
   useFiles,
   useListFields,
   type FieldDisplay,
   type ResourceObject,
+  type StatusWhen,
 } from '@/bazis/ui/resource';
 import { queryState, StatePanel } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
@@ -75,12 +77,14 @@ export interface ListAction {
   icon?: ComponentType<{ className?: string }>;
 }
 
-/** An action of a row, a button `action:<id>` in it, shown when the user may do it on the item. */
+/** An action of a row, a button `action:<id>` in it, shown when the user may do it on the item, in a status of its `when`. */
 export interface RowAction {
   id: string;
   label: ReactNode;
   onClick: (id: string) => void;
   permission?: 'change' | 'delete';
+  /** Shown only while the item of the row is in one of these statuses; always without it. */
+  when?: StatusWhen;
 }
 
 export interface ResourceListProps {
@@ -624,7 +628,7 @@ export function ResourceList({
     },
     rowActions: (row) =>
       rowActions
-        .filter((action) => !action.permission || permitted(meta, action.permission, row.id))
+        .filter((action) => (!action.permission || permitted(meta, action.permission, row.id)) && shownWhen(action.when, row))
         .map((action) => (
           <Button
             key={action.id}
@@ -787,7 +791,7 @@ export function ResourceList({
         </FilterRow>
       )}
       {bulk.length > 0 && selection.length > 0 && (
-        <BulkBar actions={bulk} selection={selection} page={new Set(rows.map((it) => it.id))} meta={meta} onSelect={select} />
+        <BulkBar actions={bulk} selection={selection} rows={rows} meta={meta} onSelect={select} />
       )}
       {state === 'empty' ? (
         <EmptyState

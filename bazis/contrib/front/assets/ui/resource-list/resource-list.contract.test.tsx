@@ -173,6 +173,33 @@ describe('ResourceList', () => {
     expect(remove).toHaveBeenCalledWith('a');
   });
 
+  it('shows an action of a row with `when` only while its item is in one of its statuses, and the backend allows it', async () => {
+    const status = (id: string) => ({ status: { type: 'statusy.status', id } });
+    const items = [
+      resource('a', { title: 'First' }, status('done')),
+      resource('b', { title: 'Second' }, status('draft')),
+      resource('c', { title: 'Third' }, status('draft')),
+    ];
+    renderWithBazis(
+      <ResourceList
+        path={ITEMS as never}
+        entity="item"
+        columns={['title']}
+        layout="table"
+        rowActions={[
+          { id: 'escalate', label: 'Escalate', onClick: vi.fn(), permission: 'change', when: { status: ['draft'] } },
+          { id: 'reopen', label: 'Reopen', onClick: vi.fn(), when: { status: ['done'] } },
+        ]}
+      />,
+      // the user may change the first two
+      backend(listDocument(items, { meta: { for_change: ['a', 'b'] } })),
+    );
+    await screen.findByTestId('state:loaded');
+    const shown = (row: string) =>
+      ['escalate', 'reopen'].filter((id) => within(screen.getByTestId(`row:${row}`)).queryByTestId(`action:${id}`) !== null);
+    expect([shown('a'), shown('b'), shown('c')]).toEqual([['reopen'], ['escalate'], []]);
+  });
+
   it('does not open a row with the keyboard of its actions', async () => {
     const onOpen = vi.fn();
     renderWithBazis(
@@ -1065,6 +1092,42 @@ describe('ResourceList', () => {
     fireEvent.click(screen.getByTestId('action:clear-selection'));
     expect(screen.getByTestId('select:b').getAttribute('aria-checked')).toBe('false');
     expect(screen.queryByTestId('bulk:archive')).toBeNull();
+  });
+
+  it('runs a bulk action with `when` on the selected rows of the page in one of its statuses, as the backend allows it', async () => {
+    const run = vi.fn((id: string) => Promise.resolve(id));
+    const status = (id: string) => ({ status: { type: 'statusy.status', id } });
+    const items = [
+      resource('a', { title: 'First' }, status('draft')),
+      resource('b', { title: 'Second' }, status('done')),
+      resource('c', { title: 'Third' }, status('draft')),
+    ];
+    renderWithBazis(
+      <ResourceList
+        path={ITEMS as never}
+        entity="item"
+        columns={['title']}
+        layout="table"
+        bulk={[
+          { id: 'escalate', label: 'Escalate', permission: 'change', when: { status: ['draft'] }, run },
+          { id: 'reopen', label: 'Reopen', when: { status: ['done'] }, run },
+        ]}
+      />,
+      // the user may not change the third
+      backend(listDocument(items, { meta: { for_change: ['a', 'b'] } })),
+    );
+    await screen.findByTestId('state:loaded');
+    fireEvent.click(screen.getByTestId('select:c'));
+    // the only selected row is not a target: the action stays, disabled
+    expect(screen.getByTestId('bulk:escalate').hasAttribute('disabled')).toBe(true);
+    expect(screen.getByTestId('bulk:reopen').hasAttribute('disabled')).toBe(true);
+    fireEvent.click(screen.getByTestId('select:all'));
+    fireEvent.click(screen.getByTestId('bulk:escalate'));
+    fireEvent.click(screen.getByTestId('action:confirm-bulk'));
+    await waitFor(() => {
+      expect(screen.queryByTestId('action:confirm-bulk')).toBeNull();
+    });
+    expect(run.mock.calls.map(([id]) => id)).toEqual(['a']);
   });
 
   it('hides the columns that the user hides, keeping their cells, but the first', async () => {

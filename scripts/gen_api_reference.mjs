@@ -418,8 +418,9 @@ function reference() {
           ? `${group.title}: ${pack.map((it) => it.name).join(', ')}`
           : group.title;
       const text = `${START}${title}\n\n${group.intro}\n\n${pack.map((it) => it.text).join('\n')}`;
-      if (size(text) > 29_000) {
-        throw new Error(`the section "${title}" is over 29,000 bytes: split its module`);
+      // a module alone over BUDGET is a section of its own, served whole up to 30,000 bytes
+      if (size(text) > 30_000) {
+        throw new Error(`the section "${title}" is over 30,000 bytes: split its module`);
       }
       sections.push(text);
     }

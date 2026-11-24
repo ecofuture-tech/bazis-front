@@ -1219,6 +1219,31 @@ CASES = [
          ('P022', f'{PRODUCT}#/scenarios/17/steps/1/action')],
     ),
     (
+        'S072',
+        # (c) an action shown by the status of an item that is not of one: a create form of a list
+        {LIST: lambda d: d['actions'][0].update(when={'status': ['draft']})},
+        [('S072', f'{LIST}#/actions/0/when')],
+    ),
+    (
+        'S072',
+        # (a) the deletion of a user, shown by a status, and the users have no workflow
+        {'spec/screens/user-card.yaml': lambda d: (
+            card := user_card(d), card.update(actions=[{'id': 'delete', 'primitive': 'destroy', 'when': {'status': ['done']}}]))[0]},
+        [('S072', 'spec/screens/user-card.yaml#/actions/0/when')],
+    ),
+    (
+        'S072',
+        # (b) the deletion of a task shown in a status that is not of its workflow
+        {CARD: lambda d: d['actions'][0].update(when={'status': ['draft', 'closed']})},
+        [('S072', f'{CARD}#/actions/0/when/status/1')],
+    ),
+    (
+        'S072',
+        # a custom bulk action run on the selected rows in a status that is not of the workflow
+        {LIST: lambda d: d['list']['bulk'][1].update(when={'status': ['closed']})},
+        [('S072', f'{LIST}#/list/bulk/1/when/status/0')],
+    ),
+    (
         'S024',
         # an unknown section, a section in two tabs, the history in none
         {CARD: lambda d: [d['card']['tabs'][0]['sections'].append('extra'),
@@ -3135,6 +3160,64 @@ def test_the_tone_of_a_calendar(contract):
         'The tone `status` colors the items by their status (`statuses` of theme.yaml): give the tone a boolean '
         'field (`{field: is_overdue, tone: danger}`), or remove `tone`.',
     )
+
+
+@pytest.mark.django_db
+def test_an_action_shown_by_the_status_of_its_item(contract):
+    """
+    `when` of an action of an item (the deletion, an update form and a custom action of a card,
+    a custom action of the rows, a custom bulk action) takes the statuses of the workflow; S072
+    tells another action, an entity without a workflow and another status (its messages and
+    hints), the bulk transits and deletions have no `when` (S002), and S059 of a section keeps
+    its message and its hint.
+    """
+    root = contract.parent.parent
+    draft = {'status': ['draft']}
+    edit(root, CARD, lambda d: [d['actions'][0].update(when={'status': ['draft', 'in_progress']}),
+                                d['actions'][1].update(when=draft),
+                                d['actions'].append({'id': 'change', 'primitive': 'form', 'mode': 'update', 'when': draft})])
+    edit(root, DRAFTS, lambda d: d['actions'][0].update(when=draft))
+    edit(root, LIST, lambda d: d['list']['bulk'][1].update(when=draft))
+    assert issues(root) == []
+
+    def found(name, change):
+        edit(root, name, change)
+        (it,) = validate(root).issues
+        return it.code, it.location, it.message, it.hint
+
+    assert found(LIST, lambda d: d['actions'][0].update(when=draft)) == (
+        'S072', f'{LIST}#/actions/0/when',
+        'The action `create` is not of an item: `when` is the status of the item of a card, of a row or of a '
+        'selected row.',
+        'Remove `when`: a create form and an action of the toolbar of a list have no item. An action of an item '
+        'is one of a card, a custom action in `list.row_actions`, or a custom bulk action.',
+    )
+    edit(root, LIST, lambda d: [d['actions'][0].pop('when')])
+    assert found(CARD, lambda d: d['actions'][2].update(when={'status': ['closed']})) == (
+        'S072', f'{CARD}#/actions/2/when/status/0', 'The status `closed` is not a status of the workflow of `task`.',
+        'Use the statuses of the workflow: draft, in_progress, done.',
+    )
+    edit(root, CARD, lambda d: d['actions'][2].update(when=draft))
+    user = 'spec/screens/user-card.yaml'
+    assert found(user, lambda d: (card := user_card(d), card.update(actions=[{'id': 'delete', 'primitive': 'destroy', 'when': draft}]))[0]) == (
+        'S072', f'{user}#/actions/0/when', 'The entity `user` has no workflow.',
+        'An action is shown by the status of an item of an entity with a workflow: remove `when`.',
+    )
+    assert found(user, lambda d: [d.pop('actions'), d['card']['sections'][0].update(when=draft)]) == (
+        'S059', f'{user}#/card/sections/0/when', 'The entity `user` has no workflow.',
+        'A section is shown by the status of an item of an entity with a workflow: remove `when`.',
+    )
+    (root / user).unlink()
+    assert found(CARD, lambda d: d['card']['sections'][1]['when']['status'].append('closed')) == (
+        'S059', f'{CARD}#/card/sections/1/when/status/1', 'The status `closed` is not a status of the workflow of `task`.',
+        'Use the statuses of the workflow: draft, in_progress, done.',
+    )
+    edit(root, CARD, lambda d: [d['card']['sections'][1]['when']['status'].pop()])
+    edit(root, LIST, lambda d: d['list']['bulk'][0].update(when=draft))
+    assert issues(root) == [('S002', f'{LIST}#/list/bulk/0')]
+    edit(root, LIST, lambda d: [d['list']['bulk'][0].pop('when'),
+                                d['list']['bulk'].append({'id': 'delete-all', 'primitive': 'destroy', 'when': draft})])
+    assert issues(root) == [('S002', f'{LIST}#/list/bulk/2')]
 
 
 @pytest.mark.django_db

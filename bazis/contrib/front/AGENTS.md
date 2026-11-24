@@ -1054,6 +1054,7 @@ range show the whole range (`2–4 ноября`), so expect the value of a date
 | Code | Severity | Meaning |
 |---|---|---|
 | `S071` | error | the tone of a calendar is by the status of its items (`tone: status`), and the entity has no workflow |
+| `S072` | error | an action shown by the status of its item (`when`) names a status that is not of the workflow of the entity, the entity has no workflow, or the action is not of an item |
 
 ## The issues of check
 
@@ -6237,6 +6238,10 @@ Its props, `FileViewProps`:
 
 `RelationLabel(props: { relation: string; id: string; path?: string | undefined; }): Element`: The label of a related item: read from its resource when the contract has a route for it (`useRelatedItem`: the items of a resource shown together are read with one request, and cached), else the start of its id; a skeleton marked `state:loading` while it is read.
 
+#### shownWhen
+
+`shownWhen(when: StatusWhen | undefined, item: ResourceObject): boolean`: Whether the item shows what has `when`: always without it.
+
 #### StatusLabel
 
 `StatusLabel(props: StatusLabelProps): Element`: A status by its id: its name in a badge of its tone, `status:<id>` with `data-tone`.
@@ -6251,6 +6256,12 @@ Its props, `StatusLabelProps`:
 #### statusTone
 
 `statusTone(status: string): Tone`: The tone of a status: `statuses` of the theme, neutral for another.
+
+#### StatusWhen
+
+`interface StatusWhen`: The statuses in which an item shows something (`when` of the specs).
+
+- `status: readonly string[]`
 
 #### RelationListPicker
 
@@ -6471,12 +6482,13 @@ Its props, `ResourceCardProps`:
 
 #### CardAction
 
-`interface CardAction`: An action of the card, a button `action:<id>`, shown when the user may do it on the item.
+`interface CardAction`: An action of the card, a button `action:<id>`, shown when the user may do it on the item, in a status of its `when`.
 
 - `id: string`
 - `label: ReactNode`
 - `onClick: () => void`
 - `permission?: 'change' | 'delete' | CustomActionName`: `change`, `delete`, or a custom action of the item (`action_<name>`, in `custom_actions` of its meta).
+- `when?: StatusWhen`: Shown only while the item is in one of these statuses; always without it.
 - `variant?: 'default' | 'outline' | 'destructive'`
 
 #### CardSection
@@ -6486,7 +6498,7 @@ Its props, `ResourceCardProps`:
 - `id: string`
 - `title?: ReactNode`
 - `fields: readonly string[]`
-- `when?: { status: readonly string[]; }`: Shown only while the item is in one of these statuses (its relationship `status`, bazis-statusy); always without it.
+- `when?: StatusWhen`: Shown only while the item is in one of these statuses (its relationship `status`, bazis-statusy); always without it.
 
 #### CardSummary
 
@@ -6562,6 +6574,7 @@ The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The co
 - `label: ReactNode`
 - `icon?: ComponentType<{ className?: string; }>`: Its icon, such as an icon of lucide-react.
 - `permission?: 'change' | 'delete'`: What the backend must allow on a row of the page (`for_change`, `for_delete` of its meta): the others are left out.
+- `when?: StatusWhen`: The statuses that a row of the page must be in (its relationship `status`): the others are left out.
 - `variant?: 'default' | 'outline' | 'destructive'`
 - `run: (id: string) => Promise<unknown>`: Runs the action on an item, rejected when its request fails: `useItemsTransit(path)` of `@/bazis/react/statusy` (`mutateAsync({id, transit})`), `useDestroy(path)`.
 
@@ -6659,12 +6672,13 @@ Its props, `ResourceListProps`:
 
 #### RowAction
 
-`interface RowAction`: An action of a row, a button `action:<id>` in it, shown when the user may do it on the item.
+`interface RowAction`: An action of a row, a button `action:<id>` in it, shown when the user may do it on the item, in a status of its `when`.
 
 - `id: string`
 - `label: ReactNode`
 - `onClick: (id: string) => void`
 - `permission?: 'change' | 'delete'`
+- `when?: StatusWhen`: Shown only while the item of the row is in one of these statuses; always without it.
 
 #### CardLayout
 
@@ -6820,6 +6834,7 @@ Its props, `UpdateFormActionProps`:
 - `path: DestroyPath`: The route set of the entity (`ROUTES` of the contract).
 - `item: string`: The id of the item of the card.
 - `then?: string | undefined`: The route shown once the item is deleted (the screen `then` of the action); the card stays without it.
+- `when?: StatusWhen`: The statuses of the item in which the action is shown; always without it.
 
 #### useCustomAction
 
@@ -6829,7 +6844,7 @@ Its props, `UpdateFormActionProps`:
 
 `interface CustomAction`: A custom action of a screen: its buttons, its run and its dialog.
 
-- `action: { id: string; label: ReactNode; permission: CustomActionName; onClick: () => void; }`: The button of the card of its item (`ResourceCard` `actions`), or of the toolbar of a list for an action of the route set (`ResourceList` `actions`): shown when the backend lists it in `custom_actions` of the meta.
+- `action: { id: string; label: ReactNode; permission: CustomActionName; when?: StatusWhen; onClick: () => void; }`: The button of the card of its item (`ResourceCard` `actions`), or of the toolbar of a list for an action of the route set (`ResourceList` `actions`): shown when the backend lists it in `custom_actions` of the meta.
 - `row: RowAction`: The button of the rows of a list (`ResourceList` `rowActions`): shown on a row that the list lets the user change (or delete) when the action requires it (`access_action`).
 - `bulk: BulkAction`: The action on the selected rows of a list (`ResourceList` `bulk`, `bulk:<id>`), called on each with an empty body, on the rows that it lets the user change (or delete) as `row`, with the same rule of S032.
 - `dialog: ReactNode`: Its dialog, rendered in the screen.
@@ -6852,6 +6867,7 @@ Its props, `UpdateFormActionProps`:
 - `description?: ReactNode`: What its dialog says.
 - `confirm?: boolean`: Whether an action without fields is confirmed in a dialog first.
 - `message?: ReactNode`: What the toast says once it is done.
+- `when?: StatusWhen`: The statuses of the item in which an action of an item is shown (on a card, a row) and runs (on the selected rows); always without it.
 
 #### extended
 

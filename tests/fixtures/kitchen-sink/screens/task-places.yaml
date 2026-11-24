@@ -1,7 +1,8 @@
 # yaml-language-server: $schema=../../../../bazis/contrib/front/spec/schemas/screen.schema.json
 # A list without an extension: its map of the items of its filter (the drafts due from today,
 # a day of the browser), its create form (then the list of all the tasks), a custom action of
-# the route set in its toolbar, its bulk action and its status filter; a grid of cards
+# the route set in its toolbar, a custom action of the rows and its bulk action on the drafts
+# (`when`), its bulk transit and its status filter; a grid of cards
 # everywhere, each with the photos as its cover (the first image column), the priority above
 # its title, the due day as its figure and its status in its muted line.
 spec: bazis-screen/1
@@ -20,8 +21,10 @@ list:
   filter: {status: draft, due__gte: today}
   open: task-card
   map: {field: location}
+  row_actions: [escalate]
   bulk:
     - {id: start-all, transit: start, label: {en: Start, ru: Начать}}
+    - {id: escalate-all, action: escalate, label: {en: Escalate, ru: Повысить}, when: {status: [draft]}}
 actions:
   - {id: create, primitive: form, mode: create, fields: [title], then: task-list, label: {en: New task, ru: Новая задача}}
   - id: count
@@ -31,4 +34,5 @@ actions:
     values: {priority: high}       # its dialog opens with a high priority
     label: {en: Count, ru: Посчитать}
     message: {en: The count is queued., ru: Подсчёт поставлен в очередь.}
+  - {id: escalate, primitive: custom, action: escalate, confirm: true, label: {en: Escalate, ru: Повысить}, when: {status: [draft]}}
 states: [loading, empty, error, forbidden]

@@ -317,6 +317,42 @@ describe('ResourceCard', () => {
     }
   });
 
+  it('shows an action with `when` only while the item is in one of its statuses, and the backend allows it', async () => {
+    const card = (status: string, crud: readonly string[]) =>
+      renderWithBazis(
+        <ResourceCard
+          path={ITEMS as never}
+          id={ITEM_ID}
+          sections={sections}
+          actions={[
+            { id: 'close', label: 'Close', onClick: vi.fn(), when: { status: ['draft', 'review'] } },
+            { id: 'reopen', label: 'Reopen', onClick: vi.fn(), when: { status: ['done'] } },
+            { id: 'delete', label: 'Delete', onClick: vi.fn(), permission: 'delete', when: { status: ['draft'] } },
+            { id: 'print', label: 'Print', onClick: vi.fn() },
+          ]}
+        />,
+        new Backend()
+          .on('GET', `${ITEM}schema_retrieve/`, schema)
+          .on('GET', ITEM, {
+            data: resource(ITEM_ID, { title: 'Report', count: 3 }, { status: { type: 'statusy.status', id: status } }),
+            meta: { crud_actions: crud },
+          }),
+      );
+    const shown = () => ['close', 'reopen', 'delete', 'print'].filter((id) => screen.queryByTestId(`action:${id}`) !== null);
+    const draft = card('draft', ['view', 'delete']);
+    await screen.findByTestId('state:loaded');
+    expect(shown()).toEqual(['close', 'delete', 'print']);
+    draft.unmount();
+    // the permission and the status together: a draft that the user may not delete
+    const kept = card('draft', ['view']);
+    await screen.findByTestId('state:loaded');
+    expect(shown()).toEqual(['close', 'print']);
+    kept.unmount();
+    card('done', ['view', 'delete']);
+    await screen.findByTestId('state:loaded');
+    expect(shown()).toEqual(['reopen', 'print']);
+  });
+
   it('marks nothing read-only when the user may not change the item', async () => {
     const server = backend({ crud_actions: ['view'] });
     renderWithBazis(<ResourceCard path={ITEMS as never} id={ITEM_ID} sections={sections} edit />, server);

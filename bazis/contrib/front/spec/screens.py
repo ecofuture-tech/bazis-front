@@ -703,6 +703,8 @@ def custom_action(
         options.append(('confirm', Raw('true' if action['confirm'] else 'false')))
     if (message := screen.text(*path, 'message')) is not None:
         options.append(('message', message))
+    if 'when' in action:
+        options.append(('when', status_when(action['when'])))
     screen.hook(name, Const(name, Call('useCustomAction', [Obj(options)])), '@/bazis/ui/screens', 'useCustomAction')
     if not bulk:
         screen.after.append(Raw(f'{name}.dialog'))
@@ -804,8 +806,13 @@ def card_section(screen: Screen, index: int, section: dict) -> Obj:
         props.append(('title', title))
     props.append(('fields', Arr([Str(it) for it in section['fields']])))
     if 'when' in section:
-        props.append(('when', Obj([('status', Arr([Str(it) for it in section['when']['status']]))])))
+        props.append(('when', status_when(section['when'])))
     return Obj(props)
+
+
+def status_when(when: dict) -> Obj:
+    """`when` of a section or an action of an item: the statuses in which it is shown (`StatusWhen`)."""
+    return Obj([('status', Arr([Str(it) for it in when['status']]))])
 
 
 def card_tab(screen: Screen, index: int, tab: dict, related: dict, history) -> Obj:
@@ -846,6 +853,8 @@ def destroy_action(screen: Screen, const: Raw, index: int, action: dict) -> Raw:
     options += [('path', Raw(f'{const.code}.path')), ('item', Raw('id'))]
     if 'then' in action:
         options.append(('then', screen.route(action['then'])))
+    if 'when' in action:
+        options.append(('when', status_when(action['when'])))
     hook = Const(name, Call('useDestroyCardAction', [Obj(options)]))
     screen.hook(name, hook, '@/bazis/ui/screens', 'useDestroyCardAction')
     screen.after.append(Raw(f'{name}.confirm'))
@@ -859,10 +868,10 @@ def update_action(screen: Screen, const: Raw, index: int, action: dict) -> Obj:
     screen.form_action(
         'UpdateFormAction', state, screen.data['entity'], action, label, screen.text('actions', index, 'description')
     )
-    return Obj([
-        ('id', Str(action['id'])), ('label', label), ('permission', Str('change')),
-        ('onClick', Raw(f'{state.code}.onOpen')),
-    ])
+    props = [('id', Str(action['id'])), ('label', label), ('permission', Str('change'))]
+    if 'when' in action:
+        props.append(('when', status_when(action['when'])))
+    return Obj([*props, ('onClick', Raw(f'{state.code}.onOpen'))])
 
 
 def header_actions(screen: Screen) -> Jsx | None:

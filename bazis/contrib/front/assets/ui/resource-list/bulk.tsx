@@ -23,9 +23,8 @@
 import { LoaderCircle, X } from 'lucide-react';
 import { useState, type ComponentType, type ReactNode } from 'react';
 
-import type { PermitMeta } from '@/bazis/client';
 import { useLanguage } from '@/bazis/i18n';
-import { permitted } from '@/bazis/ui/resource';
+import { permitted, shownWhen, type ListDocument, type ResourceObject, type StatusWhen } from '@/bazis/ui/resource';
 import { failureText, toast } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -38,6 +37,8 @@ export interface BulkAction {
   icon?: ComponentType<{ className?: string }>;
   /** What the backend must allow on a row of the page (`for_change`, `for_delete` of its meta): the others are left out. */
   permission?: 'change' | 'delete';
+  /** The statuses that a row of the page must be in (its relationship `status`): the others are left out. */
+  when?: StatusWhen;
   variant?: 'default' | 'outline' | 'destructive';
   /**
    * Runs the action on an item, rejected when its request fails: `useItemsTransit(path)`
@@ -50,22 +51,28 @@ export interface BulkBarProps {
   actions: readonly BulkAction[];
   /** The ids of the selected rows, also of other pages. */
   selection: readonly string[];
-  /** The ids of the rows of the page, whose permission meta is known. */
-  page: ReadonlySet<string>;
-  meta: PermitMeta | null | undefined;
+  /** The rows of the page, whose permission meta and status are known. */
+  rows: readonly ResourceObject[];
+  /** The meta of the page. */
+  meta: ListDocument['meta'];
   /** Selects these rows instead: none after a clear, those whose request failed after an action. */
   onSelect: (ids: readonly string[]) => void;
 }
 
 /** The bar of the actions on the selected rows, with the dialog that confirms one. */
-export function BulkBar({ actions, selection, page, meta, onSelect }: BulkBarProps) {
+export function BulkBar({ actions, selection, rows, meta, onSelect }: BulkBarProps) {
   const { t } = useLanguage();
   const [open, setOpen] = useState<BulkAction | null>(null);
   const [done, setDone] = useState<number | null>(null);
   const [failure, setFailure] = useState<{ failed: number; count: number; reasons: readonly string[] } | null>(null);
-  // a row of another page is left to the backend, which checks every request
+  // the selected rows that an action runs on: a row of the page that it allows, in a status of
+  // its `when`; a row of another page is left to the backend, which checks every request
+  const page = new Map(rows.map((row) => [row.id, row]));
   const targets = (action: BulkAction) =>
-    selection.filter((id) => !action.permission || !page.has(id) || permitted(meta, action.permission, id));
+    selection.filter((id) => {
+      const row = page.get(id);
+      return row === undefined || ((!action.permission || permitted(meta, action.permission, id)) && shownWhen(action.when, row));
+    });
   const ids = open ? targets(open) : [];
 
   async function run(action: BulkAction) {

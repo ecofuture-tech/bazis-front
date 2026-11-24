@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=../../../../bazis/contrib/front/spec/schemas/screen.schema.json
 # A card without tabs, extended: its history and its related list under its heading, a create
 # form in the header, an update form, a delete that says what it deletes and a custom action of
-# its item with an empty body; its title is not shown (the label of its item heads it), nor
+# its item with an empty body, each shown in some statuses of the item (`when`); its title is not shown (the label of its item heads it), nor
 # among the texts of the specs. Its photos are several files (`many: true`), edited with the
 # field of several files. Its summary: the days from its creation to its due day, its hours as
 # its figure, its priority under the days.
@@ -29,12 +29,14 @@ actions:
   - id: delete
     primitive: destroy
     then: task-list
+    when: {status: [draft]}
     description: {en: The task and its steps are deleted., ru: Задача удаляется вместе с шагами.}
   - {id: create, primitive: form, mode: create, fields: [title], then: task-summary}
   - id: edit
     primitive: form
     mode: update
     fields: [title, priority, photos]
+    when: {status: [draft, in_progress]}
     description: {en: 'The title, the priority and the photos of the task.', ru: 'Название, приоритет и фото задачи.'}
-  - {id: escalate, primitive: custom, action: escalate, confirm: false, label: {en: Escalate, ru: Повысить}}
+  - {id: escalate, primitive: custom, action: escalate, confirm: false, label: {en: Escalate, ru: Повысить}, when: {status: [draft]}}
 states: [loading, error, forbidden, not_found]

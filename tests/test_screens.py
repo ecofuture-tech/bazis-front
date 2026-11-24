@@ -327,7 +327,8 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     The kitchen sink: a list with its map, its create form, a custom action of the route set
     (the values that its dialog starts with), its bulk action and its status filter; a card without tabs (its transits under its
     heading, its related list and its history under its sections) with a create form in its
-    header, an update form, a delete that describes itself and a custom action; the tone of
+    header, an update form, a delete that describes itself and a custom action, each shown in some
+    statuses (`when`), as a custom action of the rows and a custom bulk action; the tone of
     the rows; forms as pages; a board without drag and drop, with a badge and its own empty
     text; a calendar with its add and its tone by a boolean field, one in the tones of the
     statuses; a dashboard of two entities, a tile with its
@@ -363,6 +364,10 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     assert '        {...createForm}\n' in places
     assert "        filters={[{ field: 'status', options: statusOptions(TASK.type, language) }]}\n" in places
     assert "run: (item) => transit.mutateAsync({ id: item, transit: 'start' })," in places
+    # a custom action of the rows and a custom bulk action on the drafts only (`when`)
+    assert "    target: 'item',\n    confirm: true,\n    when: { status: ['draft'] },\n  });\n" in places
+    assert "    target: 'item',\n    when: { status: ['draft'] },\n  });\n" in places
+    assert '        rowActions={[escalateAction.row]}\n' in places and '          escalateAllBulk.bulk,\n' in places
     # a custom action of the route set in the toolbar, after the create form, its dialog after the list
     assert "    action: 'count',\n    target: 'route',\n    fields: ['priority'],\n    values: { priority: 'high' },\n" in places
     assert '          countAction.action,\n        ]}\n' in places and '      {countAction.dialog}\n' in places
@@ -406,8 +411,12 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     assert "            summary: { range: ['dt_created', 'due'], figure: 'hours', meta: ['priority'] },\n" in summary
     assert "description: t('screens.task-summary.actions.delete.description')," in summary
     assert '      {deleteAction.confirm}\n' in summary
-    # a custom action of the item, among the actions of the card
-    assert "    action: 'escalate',\n    target: 'item',\n    item: id,\n    confirm: false,\n  });\n" in summary
+    # the actions of the card shown in some statuses of the item (`when`): the delete, the
+    # update form and a custom action of the item, among the actions of the card
+    assert "    then: routeTo('task-list'),\n    when: { status: ['draft'] },\n  });\n" in summary
+    assert (
+        "    action: 'escalate',\n    target: 'item',\n    item: id,\n    confirm: false,\n    when: { status: ['draft'] },\n  });\n"
+    ) in summary
     assert '              escalateAction.action,\n' in summary and '      {escalateAction.dialog}\n' in summary
     # no tabs: the transits under the heading, the related list and the history under the sections
     assert '            children: <TransitBar path={TASK.path} id={id} transits={TASK.transits} />,\n' in summary
@@ -419,7 +428,10 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     assert "add={{ id: 'add-step', label: t('form.create'), fields: ['title'] }}" in summary
     assert '      actions={\n        <>\n          <ScreenAction\n' in summary
     # the update form, an action of the card shown to whom may change the item
-    assert "{ id: 'edit', label: t('card.edit'), permission: 'change', onClick: editForm.onOpen }," in summary
+    assert (
+        "                id: 'edit',\n                label: t('card.edit'),\n                permission: 'change',\n"
+        "                when: { status: ['draft', 'in_progress'] },\n                onClick: editForm.onOpen,\n"
+    ) in summary
     assert '      <UpdateFormAction\n        {...editForm}\n        path={TASK.path}\n        id={id}\n' in summary
     # the title of a generated card is not shown: not a text of the screen
     assert 'screens.task-summary.title' not in files[f'{screens.GENERATED_DIR}/messages.ts']

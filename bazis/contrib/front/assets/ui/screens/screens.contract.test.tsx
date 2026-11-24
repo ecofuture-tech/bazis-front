@@ -679,6 +679,43 @@ describe('useCustomAction', () => {
     expect(screen.queryByTestId('action:escalate')).toBeNull();
   });
 
+  it('gives its buttons and the deletion of a card their `when`: shown while the item is in one of its statuses', async () => {
+    const DRAFT = { status: ['draft'] };
+    const status = (id: string) => ({ status: { type: 'statusy.status', id } });
+    function Card() {
+      const escalate = useCustomAction({ ...ESCALATE, item: ITEM_ID, when: DRAFT });
+      const destroy = useDestroyCardAction({ id: 'delete', label: 'Delete', path: ITEMS as never, item: ITEM_ID, when: DRAFT });
+      return <ResourceCard path={ITEMS as never} id={ITEM_ID} sections={[{ id: 'main', fields: ['title'] }]} actions={[escalate.action, destroy.action]} />;
+    }
+    function List() {
+      const escalate = useCustomAction({ ...ESCALATE, when: DRAFT });
+      return <ResourceList path={ITEMS as never} entity="item" columns={['title']} layout="table" rowActions={[escalate.row]} />;
+    }
+    for (const [id, shown] of [['draft', true], ['done', false]] as const) {
+      const card = renderWithBazis(
+        <Card />,
+        new Backend().on('GET', `${ITEM}schema_retrieve/`, cardSchema).on('GET', ITEM, {
+          data: resource(ITEM_ID, { title: 'Report' }, status(id)),
+          meta: { crud_actions: ['view', 'delete'], custom_actions: ['action_escalate'] },
+        }),
+      );
+      await screen.findByTestId('state:loaded');
+      expect([screen.queryByTestId('action:escalate') !== null, screen.queryByTestId('action:delete') !== null]).toEqual([shown, shown]);
+      card.unmount();
+    }
+    renderWithBazis(
+      <List />,
+      new Backend()
+        .on('GET', `${ITEMS}schema_list/`, listSchema)
+        .on('GET', ITEMS, listDocument([resource('a', { title: 'First' }, status('draft')), resource('b', { title: 'Second' }, status('done'))], {
+          meta: { for_change: ['a', 'b'], custom_actions: [] },
+        })),
+    );
+    await screen.findByTestId('state:loaded');
+    expect(within(screen.getByTestId('row:a')).queryByTestId('action:escalate')).not.toBeNull();
+    expect(within(screen.getByTestId('row:b')).queryByTestId('action:escalate')).toBeNull();
+  });
+
   it('runs the action of a row once confirmed, on the rows that the user may change', async () => {
     const backend = new Backend()
       .on('GET', `${ITEMS}schema_list/`, listSchema)

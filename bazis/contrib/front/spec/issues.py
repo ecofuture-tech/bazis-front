@@ -149,6 +149,7 @@ CODES: dict[str, tuple[str, str]] = {
     'S069': (ERROR, 'the header of a list has its search (`header.search`), and the list has none (`list.search`)'),
     'S070': (ERROR, 'a link of the navigation counts the items of its screen (`count`), which is not a list'),
     'S071': (ERROR, 'the tone of a calendar is by the status of its items (`tone: status`), and the entity has no workflow'),
+    'S072': (ERROR, 'an action shown by the status of its item (`when`) names a status that is not of the workflow of the entity, the entity has no workflow, or the action is not of an item'),
     'D001': (ERROR, 'a design file is not valid YAML or JSON'),
     'D002': (ERROR, 'spec/design/theme.yaml does not follow design.schema.json'),
     'D003': (ERROR, 'spec/design/tokens.json does not follow tokens.schema.json'),
