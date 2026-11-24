@@ -2117,7 +2117,7 @@ CASES = [
         'S064',
         # an unknown field of a card is not a column (S007 for an unknown column); a grid of cards
         # with its cover by default and the cards of a phone are right
-        {LIST: lambda d: [d['list']['columns'].insert(0, 'photos'), d['list'].update(
+        {LIST: lambda d: [d['list']['columns'].insert(0, 'photos'), d['list']['columns'].append('priority'), d['list'].update(
             card={'title': 'name', 'meta': ['priority']}, layout='cards', layout_phone='table')]},
         [('S064', f'{LIST}#/list/card/title')],
     ),

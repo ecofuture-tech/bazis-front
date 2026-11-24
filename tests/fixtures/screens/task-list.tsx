@@ -57,7 +57,7 @@ export function TaskListScreen() {
           {
             path: TASK.path,
             entity: 'task',
-            columns: ['title', 'status', 'priority', 'assignee', 'watchers', 'dt_created'],
+            columns: ['title', 'status', 'assignee', 'watchers', 'dt_created'],
             filters: [
               { field: 'status', options: statusOptions(TASK.type, language) },
               'assignee',

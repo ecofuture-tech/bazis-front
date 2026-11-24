@@ -19,7 +19,8 @@
 // fit the width of the page once unfolded,
 // and a long title (a word without a space among its words) keeps every screen that shows it
 // within the width of the page, of a phone and of a desktop (the task stays: `e2e_data`
-// only adds, and the manager may not delete it).
+// only adds, and the manager may not delete it); the table of the tasks fits a desktop with
+// the longest date-time of its column, whatever the time of the run.
 
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
@@ -74,6 +75,45 @@ test('a phone shows the filters of a list within its width', async ({ page }) =>
   expect(box && box.x + box.width).toBeLessThanOrEqual(390);
   expect(await overflowing(page.locator('[data-slot="filter-row"]').first())).toEqual([]);
   expect(await scrollsSideways(page)).toBe(false);
+});
+
+test('the table of the tasks fits with the longest date', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const app = await loginAs(page, PRODUCT, 'manager');
+  await app.open('task-list');
+  await app.expectState('loaded');
+  // the column of the date is as wide as its values on the page (an hour of two digits is
+  // wider): every month at 1:05 AM, 12:37 AM and 10:10 PM in the cells, then their texts back
+  const wide = await page.evaluate(() => {
+    const scroller = document.querySelector<HTMLElement>('[data-bz^="list:"] [data-slot="table-scroll"]');
+    if (scroller === null) return ['no table'];
+    const format = new Intl.DateTimeFormat(document.documentElement.lang, { dateStyle: 'medium', timeStyle: 'short' });
+    const kept = new Map<Text, string>();
+    for (const cell of document.querySelectorAll('[data-bz="cell:dt_created"]')) {
+      const texts = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT);
+      for (let node = texts.nextNode(); node !== null; node = texts.nextNode()) {
+        if (node instanceof Text && node.data.trim()) kept.set(node, node.data);
+      }
+    }
+    if (kept.size === 0) return ['no date'];
+    const failed: string[] = [];
+    try {
+      for (let month = 0; month < 12; month += 1) {
+        // the minutes after midnight of 1:05 AM, 12:37 AM and 10:10 PM
+        for (const minutes of [65, 37, 1330]) {
+          const text = format.format(new Date(2026, month, 28, 0, minutes));
+          for (const node of kept.keys()) node.data = text;
+          if (scroller.scrollWidth > scroller.clientWidth + 1) {
+            failed.push(`${text}: ${String(scroller.scrollWidth)} px in ${String(scroller.clientWidth)} px`);
+          }
+        }
+      }
+    } finally {
+      for (const [node, data] of kept) node.data = data;
+    }
+    return failed;
+  });
+  expect(wide).toEqual([]);
 });
 
 /** A title longer than any column: a word without a space and words. */
