@@ -284,7 +284,7 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   default), each on a line of its own, cut to the width of the day with its whole text in its
   title, the first after the time of a date-time on the day it starts (on the next line when
   they do not fit together), in a tone of the theme while the boolean field of `tone` is
-  true; a week at the width of a phone is a list of its days; a click on a
+  true, or in that of its status (`tone: 'status'`, `statusTone`); a week at the width of a phone is a list of its days; a click on a
   day selects it, and the list of the selected day (today at first) has all its items,
   `row:<id>` again (below `md` the days of a month have a dot and only the list has the items,
   so that no hidden copy of a row is in the page). One

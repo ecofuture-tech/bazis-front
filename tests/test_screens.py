@@ -329,7 +329,8 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     heading, its related list and its history under its sections) with a create form in its
     header, an update form, a delete that describes itself and a custom action; the tone of
     the rows; forms as pages; a board without drag and drop, with a badge and its own empty
-    text; a calendar with its add and its tone; a dashboard of two entities, a tile with its
+    text; a calendar with its add and its tone by a boolean field, one in the tones of the
+    statuses; a dashboard of two entities, a tile with its
     own icon, the aggregates of a tile and of a chart; forms that show a screen without an item after them, whose code takes no saved
     item; the form of a custom action without a result, then a list, linked once the backend
     lists its action; a plain card, whose code uses no navigation, no translation and no item (the lint of
@@ -464,6 +465,7 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     schedule = files[f'{screens.GENERATED_DIR}/user-schedule.tsx']
     assert '              onAdd: addForm.onOpenWith,\n' in schedule
     assert "            tone: { field: 'urgent', tone: 'danger' },\n" in schedule
+    assert '        tone="status"\n' in files[f'{screens.GENERATED_DIR}/task-agenda.tsx']
     assert '      <CreateFormAction\n        {...addForm}\n' in schedule
 
     # a dashboard of two entities: the day of today and no links (props that the extension may

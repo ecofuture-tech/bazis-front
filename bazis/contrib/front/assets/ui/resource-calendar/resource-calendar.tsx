@@ -50,6 +50,7 @@ import {
   resourceAt,
   type ResourceObject,
   SOFT_TONES,
+  statusTone,
   text,
   titleFromText,
   useAnyLists,
@@ -96,8 +97,11 @@ export interface ResourceCalendarProps {
   end?: string | undefined;
   /** The fields that an item shows; the label of the resource of the contract by default. */
   label?: readonly string[] | undefined;
-  /** The items whose boolean field is true, in a tone of the theme. */
-  tone?: { field: string; tone: Tone } | undefined;
+  /**
+   * The items whose boolean field is true, in a tone of the theme; `status`: every item in the
+   * tone of its status (`statusTone`, neutral for a status without one).
+   */
+  tone?: { field: string; tone: Tone } | 'status' | undefined;
   /** The views the user switches between, the first shown at first: a month by default. */
   views?: readonly CalendarView[];
   /** The items of the calendar (the filter of the screen). */
@@ -384,7 +388,13 @@ export function ResourceCalendar({
   const Add = add?.icon;
   const canAdd = add !== undefined && document !== undefined && permitted(document.meta, 'add');
   const selectedItems = items.get(selected) ?? [];
-  const toneOf = (item: ResourceObject) => (tone && fieldValue(item, tone.field) === true ? tone.tone : undefined);
+  const toneOf = (item: ResourceObject): Tone | undefined => {
+    if (tone === 'status') {
+      const status = fieldValue(item, 'status');
+      return typeof status === 'string' ? statusTone(status) : 'neutral';
+    }
+    return tone && fieldValue(item, tone.field) === true ? tone.tone : undefined;
+  };
   // the time of a date-time on the day it starts (not on the next days of an item that spans
   // days): its start, and its range to its end on the same day; a day of a month shows the start
   // alone, the range in its tooltip
@@ -458,7 +468,7 @@ export function ResourceCalendar({
             {dot && (
               <span
                 aria-hidden="true"
-                // in the tone of its first item that has one (an overdue item)
+                // in the tone of its first item that has one (an overdue item, a status)
                 className={cn('size-1.5 rounded-full', dayItems.length === 0 && 'invisible', SOFT_TONES[dayItems.map(toneOf).find(Boolean) ?? 'primary'], 'bg-current')}
               />
             )}

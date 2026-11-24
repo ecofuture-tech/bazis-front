@@ -1139,8 +1139,10 @@ def render_calendar(product: Product, data: dict) -> str:
         attrs.append(Attr('filters', Arr([list_filter(screen, entity, const, it) for it in spec['filters']])))
     if 'label' in spec:
         attrs.append(Attr('label', Arr([Str(it) for it in spec['label']])))
-    if 'tone' in spec:
-        attrs.append(Attr('tone', Obj([('field', Str(spec['tone']['field'])), ('tone', Str(spec['tone']['tone']))])))
+    if (tone := spec.get('tone')) == 'status':
+        attrs.append(Attr('tone', 'status'))
+    elif tone is not None:
+        attrs.append(Attr('tone', Obj([('field', Str(tone['field'])), ('tone', Str(tone['tone']))])))
     if 'views' in spec:
         attrs.append(Attr('views', Arr([Str(it) for it in spec['views']])))
     if 'open' in spec:

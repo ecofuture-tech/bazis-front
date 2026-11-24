@@ -148,6 +148,7 @@ CODES: dict[str, tuple[str, str]] = {
     'S068': (ERROR, 'a chart of a dashboard is a `distribution` (the shares of a whole) of something else than the statuses, or of an average'),
     'S069': (ERROR, 'the header of a list has its search (`header.search`), and the list has none (`list.search`)'),
     'S070': (ERROR, 'a link of the navigation counts the items of its screen (`count`), which is not a list'),
+    'S071': (ERROR, 'the tone of a calendar is by the status of its items (`tone: status`), and the entity has no workflow'),
     'D001': (ERROR, 'a design file is not valid YAML or JSON'),
     'D002': (ERROR, 'spec/design/theme.yaml does not follow design.schema.json'),
     'D003': (ERROR, 'spec/design/tokens.json does not follow tokens.schema.json'),

@@ -437,11 +437,16 @@
         "end": {"description": "The date or date-time field of the last day of an item that spans days.", "$ref": "#/$defs/field"},
         "label": {"description": "The fields that an item shows; the label of the entity by default.", "$ref": "#/$defs/fields"},
         "tone": {
-          "description": "The items whose boolean field is true, in a tone of the theme.",
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["field", "tone"],
-          "properties": {"field": {"$ref": "#/$defs/field"}, "tone": {"$ref": "#/$defs/tone"}}
+          "description": "The items whose boolean field is true, in a tone of the theme; or `status`: every item in the tone of its status, those of `statuses` of theme.yaml (neutral for a status without one), for an entity with a workflow (S071).",
+          "oneOf": [
+            {"const": "status"},
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["field", "tone"],
+              "properties": {"field": {"$ref": "#/$defs/field"}, "tone": {"$ref": "#/$defs/tone"}}
+            }
+          ]
         },
         "views": {"type": "array", "uniqueItems": true, "minItems": 1, "items": {"enum": ["month", "week"]}},
         "filters": {"description": "Fields that the contract can filter by, read from `route_filter_fields/` of the route set, which its `actions` keep (S040): the items of the user's choice, a relation (the schedule of one doctor) or a choice. The add starts its form with the related item or the choice of a filter of one of its fields.", "$ref": "#/$defs/fields"},

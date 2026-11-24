@@ -901,7 +901,8 @@ states: [loading, empty, error, forbidden]
 
 A calendar shows the items of an entity on the days of a field `date` or `datetime`
 (`field`; `end` for the items that span days), a month or a week at a time (`views`), each
-item by its `label` fields, in the tone of `tone` while its boolean field is true (S023).
+item by its `label` fields, in the tone of `tone` while its boolean field is true (S023), or
+of its status (`tone: status`, S071; `status` in `label` too, not the color alone).
 `filters` are those of a list (S008, S040): the schedule of one doctor or one room is a
 filter by the relation, not a screen of your own nor a color (the backend decides what each
 user sees). `add` is the create form of the entity, the action `add.id`, with `field` filled with
@@ -1049,6 +1050,10 @@ this one, and the number of its days by `card.range_days` of the dictionaries of
 (`{count} days`, `{count} дн.`), which `src/i18n/` of the product may change. Each value is
 `field:<name>`, as in a section, so `expect: {values}` of a scenario reads it; both fields of a
 range show the whole range (`2–4 ноября`), so expect the value of a date in a section.
+
+| Code | Severity | Meaning |
+|---|---|---|
+| `S071` | error | the tone of a calendar is by the status of its items (`tone: status`), and the entity has no workflow |
 
 ## The issues of check
 
@@ -6374,7 +6379,7 @@ Its props, `ResourceCalendarProps`:
 - `field: string`: The date or date-time field of the day of an item.
 - `end?: string | undefined`: The date or date-time field of the last day of an item that spans days.
 - `label?: readonly string[] | undefined`: The fields that an item shows; the label of the resource of the contract by default.
-- `tone?: { field: string; tone: Tone; } | undefined`: The items whose boolean field is true, in a tone of the theme.
+- `tone?: { field: string; tone: Tone; } | 'status' | undefined`: The items whose boolean field is true, in a tone of the theme; `status`: every item in the tone of its status (`statusTone`, neutral for a status without one).
 - `views?: readonly CalendarView[]`: The views the user switches between, the first shown at first: a month by default.
 - `filter?: Filter | undefined`: The items of the calendar (the filter of the screen).
 - `filters?: readonly (string | ListFilter)[]`: The filters of the user, as those of a list (`FilterBar` of resource-list), above the days.

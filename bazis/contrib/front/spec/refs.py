@@ -2170,7 +2170,8 @@ def _check_board(doc: Document, entity: Entity, issues: Issues) -> None:
 def _check_calendar(doc: Document, entity: Entity, issues: Issues) -> None:
     """
     A calendar: its days are those of date or date-time fields, its tone by a boolean field
-    (S023); the time and the duration of its add are those of date-times (S042).
+    (S023) or by the status of an entity with a workflow (S071); the time and the duration of
+    its add are those of date-times (S042).
     """
     calendar = doc.data['calendar']
     for key in ('field', 'end'):
@@ -2180,10 +2181,17 @@ def _check_calendar(doc: Document, entity: Entity, issues: Issues) -> None:
                 doc, ('calendar', key), 'S023', f'The field `{name}` is not a date or a date-time.',
                 'Show the items on the days of a field with `type: date` or `type: datetime`.',
             )
-    tone = calendar.get('tone', {}).get('field')
-    if tone in entity.fields and entity.fields[tone].get('type') != 'boolean':
+    tone = calendar.get('tone')
+    if tone == 'status':
+        if entity.workflow is None:
+            issues.add(
+                doc, ('calendar', 'tone'), 'S071', f'The entity `{entity.data["id"]}` has no workflow.',
+                'The tone `status` colors the items by their status (`statuses` of theme.yaml): give the tone a '
+                'boolean field (`{field: is_overdue, tone: danger}`), or remove `tone`.',
+            )
+    elif tone is not None and tone['field'] in entity.fields and entity.fields[tone['field']].get('type') != 'boolean':
         issues.add(
-            doc, ('calendar', 'tone', 'field'), 'S023', f'The tone is by `{tone}`, not a boolean field.',
+            doc, ('calendar', 'tone', 'field'), 'S023', f'The tone is by `{tone["field"]}`, not a boolean field.',
             'Give the tone a boolean field (`is_overdue`): its items are in the tone while it is true.',
         )
     add = calendar.get('add', {})

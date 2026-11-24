@@ -1209,6 +1209,16 @@ CASES = [
          ('S023', f'{CALENDAR}#/calendar/tone/field'), ('S042', f'{CALENDAR}#/calendar/add/time')],
     ),
     (
+        'S071',
+        # the steps in the tones of their statuses, and they have no workflow (by the day of their
+        # creation, without the filters, the add and the card of a task)
+        {CALENDAR: lambda d: [d.update(entity='step'), d['calendar'].update(field='dt_created', tone='status'),
+                              d['calendar'].pop('filters'), d['calendar'].pop('add'), d['calendar'].pop('open')]},
+        # the scenarios of the calendar open an item and add one there
+        [('S071', f'{CALENDAR}#/calendar/tone'), ('P022', f'{PRODUCT}#/scenarios/15/steps/1/open_item'),
+         ('P022', f'{PRODUCT}#/scenarios/17/steps/1/action')],
+    ),
+    (
         'S024',
         # an unknown section, a section in two tabs, the history in none
         {CARD: lambda d: [d['card']['tabs'][0]['sections'].append('extra'),
@@ -3097,6 +3107,34 @@ def test_the_keys_of_a_mapping_are_the_hint_of_an_unexpected_key_only(contract, 
     (found,) = validate(root).issues
     assert found.location == location
     assert found.hint.startswith(hint)
+
+
+@pytest.mark.django_db
+def test_the_tone_of_a_calendar(contract):
+    """
+    The tone of a calendar is a boolean field or `status` (S002 for another text): `status`
+    needs the workflow of the entity (S071, its message and hint), a field that is not a
+    boolean keeps the message and the hint of S023.
+    """
+    root = contract.parent.parent
+    edit(root, CALENDAR, lambda d: d['calendar'].update(tone='status'))
+    assert issues(root) == []
+    edit(root, CALENDAR, lambda d: d['calendar'].update(tone='priority'))
+    assert issues(root) == [('S002', f'{CALENDAR}#/calendar/tone')]
+    edit(root, CALENDAR, lambda d: d['calendar'].update(tone={'field': 'title', 'tone': 'danger'}))
+    (found,) = validate(root).issues
+    assert (found.code, found.message, found.hint) == (
+        'S023', 'The tone is by `title`, not a boolean field.',
+        'Give the tone a boolean field (`is_overdue`): its items are in the tone while it is true.',
+    )
+    edit(root, CALENDAR, lambda d: [d.update(entity='step'), d['calendar'].update(field='dt_created', tone='status'),
+                                    d['calendar'].pop('filters'), d['calendar'].pop('add'), d['calendar'].pop('open')])
+    (found,) = [it for it in validate(root).issues if it.code == 'S071']
+    assert (found.code, found.message, found.hint) == (
+        'S071', 'The entity `step` has no workflow.',
+        'The tone `status` colors the items by their status (`statuses` of theme.yaml): give the tone a boolean '
+        'field (`{field: is_overdue, tone: danger}`), or remove `tone`.',
+    )
 
 
 @pytest.mark.django_db
