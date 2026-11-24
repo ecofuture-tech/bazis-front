@@ -33,6 +33,7 @@ import {
   useResourceForm,
   useSchema,
   useUpdate,
+  useViewable,
 } from '../src/index.js';
 import { useAsyncRequest, useAsyncTask } from '../src/async/index.js';
 import { useBgTask } from '../src/bg/index.js';
@@ -70,6 +71,10 @@ export function useTypedQueries(): void {
   seen.push(useCan(PARENT, 'change'));
   // @ts-expect-error an unknown path
   seen.push(useCan('/api/v1/entity/no_such_entity/', 'view'));
+  const viewable: readonly (boolean | undefined)[] = useViewable([PARENT, CHILD]);
+  seen.push(viewable);
+  // @ts-expect-error an unknown path
+  seen.push(useViewable([PARENT, '/api/v1/entity/no_such_entity/']));
 }
 
 export function useTypedMutations(): void {

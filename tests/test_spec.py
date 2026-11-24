@@ -3193,6 +3193,20 @@ def test_an_action_shown_by_the_status_of_its_item(contract):
         'is one of a card, a custom action in `list.row_actions`, or a custom bulk action.',
     )
     edit(root, LIST, lambda d: [d['actions'][0].pop('when')])
+    # a custom action of the toolbar of a list, out of `list.row_actions`, and a create form of a card
+    assert found(PUBLIC, lambda d: d['actions'][0].update(when=draft))[:2] == ('S072', f'{PUBLIC}#/actions/0/when')
+    edit(root, PUBLIC, lambda d: [d['actions'][0].pop('when')])
+    create = {'id': 'add', 'primitive': 'form', 'mode': 'create', 'fields': ['title'], 'when': draft}
+    assert found(CARD, lambda d: d['actions'].append(create))[:2] == ('S072', f'{CARD}#/actions/3/when')
+    edit(root, CARD, lambda d: [d['actions'].pop()])
+    # not of an item, of an entity without a workflow: not of an item only
+    users = 'spec/screens/user-list.yaml'
+    assert found(users, lambda _: {
+        'spec': 'bazis-screen/1', 'id': 'user-list', 'route': '/users', 'entity': 'user', 'roles': ['manager'],
+        'primitive': 'list', 'list': {'columns': ['username']}, 'states': ['loading', 'empty', 'error', 'forbidden'],
+        'actions': [{'id': 'add', 'primitive': 'form', 'mode': 'create', 'fields': ['username'], 'when': draft}],
+    })[:2] == ('S072', f'{users}#/actions/0/when')
+    (root / users).unlink()
     assert found(CARD, lambda d: d['actions'][2].update(when={'status': ['closed']})) == (
         'S072', f'{CARD}#/actions/2/when/status/0', 'The status `closed` is not a status of the workflow of `task`.',
         'Use the statuses of the workflow: draft, in_progress, done.',

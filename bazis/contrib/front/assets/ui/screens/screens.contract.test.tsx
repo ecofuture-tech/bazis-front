@@ -716,6 +716,28 @@ describe('useCustomAction', () => {
     expect(within(screen.getByTestId('row:b')).queryByTestId('action:escalate')).toBeNull();
   });
 
+  it('runs on the selected rows of the page in a status of its `when` only', async () => {
+    function List() {
+      const escalateAll = useCustomAction({ ...ESCALATE, id: 'escalate-all', when: { status: ['draft'] } });
+      return <ResourceList path={ITEMS as never} entity="item" columns={['title']} layout="table" bulk={[escalateAll.bulk]} />;
+    }
+    const status = (id: string) => ({ status: { type: 'statusy.status', id } });
+    const backend = new Backend()
+      .on('GET', `${ITEMS}schema_list/`, listSchema)
+      .on('GET', ITEMS, listDocument([resource('a', { title: 'First' }, status('draft')), resource('b', { title: 'Second' }, status('done'))], {
+        meta: { for_change: ['a', 'b'] },
+      }))
+      .on('POST', `${ITEMS}a/escalate/`, { priority: 'high' });
+    renderWithBazis(<List />, backend);
+    await screen.findByTestId('state:loaded');
+    fireEvent.click(screen.getByTestId('select:all'));
+    fireEvent.click(screen.getByTestId('bulk:escalate-all'));
+    fireEvent.click(screen.getByTestId('action:confirm-bulk'));
+    await waitFor(() => {
+      expect(backend.requests('POST')).toEqual([`POST ${ITEMS}a/escalate/`]);
+    });
+  });
+
   it('runs the action of a row once confirmed, on the rows that the user may change', async () => {
     const backend = new Backend()
       .on('GET', `${ITEMS}schema_list/`, listSchema)
