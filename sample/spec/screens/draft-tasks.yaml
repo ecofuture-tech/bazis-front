@@ -9,7 +9,7 @@ entity: task
 roles: [manager, viewer]
 primitive: list
 list:
-  columns: [title, assignee, dt_created]
+  columns: [title, assignee, priority, dt_created]
   filters: [assignee]
   filter: {status: draft}
   sort: [-dt_created]

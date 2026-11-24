@@ -191,7 +191,7 @@ scenarios:
       - expect: {screen: task-card, status: draft}
   # a choice is filled, shown and found in the list by its label (`enumDict` of the backend);
   # a decimal typed with the decimal comma, sent and shown with the point of English (the
-  # language of the browser of the tests)
+  # language of the browser of the tests); the row is found in the report of the drafts
   - id: manager-sets-the-priority
     role: manager
     steps:
@@ -200,7 +200,7 @@ scenarios:
       - fill: {title: Ship the release, priority: High, hours: '2,5'}
       - submit: {}
       - expect: {screen: task-card, values: {priority: High, hours: '2.5'}}
-      - open: task-list
+      - open: draft-tasks
       - open_item: {where: {title: Ship the release, priority: High}}
       - expect: {screen: task-card, status: draft}
   # "add here": a step added from the card of its task, the task fixed

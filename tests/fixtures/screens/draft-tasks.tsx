@@ -33,7 +33,7 @@ export function DraftTasksScreen() {
       <ResourceList
         path={TASK.path}
         entity="task"
-        columns={['title', 'assignee', 'dt_created']}
+        columns={['title', 'assignee', 'priority', 'dt_created']}
         filters={['assignee']}
         filter={FILTER}
         sort={['-dt_created']}
