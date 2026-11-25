@@ -4226,9 +4226,14 @@ The API of the copies that 0.14.0 changes:
   `19,5 ч` of `19.50`), also by `formatDecimal` in the code of the product: an expectation
   with the zeros at its end (`values`, a `where` of `open_item`, `select` or `move`, a test of
   `e2e/custom/` or of the product: `1500,00`, `19,50 ч`) no longer finds its text, so remove
-  them. A sum keeps its cents unless it is whole (`250,50 ₽`, `3600 ₽`), `fraction: always`
-  all of them; a sum of a currency code that `Intl` refuses now has its cents too
-  (`12.50 euro` of `12.5`).
+  them. A whole sum of a field (`3600 ₽`) and one with as many digits as the
+  cents of its currency (`250,50 ₽`) are found as before; one with another number of digits
+  (`1,5 ₽` of `1.5`, `250,500 ₽`) has its cents and then its significant digits (`1,50 ₽`,
+  `250,50 ₽`), and a code that `Intl` refuses is written after the number with them too
+  (`12.50 euro` of `12.5`). `formatDecimal` with `{style: 'currency', currency}` in the code
+  of the product shows a sum so (`3600 ₽` of `3600,00 ₽`): change an expectation of it, or
+  give `trailingZeroDisplay: 'auto'` with the cast `as Intl.NumberFormatOptions` to keep the
+  zero cents of a whole sum.
 - Every starter palette but `frost` defines `color.shade`, a dark paper of its hue: after
   `design` the shadows of `surface: lifted` in the light mode have a light tint of the
   palette, and with the other surfaces the inner shadow of the tabs changes (it was light in
