@@ -36,12 +36,14 @@ import {
   itemLabel,
   itemName,
   permitted,
+  shownWhen,
   useAnyItem,
   useItemFields,
   type FieldDisplay,
   type FieldFilters,
   type Fields,
   type ResourceObject,
+  type StatusWhen,
 } from '@/bazis/ui/resource';
 import { FormSurface, ResourceFormBody } from '@/bazis/ui/resource-form';
 import { queryState, StatePanel } from '@/bazis/ui/state-panel';
@@ -58,22 +60,18 @@ export interface CardSection {
   title?: ReactNode;
   fields: readonly string[];
   /** Shown only while the item is in one of these statuses (its relationship `status`, bazis-statusy); always without it. */
-  when?: { status: readonly string[] };
+  when?: StatusWhen;
 }
 
-/** Whether a section is shown for the item: always, or while the item is in a status of its `when`. */
-function sectionShown(section: CardSection, item: ResourceObject): boolean {
-  const status = fieldValue(item, 'status');
-  return section.when === undefined || (typeof status === 'string' && section.when.status.includes(status));
-}
-
-/** An action of the card, a button `action:<id>`, shown when the user may do it on the item. */
+/** An action of the card, a button `action:<id>`, shown when the user may do it on the item, in a status of its `when`. */
 export interface CardAction {
   id: string;
   label: ReactNode;
   onClick: () => void;
   /** `change`, `delete`, or a custom action of the item (`action_<name>`, in `custom_actions` of its meta). */
   permission?: 'change' | 'delete' | CustomActionName;
+  /** Shown only while the item is in one of these statuses; always without it. */
+  when?: StatusWhen;
   variant?: 'default' | 'outline' | 'destructive';
 }
 
@@ -178,7 +176,7 @@ function Sections({ sections, item, fields, values, display, editable }: Section
   const Title = useHeadsScreen() ? 'h2' : 'h3';
   return sections.map((section) => {
     const names = section.fields.filter((name) => fields.has(name));
-    if (!names.length || !sectionShown(section, item)) return null;
+    if (!names.length || !shownWhen(section.when, item)) return null;
     return (
       <section
         key={section.id}
@@ -342,7 +340,7 @@ export function ResourceCard({
             </Button>
           )}
           {actions
-            .filter((action) => !action.permission || permitted(meta, action.permission))
+            .filter((action) => (!action.permission || permitted(meta, action.permission)) && shownWhen(action.when, data))
             .map((action) => (
               <Button
                 key={action.id}

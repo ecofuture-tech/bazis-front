@@ -57,7 +57,7 @@ export function TaskListScreen() {
           {
             path: TASK.path,
             entity: 'task',
-            columns: ['title', 'status', 'priority', 'assignee', 'watchers', 'dt_created'],
+            columns: ['title', 'status', 'assignee', 'watchers', 'dt_created'],
             filters: [
               { field: 'status', options: statusOptions(TASK.type, language) },
               'assignee',
@@ -85,6 +85,7 @@ export function TaskListScreen() {
               {
                 id: 'start-all',
                 label: t('screens.task-list.list.bulk.start-all.label'),
+                permission: { transit: 'start' },
                 run: (item) => transit.mutateAsync({ id: item, transit: 'start' }),
               },
               escalateAllBulk.bulk,

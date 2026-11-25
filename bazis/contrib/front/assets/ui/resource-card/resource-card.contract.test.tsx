@@ -28,7 +28,7 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { Filter } from '@/bazis/client';
 import type * as Contract from '@/bazis/generated/contract';
 import { Screen } from '@/bazis/ui/app-shell';
-import { permitted } from '@/bazis/ui/resource';
+import { permitted, useAnyList } from '@/bazis/ui/resource';
 import { RelatedList, ResourceCard } from '@/bazis/ui/resource-card';
 import { ResourceList } from '@/bazis/ui/resource-list';
 import {
@@ -155,6 +155,151 @@ describe('ResourceCard', () => {
     expect(more.getAttribute('aria-selected')).toBe('true');
     expect(panel(more).getAttribute('data-state')).toBe('active');
     expect(screen.getByTestId('list:parts').textContent).toBe(ITEM_ID);
+  });
+
+  describe('its tabs of lists only (`paths`), by whether the user may view them', () => {
+    const PARTS = '/api/test/part/';
+    const NOTES = '/api/test/note/';
+    const tabbed = [
+      { id: 'main', title: 'Main', fields: ['title'] },
+      { id: 'numbers', title: 'Numbers', fields: ['count'] },
+    ];
+    /** A list of the tab, read once it is mounted. */
+    function Parts({ path }: { path: string }) {
+      useAnyList(path);
+      return <span data-bz={`list:${path}`} />;
+    }
+    const viewing = (server: Backend, path: string, view: boolean) =>
+      view
+        ? server.on('GET', `${path}schema_list/`, runtimeSchema({}, { list: true })).on('GET', path, listDocument([]))
+        : server.on('GET', `${path}schema_list/`, errors(403), 403);
+    const lists = (server: Backend, path: string) => server.requests('GET').filter((it) => it.split('?')[0] === `GET ${path}`);
+    const panel = (tab: HTMLElement) => document.getElementById(tab.getAttribute('aria-controls') ?? '') as HTMLElement;
+
+    it('leaves out a tab whose lists the user may not view, which reads none; the next one is shown with the sections of no tab', async () => {
+      for (const view of [false, true]) {
+        const server = viewing(backend({ crud_actions: ['view'] }), PARTS, view);
+        const card = renderWithBazis(
+          <ResourceCard
+            path={ITEMS as never}
+            id={ITEM_ID}
+            sections={tabbed}
+            tabs={[
+              { id: 'parts', title: 'Parts', paths: [PARTS], content: <Parts path={PARTS} /> },
+              { id: 'details', title: 'Details', sections: ['numbers'] },
+            ]}
+          />,
+          server,
+        );
+        await screen.findByTestId('state:loaded');
+        const first = await screen.findByTestId(view ? 'tab:parts' : 'tab:details');
+        expect(first.getAttribute('aria-selected')).toBe('true');
+        expect(panel(first).contains(screen.getByTestId('field:title'))).toBe(true);
+        if (view) {
+          expect(panel(first).contains(screen.getByTestId(`list:${PARTS}`))).toBe(true);
+          await waitFor(() => {
+            expect(lists(server, PARTS)).toHaveLength(1);
+          });
+        } else {
+          // neither its trigger nor its panel, so its list is not read
+          expect(screen.queryByTestId('tab:parts')).toBeNull();
+          expect(screen.queryByTestId(`list:${PARTS}`)).toBeNull();
+          expect(lists(server, PARTS)).toEqual([]);
+          expect(panel(first).contains(screen.getByTestId('field:count'))).toBe(true);
+        }
+        card.unmount();
+      }
+    });
+
+    it('is loading until the backend tells whether the user may view its lists, without the triggers', async () => {
+      renderWithBazis(
+        <ResourceCard
+          path={ITEMS as never}
+          id={ITEM_ID}
+          sections={tabbed}
+          tabs={[
+            { id: 'details', title: 'Details', sections: ['main', 'numbers'] },
+            { id: 'parts', title: 'Parts', paths: [PARTS], content: <Parts path={PARTS} /> },
+          ]}
+        />,
+        backend({ crud_actions: ['view'] }).hold('GET', `${PARTS}schema_list/`),
+      );
+      const card = await screen.findByTestId('state:loaded');
+      expect(within(card).getByTestId('state:loading').querySelector('[data-slot="skeleton"]')).not.toBeNull();
+      expect(screen.queryByTestId('tab:details')).toBeNull();
+      expect(screen.queryByTestId('tab:parts')).toBeNull();
+      expect(screen.queryByTestId('field:title')).toBeNull();
+    });
+
+    it('shows a tab when the user may view one of its lists, and a tab with sections whatever its lists', async () => {
+      const server = viewing(viewing(backend({ crud_actions: ['view'] }), PARTS, true), NOTES, false);
+      renderWithBazis(
+        <ResourceCard
+          path={ITEMS as never}
+          id={ITEM_ID}
+          sections={tabbed}
+          tabs={[
+            { id: 'details', title: 'Details', sections: ['main', 'numbers'], content: <Parts path={NOTES} /> },
+            {
+              id: 'lists',
+              title: 'Lists',
+              paths: [PARTS, NOTES],
+              content: (
+                <>
+                  <Parts path={PARTS} />
+                  <Parts path={NOTES} />
+                </>
+              ),
+            },
+          ]}
+        />,
+        server,
+      );
+      await screen.findByTestId('state:loaded');
+      expect(await screen.findByTestId('tab:details')).toBeTruthy();
+      expect(screen.getByTestId('tab:lists')).toBeTruthy();
+      expect(screen.getAllByTestId(`list:${NOTES}`)).toHaveLength(2);
+    });
+
+    it('asks once whether the user may view a route set that several lists show, in one tab or in several', async () => {
+      const warn = vi.spyOn(console, 'warn');
+      const server = viewing(viewing(backend({ crud_actions: ['view'] }), PARTS, true), NOTES, false);
+      renderWithBazis(
+        <ResourceCard
+          path={ITEMS as never}
+          id={ITEM_ID}
+          sections={tabbed}
+          tabs={[
+            { id: 'parts', title: 'Parts', paths: [PARTS, PARTS], content: <Parts path={PARTS} /> },
+            { id: 'notes', title: 'Notes', paths: [NOTES], content: <Parts path={NOTES} /> },
+            { id: 'more', title: 'More', paths: [PARTS, NOTES], content: <Parts path={PARTS} /> },
+          ]}
+        />,
+        server,
+      );
+      expect(await screen.findByTestId('tab:parts')).toBeTruthy();
+      expect(screen.getByTestId('tab:more')).toBeTruthy();
+      expect(screen.queryByTestId('tab:notes')).toBeNull();
+      expect(server.requests('GET').filter((it) => it === `GET ${PARTS}schema_list/`)).toHaveLength(1);
+      expect(warn.mock.calls.filter(([message]) => String(message).includes('Duplicate Queries'))).toEqual([]);
+      warn.mockRestore();
+    });
+
+    it('shows the sections of no tab alone when it shows no tab', async () => {
+      renderWithBazis(
+        <ResourceCard
+          path={ITEMS as never}
+          id={ITEM_ID}
+          sections={tabbed}
+          tabs={[{ id: 'parts', title: 'Parts', paths: [PARTS], content: <Parts path={PARTS} /> }]}
+        />,
+        viewing(backend({ crud_actions: ['view'] }), PARTS, false),
+      );
+      expect(await screen.findByTestId('field:title')).toBeTruthy();
+      expect(screen.getByTestId('field:count')).toBeTruthy();
+      expect(screen.queryByRole('tablist')).toBeNull();
+      expect(screen.queryByTestId('tab:parts')).toBeNull();
+    });
   });
 
   it('shows its children under its heading and what comes after under its sections', async () => {
@@ -315,6 +460,42 @@ describe('ResourceCard', () => {
       expect(screen.getByTestId('field:title').textContent).toBe('Report');
       other.unmount();
     }
+  });
+
+  it('shows an action with `when` only while the item is in one of its statuses, and the backend allows it', async () => {
+    const card = (status: string, crud: readonly string[]) =>
+      renderWithBazis(
+        <ResourceCard
+          path={ITEMS as never}
+          id={ITEM_ID}
+          sections={sections}
+          actions={[
+            { id: 'close', label: 'Close', onClick: vi.fn(), when: { status: ['draft', 'review'] } },
+            { id: 'reopen', label: 'Reopen', onClick: vi.fn(), when: { status: ['done'] } },
+            { id: 'delete', label: 'Delete', onClick: vi.fn(), permission: 'delete', when: { status: ['draft'] } },
+            { id: 'print', label: 'Print', onClick: vi.fn() },
+          ]}
+        />,
+        new Backend()
+          .on('GET', `${ITEM}schema_retrieve/`, schema)
+          .on('GET', ITEM, {
+            data: resource(ITEM_ID, { title: 'Report', count: 3 }, { status: { type: 'statusy.status', id: status } }),
+            meta: { crud_actions: crud },
+          }),
+      );
+    const shown = () => ['close', 'reopen', 'delete', 'print'].filter((id) => screen.queryByTestId(`action:${id}`) !== null);
+    const draft = card('draft', ['view', 'delete']);
+    await screen.findByTestId('state:loaded');
+    expect(shown()).toEqual(['close', 'delete', 'print']);
+    draft.unmount();
+    // the permission and the status together: a draft that the user may not delete
+    const kept = card('draft', ['view']);
+    await screen.findByTestId('state:loaded');
+    expect(shown()).toEqual(['close', 'print']);
+    kept.unmount();
+    card('done', ['view', 'delete']);
+    await screen.findByTestId('state:loaded');
+    expect(shown()).toEqual(['reopen', 'print']);
   });
 
   it('marks nothing read-only when the user may not change the item', async () => {

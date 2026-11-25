@@ -356,6 +356,11 @@ job of CI.
   `frontend/.scratch/shots/`) and gathers the results that the helper `shoot` writes there
   into `report.json` (`collect`: a shot without a result is V001); exit 1 on errors, 2 when
   nothing was shot or without Node. It is not a `.spec.ts`, so `npm run e2e` never runs it.
+  V021 compares `scrollWidth` with `clientWidth` of the scrolling element of the table, and the
+  width of a column of short values follows the values on the page, so a screen near the
+  edge of a width passes or fails with its data (the hour of a date of two digits is wider):
+  test such a screen with the longest value, as `layout.spec.ts` of the sample does for the
+  date of the tasks.
   `tests/test_shots.py` compares the shots of the sample with
   `assets/playwright/shots/shots.ts` (write it again with `BAZIS_FRONT_WRITE_FIXTURES=1`) and
   replaces Node and Playwright for the run; the codes `V0xx` are `CODES` of
@@ -420,7 +425,9 @@ job of CI.
   pristine copy and its lock entry). After a change of it, run the `frontend` job locally
   with an update cycle: a frontend of the sample made as there, its copies rewritten as
   those of an older version with changes on both sides, `update`, `update --check`, then
-  `tsc`, lint, tests and build.
+  `tsc`, lint, tests and build. The closing message of `update` names `npm install` first
+  (when `package.json` changed), then `status` and the subcommands it lists: `contract`
+  runs openapi-typescript of the frontend, so it needs the installed modules.
 - `contract/typescript.py` renders `contract.ts` from contract.json; `contract/generated.py`
   writes it, runs openapi-typescript for `schema.d.ts` (`npx --no-install` in the
   frontend), updates the lock and finds the stale generated files for `--check` and
@@ -457,7 +464,13 @@ npm run lucide-icons      # spec/lucide-icons.json, after a change of the versio
   exports of the client, the hooks, the components (with their props) and the helpers of
   the end-to-end tests, each with its signature and the first sentence of its
   documentation. Never edit it: change the TypeScript or its documentation and run
-  `npm run api-reference`; `npm test` fails while it is stale.
+  `npm run api-reference`; `npm test` fails while it is stale. A section is limited in bytes
+  of its JSON string (`test_section_fits_in_one_retrieval` covers every section), while
+  `BUDGETS` of `tests/test_guide.py` counts characters. A generated section stays under
+  29,000 bytes: a module over it is split by the files that its `index.ts` re-exports, in
+  sections titled `<group>: <module> (<files>)` (names, not `(n/m)`), and an export of the
+  index without `from` fails the generator, so write the exports of a large module as
+  `export … from`.
 - `package.json`, `tsconfig.json`, `test/` and `scripts/` of the client (and
   `vitest.config.ts` of the hooks and of the components) exist only for these checks:
   `pyproject.toml` excludes them from the wheel (they stay in the sdist), and
@@ -571,6 +584,9 @@ npm run lucide-icons      # spec/lucide-icons.json, after a change of the versio
   by its `path`, as `RelationPicker` and `RelationLabel` take it, and the resources of the
   uploaded files by `resources` of `FilesProvider`/`FileFieldProvider`). jsdom has no
   `ResizeObserver` and no `scrollIntoView`: a contract test that opens a popover stubs them.
+  A contract test that first opens a component whose module loads through `lazy()` imports
+  that module in `beforeAll` (`date-picker`): the chunk loads under a busy machine slower
+  than the wait for its element, and raising the timeout hides it.
 - In this repository `tsconfig.json` and `vitest.config.ts` alias the `@/` imports to the
   other assets, to `src/lib/utils.ts` of the template, to `test/fixtures/contract.ts`
   (`contract.ts` of the sample, rendered by `contract/typescript.py` from its
@@ -618,7 +634,9 @@ npm run lucide-icons      # spec/lucide-icons.json, after a change of the versio
   `nav:more` (a group shared by the row and the menu, the header as wide as the window), the
   page never wider than the window, and the name of a file of `FileView` 44 px on a touch
   screen (V009); `test/types.typecheck.ts` has the type
-  tests.
+  tests. The `pointer-coarse:` styles apply only to an emulated touch screen: a test of
+  them opens its page with `hasTouch: true` (and `isMobile`), `setViewportSize` alone
+  leaves `pointer: fine` and the check passes without testing them.
 - `bazis/shots.ts` (copied with them) is `shoot`, the screenshot of a screen with the checks
   of what it renders (`check`, run in the page: the colors computed by the browser, converted
   to sRGB by a canvas; no axe-core), and their codes (`CODES`); `test/shots.spec.ts` runs

@@ -1176,6 +1176,7 @@ def _check_screen(
     }
     if primitive in checks:
         checks[primitive](doc, entity, issues)
+    _check_action_when(doc, entity, issues)
     resource = contract['project']['resources'].get(entity.data['resource']) if contract else None
     _check_summary(doc, entity, resource, issues)
     if resource is not None:
@@ -1558,20 +1559,8 @@ def _check_card(doc: Document, entity: Entity, issues: Issues) -> None:
     shown by the status of the item (`when`), statuses of that workflow (S059).
     """
     for i, section in enumerate(doc.data['card']['sections']):
-        statuses = section.get('when', {}).get('status', [])
-        if statuses and entity.workflow is None:
-            issues.add(
-                doc, ('card', 'sections', i, 'when'), 'S059', f'The entity `{entity.data["id"]}` has no workflow.',
-                'A section is shown by the status of an item of an entity with a workflow: remove `when`.',
-            )
-            continue
-        for j, status in enumerate(statuses):
-            if status not in entity.workflow['statuses']:
-                issues.add(
-                    doc, ('card', 'sections', i, 'when', 'status', j), 'S059',
-                    f'The status `{status}` is not a status of the workflow of `{entity.data["id"]}`.',
-                    f'Use the statuses of the workflow: {", ".join(entity.workflow["statuses"])}.',
-                )
+        if 'when' in section:
+            _check_when(doc, ('card', 'sections', i, 'when'), section['when'], entity, 'S059', 'A section', issues)
     if entity.workflow is not None:
         return
     for key in ('transitions', 'history'):
@@ -1580,6 +1569,56 @@ def _check_card(doc: Document, entity: Entity, issues: Issues) -> None:
                 doc, ('card', key), 'S011', f'The entity `{entity.data["id"]}` has no workflow.',
                 'Declare the workflow of the entity, or remove it from the card.',
             )
+
+
+def _check_when(doc: Document, path: tuple, when: dict, entity: Entity, code: str, shown: str, issues: Issues) -> None:
+    """
+    The statuses of `when` at `path`, in which something of an item is shown (`shown`: a section,
+    S059; an action, S072): statuses of the workflow of the entity, which has one.
+    """
+    if entity.workflow is None:
+        issues.add(
+            doc, path, code, f'The entity `{entity.data["id"]}` has no workflow.',
+            f'{shown} is shown by the status of an item of an entity with a workflow: remove `when`.',
+        )
+        return
+    for j, status in enumerate(when['status']):
+        if status not in entity.workflow['statuses']:
+            issues.add(
+                doc, (*path, 'status', j), code,
+                f'The status `{status}` is not a status of the workflow of `{entity.data["id"]}`.',
+                f'Use the statuses of the workflow: {", ".join(entity.workflow["statuses"])}.',
+            )
+
+
+def _check_action_when(doc: Document, entity: Entity, issues: Issues) -> None:
+    """
+    An action shown by the status of its item (`when`, S072) is an action of an item: of a card
+    (but a create form), a custom action in `list.row_actions`, or a custom bulk action (the
+    schema allows `when` to no other bulk action); its statuses are then those of `_check_when`.
+    """
+    data = doc.data
+    primitive = data['primitive']
+    rows = data['list'].get('row_actions', []) if primitive == 'list' else []
+    actions = [
+        (path, it, (primitive == 'card' and it.get('mode') != 'create') or (it['primitive'] == 'custom' and it['id'] in rows))
+        for path, it in screen_actions(data)
+    ]
+    if primitive == 'list':
+        actions += [(('list', 'bulk', i), it, True) for i, it in enumerate(data['list'].get('bulk', []))]
+    for path, action, of_item in actions:
+        if 'when' not in action:
+            continue
+        if not of_item:
+            issues.add(
+                doc, (*path, 'when'), 'S072',
+                f'The action `{action["id"]}` is not of an item: `when` is the status of the item of a card, '
+                'of a row or of a selected row.',
+                'Remove `when`: a create form and an action of the toolbar of a list have no item. An action of '
+                'an item is one of a card, a custom action in `list.row_actions`, or a custom bulk action.',
+            )
+            continue
+        _check_when(doc, (*path, 'when'), action['when'], entity, 'S072', 'An action', issues)
 
 
 def _check_list(doc: Document, entity: Entity, issues: Issues, composition: dict) -> None:
@@ -2170,7 +2209,8 @@ def _check_board(doc: Document, entity: Entity, issues: Issues) -> None:
 def _check_calendar(doc: Document, entity: Entity, issues: Issues) -> None:
     """
     A calendar: its days are those of date or date-time fields, its tone by a boolean field
-    (S023); the time and the duration of its add are those of date-times (S042).
+    (S023) or by the status of an entity with a workflow (S071); the time and the duration of
+    its add are those of date-times (S042).
     """
     calendar = doc.data['calendar']
     for key in ('field', 'end'):
@@ -2180,10 +2220,17 @@ def _check_calendar(doc: Document, entity: Entity, issues: Issues) -> None:
                 doc, ('calendar', key), 'S023', f'The field `{name}` is not a date or a date-time.',
                 'Show the items on the days of a field with `type: date` or `type: datetime`.',
             )
-    tone = calendar.get('tone', {}).get('field')
-    if tone in entity.fields and entity.fields[tone].get('type') != 'boolean':
+    tone = calendar.get('tone')
+    if tone == 'status':
+        if entity.workflow is None:
+            issues.add(
+                doc, ('calendar', 'tone'), 'S071', f'The entity `{entity.data["id"]}` has no workflow.',
+                'The tone `status` colors the items by their status (`statuses` of theme.yaml): give the tone a '
+                'boolean field (`{field: is_overdue, tone: danger}`), or remove `tone`.',
+            )
+    elif tone is not None and tone['field'] in entity.fields and entity.fields[tone['field']].get('type') != 'boolean':
         issues.add(
-            doc, ('calendar', 'tone', 'field'), 'S023', f'The tone is by `{tone}`, not a boolean field.',
+            doc, ('calendar', 'tone', 'field'), 'S023', f'The tone is by `{tone["field"]}`, not a boolean field.',
             'Give the tone a boolean field (`is_overdue`): its items are in the tone while it is true.',
         )
     add = calendar.get('add', {})

@@ -50,6 +50,7 @@ import {
   resourceAt,
   type ResourceObject,
   SOFT_TONES,
+  statusTone,
   text,
   titleFromText,
   useAnyLists,
@@ -96,8 +97,11 @@ export interface ResourceCalendarProps {
   end?: string | undefined;
   /** The fields that an item shows; the label of the resource of the contract by default. */
   label?: readonly string[] | undefined;
-  /** The items whose boolean field is true, in a tone of the theme. */
-  tone?: { field: string; tone: Tone } | undefined;
+  /**
+   * The items whose boolean field is true, in a tone of the theme; `status`: every item in the
+   * tone of its status (`statusTone`, neutral for a status without one).
+   */
+  tone?: { field: string; tone: Tone } | 'status' | undefined;
   /** The views the user switches between, the first shown at first: a month by default. */
   views?: readonly CalendarView[];
   /** The items of the calendar (the filter of the screen). */
@@ -384,7 +388,13 @@ export function ResourceCalendar({
   const Add = add?.icon;
   const canAdd = add !== undefined && document !== undefined && permitted(document.meta, 'add');
   const selectedItems = items.get(selected) ?? [];
-  const toneOf = (item: ResourceObject) => (tone && fieldValue(item, tone.field) === true ? tone.tone : undefined);
+  const toneOf = (item: ResourceObject): Tone | undefined => {
+    if (tone === 'status') {
+      const status = fieldValue(item, 'status');
+      return typeof status === 'string' ? statusTone(status) : 'neutral';
+    }
+    return tone && fieldValue(item, tone.field) === true ? tone.tone : undefined;
+  };
   // the time of a date-time on the day it starts (not on the next days of an item that spans
   // days): its start, and its range to its end on the same day; a day of a month shows the start
   // alone, the range in its tooltip
@@ -458,7 +468,7 @@ export function ResourceCalendar({
             {dot && (
               <span
                 aria-hidden="true"
-                // in the tone of its first item that has one (an overdue item)
+                // in the tone of its first item that has one (an overdue item, a status)
                 className={cn('size-1.5 rounded-full', dayItems.length === 0 && 'invisible', SOFT_TONES[dayItems.map(toneOf).find(Boolean) ?? 'primary'], 'bg-current')}
               />
             )}
@@ -499,9 +509,33 @@ export function ResourceCalendar({
 
   return (
     <div data-bz={`calendar:${entity}`} data-from={from} data-to={to} className="grid grid-cols-[minmax(0,1fr)] gap-4">
-      {/* the line of the navigation: the period, its filters, the views; on the bottom of the
-          controls of the filters, under their labels; the container of the place of the reset */}
-      <div className="@container flex flex-wrap items-end gap-2">
+      {filterList.length > 0 && (
+        // the filters of the user over the navigation, as those of a board
+        <FilterRow
+          tools={
+            <ResetFilters
+              shown={userFilter.filter !== undefined}
+              onReset={() => {
+                setFilterKey((it) => it + 1);
+                setUserFilter({ filter: undefined, equal: {} });
+              }}
+            />
+          }
+        >
+          <FilterBar
+            resets={filterKey}
+            path={path}
+            filters={filterList}
+            ready={meta.ready}
+            title={meta.title}
+            onFilter={(next, equal) => {
+              setUserFilter({ filter: next, equal });
+            }}
+          />
+        </FilterRow>
+      )}
+      {/* the line of the navigation: the period, then the views and the add together at its end */}
+      <div className="flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-1">
           <Button
             type="button"
@@ -545,68 +579,41 @@ export function ResourceCalendar({
         <h2 aria-live="polite" className="min-w-0 py-1.5 text-base font-medium first-letter:uppercase max-sm:order-first max-sm:basis-full">
           {title}
         </h2>
-        {filterList.length > 0 && (
-          // no plate of their own: about 15rem a filter, never narrower than 28rem (where they fold
-          // behind their button) beside the period: with less room they wrap with the toolbar, a
-          // line of filters, folded on a phone only
-          <div
-            className="@container flex-1 sm:ml-4"
-            style={{ minWidth: `min(100%, ${String(Math.min(filterList.length * 15, 28))}rem)`, maxWidth: `${String(filterList.length * 15)}rem` }}
-          >
-            <FilterRow plate={false} line>
-              <FilterBar
-                resets={filterKey}
-                path={path}
-                filters={filterList}
-                ready={meta.ready}
-                title={meta.title}
-                onFilter={(next, equal) => {
-                  setUserFilter({ filter: next, equal });
-                }}
-              />
-            </FilterRow>
-          </div>
-        )}
-        {filterList.length > 0 && (
-          <ResetFilters
-            shown={userFilter.filter !== undefined}
-            onReset={() => {
-              setFilterKey((it) => it + 1);
-              setUserFilter({ filter: undefined, equal: {} });
-            }}
-          />
-        )}
-        {views.length > 1 && (
-          <div role="group" aria-label={t('calendar.view')} className="ml-auto flex gap-1.5">
-            {views.map((it) => (
+        {(views.length > 1 || canAdd) && (
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            {views.length > 1 && (
+              <div role="group" aria-label={t('calendar.view')} className="flex gap-1.5">
+                {views.map((it) => (
+                  <Button
+                    key={it}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    data-bz={`view:${it}`}
+                    aria-pressed={it === view}
+                    onClick={() => {
+                      setView(it);
+                      setAnchor(selected);
+                    }}
+                  >
+                    {t(`calendar.${it}`)}
+                  </Button>
+                ))}
+              </div>
+            )}
+            {canAdd && (
               <Button
-                key={it}
                 type="button"
-                variant="outline"
-                size="sm"
-                data-bz={`view:${it}`}
-                aria-pressed={it === view}
+                data-bz={`action:${add.id}`}
                 onClick={() => {
-                  setView(it);
-                  setAnchor(selected);
+                  add.onAdd(initial(selected, add));
                 }}
               >
-                {t(`calendar.${it}`)}
+                {Add && <Add />}
+                {add.label}
               </Button>
-            ))}
+            )}
           </div>
-        )}
-        {canAdd && (
-          <Button
-            type="button"
-            data-bz={`action:${add.id}`}
-            onClick={() => {
-              add.onAdd(initial(selected, add));
-            }}
-          >
-            {Add && <Add />}
-            {add.label}
-          </Button>
         )}
       </div>
       {state === 'loaded' || state === 'empty' ? (

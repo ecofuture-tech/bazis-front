@@ -429,6 +429,11 @@ class Command(BaseCommand):
         if needs_screens:
             self.stdout.write(spec_screens.NEEDS_SCREENS)
         install = 'Run `npm install` (its package.json changed). ' if plan.dependencies_changed else ''
+        # after `npm install`: `contract` runs openapi-typescript of the frontend
+        status = (
+            'Run `manage.py bazis_front status` and the subcommands that it lists (`contract`, '
+            '`design`, `screens`, `e2e`, `shots`). '
+        )
         # `tsc` and the tests import the screens that `screens` writes: red until then
         verify = (
             '`npx tsc --noEmit` and `npm test` stay red until `bazis_front screens` generates the '
@@ -449,11 +454,11 @@ class Command(BaseCommand):
                 f'Updated to bazis-front {plan.version} with conflicts in {len(plan.conflicts)} '
                 f'files: {", ".join(plan.conflicts)}. Resolve the conflict markers (<<<<<<< '
                 f'{update.LOCAL_NAME}, =======, >>>>>>> bazis-front {plan.version}) in them{take}. '
-                f'{install}{verify}'
+                f'{install}{status}{verify}'
             )
         self.stdout.write(
-            f'Updated the copies to bazis-front {plan.version}. {install}{verify} Commit the '
-            f'frontend with {frontend_lock.BASE_DIR}/ and the lock.'
+            f'Updated the copies to bazis-front {plan.version}. {install}{status}{verify} Commit '
+            f'the frontend with {frontend_lock.BASE_DIR}/ and the lock.'
         )
 
     def write_conflicts(self, plan) -> bool:

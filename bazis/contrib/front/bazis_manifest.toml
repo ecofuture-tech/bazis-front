@@ -35,7 +35,7 @@ text = "frontend/src/bazis/generated/ (contract.ts, schema.d.ts) is written by `
 check = "front.W001"
 
 [[pitfalls]]
-text = "the specs (spec/) are checked against contract/contract.json: export the contract before `bazis_front check`; `access` must be covered by the permissions of the permit roles (P019), and the issues have stable codes (the section \"The issues of check\" of AGENTS.md)"
+text = "the specs (spec/) are checked against contract/contract.json: export the contract before `bazis_front check`; `access` must be covered by the permissions of the permit roles (P019), and the issues have stable codes (the sections \"The issues of check\" and \"The issues of the screens and the design\" of AGENTS.md)"
 check = "front.W002"
 
 [[pitfalls]]

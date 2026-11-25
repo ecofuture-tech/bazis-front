@@ -17,9 +17,9 @@ import { describe, expect, it } from 'vitest';
 
 import { Filter } from '@/bazis/client';
 
-import { useCan, useFilterFields, useItem, useList, useLists, useSchema } from '../src/index.js';
+import { useCan, useFilterFields, useItem, useList, useLists, useSchema, useViewable } from '../src/index.js';
 import sample from './fixtures/sample.json' with { type: 'json' };
-import { Backend, cachedKeys, PARENT, render } from './support.js';
+import { Backend, cachedKeys, CHILD, PARENT, render } from './support.js';
 
 const page = (ids: string[], offset = 0) => ({
   data: ids.map((id) => ({ id, type: 'entity.parent_entity', attributes: {}, relationships: {} })),
@@ -302,6 +302,38 @@ describe('useCan', () => {
     await waitFor(() => {
       expect(result.current).toBe(true);
     });
+  });
+});
+
+describe('useViewable', () => {
+  it('reads whether the user may view each route set as useCan does, with the queries of useSchema', async () => {
+    const backend = new Backend()
+      .on('GET', `${PARENT}schema_list/`, { title: 'list' })
+      .on('GET', `${CHILD}schema_list/`, { errors: [{ status: 403, code: 'ERR_FORBIDDEN' }] }, 403);
+    const useHooks = () => ({ viewable: useViewable([PARENT, CHILD]), can: [useCan(PARENT, 'view'), useCan(CHILD, 'view')] });
+    const { result, queryClient } = render(useHooks, backend);
+    // unknown until the backend answers
+    expect(result.current.viewable).toEqual([undefined, undefined]);
+    await waitFor(() => {
+      expect(result.current.viewable).toEqual([true, false]);
+    });
+    expect(result.current.can).toEqual([true, false]);
+    // a request per route set, shared with useCan and useSchema
+    expect(backend.requests()).toEqual([`GET ${PARENT}schema_list/`, `GET ${CHILD}schema_list/`]);
+    expect(cachedKeys(queryClient)).toEqual([
+      ['bazis', PARENT, 'schema', 'list', 's1'],
+      ['bazis', CHILD, 'schema', 'list', 's1'],
+    ]);
+  });
+
+  it('is not a refusal when the backend fails otherwise, and reads nothing without a route set', async () => {
+    const backend = new Backend().on('GET', `${PARENT}schema_list/`, { errors: [{ status: 500 }] }, 500);
+    const { result } = render(() => ({ one: useViewable([PARENT]), none: useViewable([]) }), backend);
+    expect(result.current.none).toEqual([]);
+    await waitFor(() => {
+      expect(result.current.one).toEqual([true]);
+    });
+    expect(backend.requests()).toEqual([`GET ${PARENT}schema_list/`]);
   });
 });
 

@@ -19,7 +19,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { expect, test, type Page } from '@playwright/test';
+import { devices, expect, test, type Page } from '@playwright/test';
 
 import { check, shoot, type CheckOptions, type ShotResult } from '../bazis/shots';
 import { PRODUCT } from '../generated/product';
@@ -289,6 +289,30 @@ test('the controls too small to touch on a phone', async ({ page }) => {
   expect((await check(page, PHONE)).map((it) => it.message)).toEqual(['1 controls are smaller than 44×44 px: button 42×42.']);
   await show(page, bordered(15));
   expect(await check(page, PHONE)).toEqual([]);
+});
+
+test('the touch areas of the controls on the phone of the shots', async ({ page, browser }) => {
+  // the project `phone` of playwright.shots.config.ts of the template: a touch screen, whose
+  // styles of `pointer-coarse:` apply
+  const phone = await browser.newPage({ ...devices['Desktop Chrome'], viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  // a control without an area of touch
+  await show(phone, '<button data-bz="action:edit" style="width: 24px; height: 24px">E</button>');
+  expect(await phone.evaluate(() => matchMedia('(pointer: coarse)').matches)).toBe(true);
+  expect(await found(phone, PHONE)).toEqual([['V009', '[data-bz="action:edit"]']]);
+  // its `::after` or its `::before` of 44×44 px on a touch screen (`pointer-coarse:after:` and
+  // `pointer-coarse:before:` of Tailwind)
+  const area = (pseudo: string) =>
+    `<style>@media (pointer: coarse) { .area::${pseudo} { content: ''; position: absolute; inset: -10px } }</style>
+     <button class="area" data-bz="action:edit" style="position: relative; width: 24px; height: 24px; padding: 0; border: 0">E</button>`;
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const pseudo of ['after', 'before']) {
+    await show(phone, area(pseudo));
+    expect(await found(phone, PHONE)).toEqual([]);
+    // without a touch screen, no such area
+    await show(page, area(pseudo));
+    expect(await found(page, PHONE)).toEqual([['V009', '[data-bz="action:edit"]']]);
+  }
+  await phone.close();
 });
 
 test('a text cut without its whole text', async ({ page }) => {

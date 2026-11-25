@@ -14,7 +14,7 @@
 
 """
 The layout of the guide (`bazis/contrib/front/AGENTS.md`) that bazis-mcp serves section by
-section: its handwritten sections fit in one retrieval, and the names of sections that the
+section: its sections fit in one retrieval, and the names of sections that the
 introduction and the template `AGENTS.md` refer to are its `## ` headings.
 """
 
@@ -32,8 +32,7 @@ TEMPLATE = (FRONT / 'assets' / 'template' / 'AGENTS.md').read_text(encoding='utf
 #: `GUIDE_LIMIT` of bazis-mcp (`bazis.contrib.mcp.catalog`): the most bytes of the JSON
 #: string of a section that `package_guide` returns whole; a longer one is cut into parts
 GUIDE_LIMIT = 30_000
-#: the generated end of the guide (`scripts/gen_api_reference.mjs`), cut by bazis-mcp
-#: into parts as needed
+#: the generated end of the guide (`scripts/gen_api_reference.mjs`)
 API = 'API: '
 
 
@@ -82,7 +81,7 @@ BUDGETS = {
     'The specs of the screens and the design': 24_000,
     'Writing the screens': 15_000,
     'The end-to-end tests': 15_000,
-    'The design': 12_000,
+    'The design': 23_000,
     'The visual check': 12_000,
 }
 
@@ -93,8 +92,8 @@ def test_narrative_section_keeps_its_budget(title):
     assert len(text) <= BUDGETS[title], f'"{title or "the introduction"}": {len(text)} characters'
 
 
-@pytest.mark.parametrize('title', HANDWRITTEN)
-def test_handwritten_section_fits_in_one_retrieval(title):
+@pytest.mark.parametrize('title', SECTIONS)
+def test_section_fits_in_one_retrieval(title):
     size = len(json.dumps(SECTIONS[title], ensure_ascii=False).encode('utf-8')) - 2
     assert size <= GUIDE_LIMIT, f'"{title}": {size} bytes of JSON, over {GUIDE_LIMIT}: split it'
 
@@ -135,7 +134,12 @@ CHOICES = [
     ('Protocol facts that are easy to get wrong', 'Protocol facts that are easy to get wrong', 'A count of\n  pieces is an `IntegerField`'),
     # the database of an existing or shared product is never emptied, the demo of a new one made again
     ('The end-to-end tests', 'The end-to-end tests', 'the database of a product that exists, or shared, is\n  never emptied'),
-    ('The end-to-end tests', 'The end-to-end tests', 'Only the demo database of a new product, which the agent made itself, is made\n  again once at the end'),
+    ('The end-to-end tests', 'The end-to-end tests', 'Only the database of `.env` created in this session for the new product (by\n  `create_project`, or by you when it was missing), which holds nothing but its demo data, is\n  made again once at the end (drop, `migrate`, `e2e_data`, no test after).'),
+    ('The specs of the screens and the design', 'The specs of the screens and the design', '(`tone: status`, S071; `status` in `label` too, not the color alone)'),
+    ('The specs of the screens and the design', 'The specs of the screens and the design', '`when` is for an\naction that does not change it'),
+    # the facts that the rules of bazis-mcp leave to this guide
+    ('The specs of the screens and the design', 'The specs of the screens and the design', '`BAZIS_API_AGGREGATE_GROUPS_MAX`'),
+    ('Migrating the code of the product', 'Migrating the code of the product', 'The API of the copies that 0.10.0 changes'),
 ]
 
 

@@ -26,8 +26,8 @@ test('manager-sets-the-priority', async ({ page }) => {
     await app.expectScreen('task-card');
     await app.expectValues({ priority: 'High', hours: '2.5' });
   });
-  await test.step('open: task-list', async () => {
-    await app.open('task-list');
+  await test.step('open: draft-tasks', async () => {
+    await app.open('draft-tasks');
   });
   await test.step('open_item: {where: {title: Ship the release, priority: High}}', async () => {
     await app.openItem({ where: { title: 'Ship the release', priority: 'High' }, created: true });

@@ -29,7 +29,7 @@ import { useDestroy, type CreatePath, type DestroyPath, type UpdatePath } from '
 import { Allowed, type NavRequirement } from '@/bazis/ui/app-shell';
 import type { CardAction } from '@/bazis/ui/resource-card';
 import { FormSurface, ResourceForm, type SavedDocument } from '@/bazis/ui/resource-form';
-import type { FieldFilters } from '@/bazis/ui/resource';
+import type { FieldFilters, StatusWhen } from '@/bazis/ui/resource';
 import { failureText, toast } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -183,6 +183,8 @@ export interface DestroyCardActionOptions {
   item: string;
   /** The route shown once the item is deleted (the screen `then` of the action); the card stays without it. */
   then?: string | undefined;
+  /** The statuses of the item in which the action is shown; always without it. */
+  when?: StatusWhen;
 }
 
 /** The deletion of the item of a card: its action and the dialog that confirms it. */
@@ -206,6 +208,7 @@ export function useDestroyCardAction({
   path,
   item,
   then,
+  when,
 }: DestroyCardActionOptions): DestroyCardAction {
   const destroy = useDestroy(path, { leaving: then !== undefined });
   const navigate = useNavigate();
@@ -269,6 +272,7 @@ export function useDestroyCardAction({
       label,
       permission: 'delete',
       variant: 'destructive',
+      when,
       onClick: () => {
         setOpen(true);
       },

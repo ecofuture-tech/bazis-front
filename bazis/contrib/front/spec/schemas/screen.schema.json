@@ -124,11 +124,15 @@
               "transit": {"description": "The id of a transition of the workflow.", "$ref": "#/$defs/id"},
               "primitive": {"const": "destroy"},
               "action": {"description": "A custom action of an item, run with an empty body: its name in its path, as `custom_actions` of the contract has it.", "type": "string", "pattern": "^[A-Za-z0-9_-]+$"},
-              "label": {"description": "The label of its button.", "$ref": "#/$defs/text"}
+              "label": {"description": "The label of its button.", "$ref": "#/$defs/text"},
+              "when": {
+                "description": "A custom bulk action runs only on the selected rows of the page in one of these statuses of the workflow of the entity (S072), those of other pages left to the backend; always without it.",
+                "$ref": "#/$defs/when"
+              }
             },
             "oneOf": [
-              {"required": ["transit"], "properties": {"primitive": false, "action": false}},
-              {"required": ["primitive"], "properties": {"transit": false, "action": false}},
+              {"required": ["transit"], "properties": {"primitive": false, "action": false, "when": false}},
+              {"required": ["primitive"], "properties": {"transit": false, "action": false, "when": false}},
               {"required": ["action", "label"], "properties": {"transit": false, "primitive": false}}
             ]
           }
@@ -153,10 +157,7 @@
               "fields": {"$ref": "#/$defs/fields", "minItems": 1},
               "when": {
                 "description": "The section is shown only while the item is in one of these statuses of the workflow of the entity (S059); always without it. Its fields stay in the edit of the card.",
-                "type": "object",
-                "additionalProperties": false,
-                "required": ["status"],
-                "properties": {"status": {"type": "array", "uniqueItems": true, "minItems": 1, "items": {"type": "string", "minLength": 1}}}
+                "$ref": "#/$defs/when"
               }
             }
           }
@@ -437,11 +438,16 @@
         "end": {"description": "The date or date-time field of the last day of an item that spans days.", "$ref": "#/$defs/field"},
         "label": {"description": "The fields that an item shows; the label of the entity by default.", "$ref": "#/$defs/fields"},
         "tone": {
-          "description": "The items whose boolean field is true, in a tone of the theme.",
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["field", "tone"],
-          "properties": {"field": {"$ref": "#/$defs/field"}, "tone": {"$ref": "#/$defs/tone"}}
+          "description": "The items whose boolean field is true, in a tone of the theme; or `status`: every item in the tone of its status, those of `statuses` of theme.yaml (neutral for a status without one), for an entity with a workflow (S071).",
+          "oneOf": [
+            {"const": "status"},
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["field", "tone"],
+              "properties": {"field": {"$ref": "#/$defs/field"}, "tone": {"$ref": "#/$defs/tone"}}
+            }
+          ]
         },
         "views": {"type": "array", "uniqueItems": true, "minItems": 1, "items": {"enum": ["month", "week"]}},
         "filters": {"description": "Fields that the contract can filter by, read from `route_filter_fields/` of the route set, which its `actions` keep (S040): the items of the user's choice, a relation (the schedule of one doctor) or a choice. The add starts its form with the related item or the choice of a filter of one of its fields.", "$ref": "#/$defs/fields"},
@@ -502,6 +508,13 @@
   ],
   "$defs": {
     "id": {"type": "string", "pattern": "^[a-z][a-z0-9_-]*$"},
+    "when": {
+      "description": "The statuses of the workflow of the entity in which the item shows it.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {"status": {"type": "array", "uniqueItems": true, "minItems": 1, "items": {"type": "string", "minLength": 1}}}
+    },
     "requires": {
       "description": "What the backend must let the user do for the part to be shown: view the items of its entity (the default) or add one (`can: add`: the tile \"New\" only for those who may add), as `requires` of a link of the navigation (S030).",
       "type": "object",
@@ -611,7 +624,11 @@
         "then": {"description": "The screen shown after the action.", "$ref": "#/$defs/id"},
         "label": {"description": "The label of its button, also the title of its form.", "$ref": "#/$defs/text"},
         "title": {"description": "The title of the confirmation of a deletion, a question (`Delete the book?`): `Delete this item?` by default; the title of the dialog of a custom action: its label by default.", "$ref": "#/$defs/text"},
-        "description": {"description": "The description of its form, of the confirmation of a deletion, or of the dialog of a custom action.", "$ref": "#/$defs/text"}
+        "description": {"description": "The description of its form, of the confirmation of a deletion, or of the dialog of a custom action.", "$ref": "#/$defs/text"},
+        "when": {
+          "description": "An action of an item (of a card: the deletion, the update form, a custom action; a custom action in `list.row_actions`) is shown only while the item is in one of these statuses of the workflow of the entity (S072); always without it. It reflects the state of the item only: the code of a custom action refuses another state itself.",
+          "$ref": "#/$defs/when"
+        }
       },
       "allOf": [
         {

@@ -46,6 +46,12 @@ from .support import read_lock, write_contract, write_lock
 OLD = '0.0.1'
 CLIENT = 'src/bazis/client/client.ts'
 MARKERS = ('<<<<<<< frontend\n', '=======\n', f'>>>>>>> bazis-front {__version__}\n')
+#: the step after an update that every message of a done update names, after `npm install`
+STATUS = (
+    'Run `manage.py bazis_front status` and the subcommands that it lists (`contract`, `design`, '
+    '`screens`, `e2e`, `shots`). '
+)
+VERIFY = 'Run `npx tsc --noEmit`, `npm run lint` and `npm test` in frontend/.'
 
 
 def update(*args):
@@ -195,8 +201,10 @@ def test_update_replaces_unchanged_copies(product):
 
     out = update()
     assert f'react: {OLD} -> {__version__} (11 files unchanged in the frontend replaced)\n' in out
-    assert f'Updated the copies to bazis-front {__version__}.' in out
-    assert 'Run `npx tsc --noEmit`, `npm run lint` and `npm test` in frontend/.' in out
+    assert out.endswith(
+        f'Updated the copies to bazis-front {__version__}. {STATUS}{VERIFY} Commit the frontend '
+        'with .bazis/base/ and the lock.\n'
+    )
     for name in ('client', 'react'):
         assert_updated(product, name)
         asset = registry.load()[name]
@@ -265,8 +273,9 @@ def test_update_writes_the_conflicts_and_fails(product):
     path.write_text(change_line(text, late(text), '// mine\n'), encoding='utf-8')
 
     out = StringIO()
-    with pytest.raises(CommandError, match=f'with conflicts in 1 files: {CLIENT}. Resolve the conflict markers'):
+    with pytest.raises(CommandError, match=f'with conflicts in 1 files: {CLIENT}. Resolve the conflict markers') as error:
         call_command('bazis_front', 'update', stdout=out)
+    assert str(error.value).endswith(f' fails `tsc` (TS2440). {STATUS}{VERIFY}')
     assert f'  {CLIENT}: CONFLICT' in out.getvalue()
     new = upstream(CLIENT)
     # the file of bazis-front, whole: its pristine copy of the new version
@@ -495,7 +504,7 @@ def test_update_of_a_frontend_made_before_the_screens(product):
     out = update()
     assert out.index(screens.NEEDS_SCREENS) < out.index('Updated the copies')
     # `tsc` and the tests are red until the screens are generated: the update never asks for them
-    assert '`npx tsc --noEmit` and `npm test` stay red until `bazis_front screens`' in out
+    assert f'{STATUS}`npx tsc --noEmit` and `npm test` stay red until `bazis_front screens`' in out
     assert '"Migrating the code of the product", step 8' in out
     assert 'docs/releases' not in out
     assert 'Run `npx tsc --noEmit`' not in out
@@ -669,7 +678,7 @@ def test_update_merges_the_template(product):
     assert f'  {ROUTER}: kept (changed in the frontend only)\n' in out
     assert f'  {VITE_CONFIG}: merged with the changes of the frontend\n' in out
     assert '  AGENTS.md: not restored (deleted in the frontend)\n' in out
-    assert 'Run `npm install` (its package.json changed). Run `npx tsc --noEmit`' in out
+    assert f'Run `npm install` (its package.json changed). {STATUS}{VERIFY}' in out
     assert (frontend / PLAYWRIGHT_CONFIG).read_text(encoding='utf-8') == upstream(PLAYWRIGHT_CONFIG)
     assert package.read_text(encoding='utf-8') == upstream(PACKAGE_JSON).replace(
         '"private": true,', '"private": true,\n  "description": "mine",'

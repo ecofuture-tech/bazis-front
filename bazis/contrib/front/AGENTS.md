@@ -38,10 +38,16 @@ package is upgraded.
 ### Building the frontend of a product
 
 The steps, each with the sections to read when you reach it, not before. Read a section with
-`package_guide("bazis-front", "<section>")`; `guide_search` finds the section that answers a
-question, and the `API:` sections give the signature of every export of the copied code (the
-props of the components, the hooks, the client, the helpers of the tests), so that the copies
-in `frontend/` never need to be read.
+`package_guide("bazis-front", "<section>")`, the sections that one step names in one answer
+(parallel calls). A product made from its specs only reads "The frontend", "The specs", "The
+specs of the screens and the design", "The backend of a product", "The design", "The
+end-to-end tests" and "The visual check"; the other sections are read when a step needs them:
+"The contract" when the export fails, "The issues of check" and "The issues of the screens and
+the design" when the hint of an issue is not enough, the sections of step 6 for an `extend` or
+a `custom` screen. `guide_search` finds the section that answers a question; the `API:`
+sections give the signature of every export of the copied code (the props of the components,
+the hooks, the client, the helpers of the tests), read only through `guide_search`, so that
+the copies in `frontend/` never need to be read.
 
 1. Install bazis-front and the packages of the product (above), then create the frontend
    with `python manage.py bazis_front init` (`--preset portal` for a product for the public,
@@ -54,18 +60,20 @@ in `frontend/` never need to be read.
 3. Build the backend to satisfy the specs: the models and route sets, the roles with their
    permissions in `roles.py`, the workflows in `workflow.py`, the `e2e_data` command, "The
    backend of a product" (and the guides of bazis-permit and bazis-statusy).
-4. Migrate the database and export the contract, `python manage.py bazis_front contract`:
-   "The contract".
+4. Migrate the database and export the contract, `python manage.py bazis_front contract`
+   (when it fails: "The contract").
 5. Run `python manage.py bazis_front check` and fix the spec or the backend as the hint of
    each issue says until it reports no errors, exporting the contract again after every
-   change of the backend: "The issues of check".
-6. Generate the screens, `python manage.py bazis_front screens` (it copies the components
-   that they import), and write what their specs cannot say in their extensions (`extend`)
-   or the screens that they do not fit (`custom: true`) in `frontend/src/screens/<id>/` (as
-   "The specs of the screens and the design" says): "The components", "Writing the screens" and "Composing beyond
-   the specs"; by topic "Choices, filters, permissions and relationships", "Files, points and
-   maps", "Custom actions and background work", "The socket" and "The language"; the data
-   through "The hooks" and "The client".
+   change of the backend (when a hint is not enough: "The issues of check" for `C…` and `P…`,
+   "The issues of the screens and the design" for `S…` and `D…`).
+6. Generate the screens, `python manage.py bazis_front screens` (it copies the components that
+   they import). Only when their specs cannot say something, write it in their extensions
+   (`extend`), or the screens that they do not fit (`custom: true`), in
+   `frontend/src/screens/<id>/` (as "The specs of the screens and the design" says): "The
+   components", "Writing the screens" and "Composing beyond the specs"; by topic "Choices,
+   filters, permissions and relationships", "Files, points and maps", "Custom actions and
+   background work", "The socket" and "The language"; the data through "The hooks" and "The
+   client".
 7. Design the product: choose the palette, the fonts, the shape and the surface of
    `spec/design/theme.yaml` for its domain (`mode: both` unless the user asks for one mode),
    the icon of every entity and the tones of the statuses, then generate the theme, `python
@@ -130,7 +138,8 @@ Later, after `pip install -U bazis-front`: "Updating the copies".
 | The specs | you write `spec/product.yaml`: the roles, entities, fields, workflows, access (with the permissions it requires), scenarios and their steps |
 | The specs of the screens and the design | you write `spec/screens/<id>.yaml` (list, card, form, dashboard, board, calendar, `card.related`, `card.tabs`, `list.filter`, `list.map`, `list.bulk`, the custom actions), which primitive a part of the product takes, the `data-bz` marks, `spec/design/theme.yaml` |
 | The cards of a list and the summary of a card | a list is a grid of cards (`list.layout`, `list.card`: the cover, the rubric, the title, the figure, the muted values), a card heads its item with a summary (`card.summary`: a range of days, a figure) |
-| The issues of check | `bazis_front check` reports a code (`C…`, `P…`, `S…`, `D…`) |
+| The issues of check | the shape of an issue, the lint of a file of the specs, a code `C…` (the contract) or `P…` (`spec/product.yaml`) |
+| The issues of the screens and the design | a code `S…` (`spec/screens/`) or `D…` (`spec/design/`) |
 | The backend of a product | you build the backend the frontend relies on: the declared roles and workflows, the test data, the changes and the notifications, the invariants, the labels |
 | The contract | you export the contract or read `contract.json` and `contract.ts` (`ROUTES`, `CAPABILITIES`, the sections of the capabilities) |
 | The components | you choose the components and copy them (`add`): what each one is, its `data-bz`, what it requires |
@@ -140,9 +149,7 @@ Later, after `pip install -U bazis-front`: "Updating the copies".
 | Files, points and maps | the files of bazis-uploadable, the points and the maps, what is near |
 | Custom actions and background work | an action of the backend that is no CRUD (an export, a report), its permission, a task of bazis-bg, a background request |
 | The socket | bazis-ws: the live updates, the notifications and the bell, the protocol of the socket |
-| The design | the presets, the top bar, the layers of the tokens, the icons, the dark mode, the tones of the statuses, the classes of the theme |
-| Customizing the look | the base look changed or moved by `theme.yaml` and `tokens.json` (the sidebar, the filters, the tools of a list, the widths, the current link, the surfaces, the fields), what stays code, the tokens and their defaults |
-| The fonts and the brand | the fonts (shipped, served by the frontend, their subsets and fallbacks), the brand and its mark, the sidebar, the classes of the headings |
+| The design | the presets, the top bar, the layers of the tokens, the icons, the dark mode, the tones of the statuses, the classes of the theme; the base look changed or moved by `theme.yaml` and `tokens.json` (the sidebar, the filters, the tools of a list, the widths, the current link, the surfaces, the fields), what stays code, the tokens and their defaults; the fonts (shipped, served by the frontend, their subsets and fallbacks), the brand and its mark, the sidebar, the classes of the headings |
 | The end-to-end tests | `bazis_front e2e`, the steps and their helpers, `e2e_data`, `npm run e2e` and its ports, the tests of your own |
 | The visual check | `bazis_front shots`: the screenshots, their report and its codes (`V…`), the checklist of the screenshots, when the screens are done |
 | The client | a request that the hooks do not cover, the filters, the errors of a form, the permission meta, the uploads |
@@ -150,7 +157,8 @@ Later, after `pip install -U bazis-front`: "Updating the copies".
 | The language | the languages, the dictionaries and `t()`, the formats of dates and numbers, the language of the profile |
 | Logins with bazis-authing | the login of the template with bazis-users or bazis-authing, the sign-out |
 | Protocol facts that are easy to get wrong | a request is refused or answers otherwise than you expected: the filters, `include`, 403 and 404, the errors, the files, the points, the tasks |
-| Updating the copies | after `pip install -U bazis-front`: `update`, its conflicts, the changes of the API of the copies |
+| Updating the copies | after `pip install -U bazis-front`: `update`, `status` after it, its conflicts |
+| Migrating the code of the product | the code or the tests of the product fail after `update`: what each version changes in the API of the copies, a product of 0.1.0 |
 | `API: …` (generated) | you need the props of a component, the parameters and the result of a hook or of the client, a helper of the end-to-end tests |
 
 ## The frontend
@@ -675,7 +683,7 @@ On a card it is an action of the item; on a list one of the route set in the too
 of an item on each row (`list.row_actions`); `list.bulk` runs one of an item on the selected
 rows with an empty body. Of an action of an item and one of the route set of the same name
 (`/{item_id}/export/` and `/export/`), the toolbar runs the second, the card, the rows and a
-bulk action the first. Once it is done the queries of the resource are refetched. The button
+bulk action the first. The button
 shows when the backend lets the user run it: on a card and in the toolbar by `custom_actions`
 of the meta of bazis-permit, on the rows and in a bulk action when the row may be changed (or
 deleted) as its `access_action` requires (a list tells of each row only these, so an action
@@ -787,7 +795,11 @@ user may change the item of the card) or `always`.
 A section shown by the status of its item has `when: {status: [...]}` of the workflow (S059):
 `{id: report, fields: [report], when: {status: [done]}}`. The edit of the card keeps its
 fields; a scenario expects them absent in the other statuses (`field_absent`), their `values`
-in one of these (P022).
+in one of these (P022). An action of an item (of a card, of `list.row_actions`, a custom bulk
+action) has `when` too (S072): a transit of bazis-statusy changes the status, `when` is for an
+action that does not change it, or not always, and its code refuses another status itself. A
+scenario runs it after a transit to one of its statuses, and expects it absent in another
+(`action_absent`).
 
 #### Tabs and bulk actions
 
@@ -795,7 +807,8 @@ A card with many parts is in tabs, `card.tabs`: each section, related section an
 history in exactly one tab (S024); the transits stay above the tabs. Without `tabs` the
 parts are one below the other: the transits under the heading, then the sections, the
 related sections and the history. The scenarios do not name the tabs: the helpers show the
-tab of what a step acts on.
+tab of what a step acts on. A tab of related sections only is left out for a user whom the
+backend lets view none of their lists.
 
 ```yaml
 card:
@@ -813,7 +826,9 @@ A list acts on the rows that the user selects with `bulk`: a transition without 
 destroy`) or a custom action of an item with an empty body. The screen runs it on each
 selected item in turn after a confirmation, reading nothing first: an item that the backend
 refuses (a transition its status does not have now) stays selected, with the error shown
-(`error:bulk`):
+(`error:bulk`). Of the selected rows of the page it runs on those that the backend lets the
+user act on as the action requires and that are in its `when`; with none its button is
+disabled:
 
 ```yaml
 list:
@@ -858,12 +873,12 @@ states: [loading, error]
 ```
 
 The `label` of a part is a key of the dictionaries or a text. A tile counts the items of its
-`filter` (as `list.filter`: S008, S014) or shows the aggregate `value` (S049) in the
-`display` of the field; `open` is a list of the entity, that of a row of the last items a card
-of it (S006). **A tile, a chart and the
-last items are shown to the users whom the backend lets view their entity** (`Viewable` of
-the dashboard): one dashboard serves every role of the screen, without an `extend`; other
-parts for a role are a screen of its own (`roles`).
+`filter` (as `list.filter`: S008, S014) or shows the aggregate `value` (S049) in the `display`
+of the field, as a chart of a `value` does (its axis compact from a million); `open` is a list
+of the entity, that of a row of the last items a card of it (S006). **A tile, a chart and the
+last items are shown to the users whom the backend lets view their entity** (`Viewable` of the
+dashboard): one dashboard serves every role of the screen, without an `extend`; other parts for
+a role are a screen of its own (`roles`).
 `requires: {can: add}` of a part asks that the user may add an item too, as that of a link
 (S030). A chart is by `status` or by a `date`/`datetime` field per `bucket`, its `last`
 periods to the current one (S021), of the count or a `{sum: …}`/`{avg: …}` (S049);
@@ -873,18 +888,22 @@ whose one series by a date matters most.
 **The data of a dashboard, a board and a calendar comes from the lists of the API**: a
 tile and a chart are the aggregates of the core (bazis 2.17) over the list of their entity
 with its filter, a chart grouped by `status` or by its date over its periods, read in the
-time zone of the backend (`TIME_ZONE`: the axis is in it); the core aggregates only the fields that the filter of the
-list reaches for the user (S050), and over too many groups answers 400 `ERR_AGGREGATE`,
-which the part shows as its error. The last items are a list sorted by `sort`, a board a
-list for each column, a calendar the items of the period shown (a month in one list of up to
-500 items); the fields they filter and sort by are those of the contract (S008).
+time zone of the backend (`TIME_ZONE`: the axis is in it); the core aggregates only the fields
+that the filter of the list reaches for the user (S050), and over more groups than
+`BAZIS_API_AGGREGATE_GROUPS_MAX` of the core allows (1000 by default) answers 400
+`ERR_AGGREGATE`, which the part shows as its error: a chart by `day` or by `week` reads the
+days of its periods, so a long one is by `month` or has a smaller `last`. The last items are a
+list sorted by `sort`, a board a list for each column, a calendar the items of the period shown
+(a month in one list of up to 500 items); the fields they filter and sort by are those of the
+contract (S008).
 
 A board shows the items of an entity with a workflow (S022) in a column for each status of
 `columns` (all of them in their order by default); an item shows its `card.title`, its
 `card.fields` and a badge while its boolean field `card.badge` is true (S022). With
 `move: true` an item moves to the column of a status that a transit allowed to it now leads
 to (`for_transit` of bazis-statusy 2.13, in the request of the column); an item without one
-has no moves, and a transit with a payload opens its dialog.
+has no moves, and a transit with a payload opens its dialog. The columns share the width of
+the board, four beside the sidebar at 1280 px; more scroll inside it.
 
 ```yaml
 primitive: board
@@ -901,7 +920,8 @@ states: [loading, empty, error, forbidden]
 
 A calendar shows the items of an entity on the days of a field `date` or `datetime`
 (`field`; `end` for the items that span days), a month or a week at a time (`views`), each
-item by its `label` fields, in the tone of `tone` while its boolean field is true (S023).
+item by its `label` fields, in the tone of `tone` while its boolean field is true (S023), or
+of its status (`tone: status`, S071; `status` in `label` too, not the color alone).
 `filters` are those of a list (S008, S040): the schedule of one doctor or one room is a
 filter by the relation, not a screen of your own nor a color (the backend decides what each
 user sees). `add` is the create form of the entity, the action `add.id`, with `field` filled with
@@ -934,7 +954,7 @@ states: [loading, empty, error, forbidden]
 | a date or a date-time field of a term (`due_*`, a planned `*_at`) | a `calendar` too, by that field |
 | a card with two related sections or more, or a history | `card.tabs` |
 | a list whose items are transited | `list.bulk` with the transitions without a payload |
-| a custom action of the route set (`custom_actions` of the contract, POST) | `primitive: custom` on the card, in `list.row_actions` or `list.bulk` for an action of an item; in the toolbar of the list for one of the route set |
+| a custom action of the route set (`custom_actions` of the contract, POST) | `primitive: custom` where it runs (above) |
 
 #### `data-bz`
 
@@ -980,18 +1000,8 @@ statuses:                  # the tone of the badge of each status of bazis-statu
   done: success
 ```
 
-`spec/design/` is optional (without it the theme is that of the starter of `workspace`
-before the layers: the palette `indigo`, the fonts of the system, the shape `soft`). The
-tokens are layers: those of the starters that `palette`, `fonts`, `shape` and `surface`
-name, then `tokens.json` over them, which is optional; together they must define the
-tokens of the preset (D005). An option of `theme.yaml` that is left out is that of the
-preset. `tokens.json` is a subset of the DTCG format: groups of tokens with `$value` and
-`$type` (`color`, `dimension` in `px`/`rem`/`em`, `fontFamily`, `fontWeight`, `number`,
-`duration` in `ms`, `shadow`, `cubicBezier`) on every token, and references
-`{group.token}` to a token of the same type. `bazis_front design` compiles them into the
-theme of the frontend (see [The design](#the-design)); `check` reports them with the codes
-D004–D018 (the contrast, the statuses of the contract, the icons, the fonts, the brand, the
-shell).
+`spec/design/` is optional: its options, its layers and `tokens.json` are in [The
+design](#the-design).
 
 ## The cards of a list and the summary of a card
 
@@ -1108,6 +1118,14 @@ database, in a fraction of a second. The references and the contract are the job
 | `P035` | error | a scenario of an anonymous role opens a screen that is not public (no anonymous role in its `roles`), by `open`, `open_item` or the `then` of a form: the frontend sends a user without a session to the login. List the role in `roles` of the screen, or give the scenario a role that logs in |
 | `P036` | warning | `packages` has `users`, the contract has no route of the user resource, and a field relates to it (the author of a status, an assignee): the screens label the users by the start of their id. Register the user route set of the project, see "The users that the pickers offer" |
 | `P037` | warning | a field of the payload of a transition has choices without their labels (`enum` without `enumDict`: a `Literal`, or a core before 2.22): the dialog of the transit offers them by their values. Type it by the `TextChoices` of the model and export the contract again |
+
+## The issues of the screens and the design
+
+The codes of `spec/screens/` (`S…`) and of `spec/design/` (`D…`), reported as those of
+[The issues of check](#the-issues-of-check):
+
+| Code | Severity | Meaning |
+|---|---|---|
 | `S001` | error | a screen file is not valid YAML |
 | `S002` | error | a screen does not follow screen.schema.json (a key that is a piece of a text, a key that a mapping does not take: as P002) |
 | `S003` | error | the id of a screen differs from its file name, or its route is taken |
@@ -1176,6 +1194,8 @@ database, in a fraction of a second. The references and the contract are the job
 | `S068` | error | a chart `kind: distribution` (the shares of a whole) is by a date rather than the `status`, or of an `avg` |
 | `S069` | error | `header.search` without `list.search` |
 | `S070` | error | `count` of a link of the navigation to a screen that is not a list |
+| `S071` | error | the tone of a calendar is by the status of its items (`tone: status`), and the entity has no workflow |
+| `S072` | error | an action shown by the status of its item (`when`) names a status that is not of the workflow of the entity, the entity has no workflow, or the action is not of an item |
 | `D001` | error | a design file is not valid YAML or JSON |
 | `D002` | error | spec/design/theme.yaml does not follow design.schema.json (a key that a mapping does not take: as P002) |
 | `D003` | error | spec/design/tokens.json does not follow tokens.schema.json (a key that a mapping does not take: as P002) |
@@ -1289,8 +1309,8 @@ def validate_item(self, changes):
 
 **The labels of the choices** of a model field are those of its `choices` (`TextChoices`
 with English labels in `gettext_lazy`, translated by the catalogs of the project): the
-runtime schemas give them (`enumDict`) in the language of the request, and the frontend
-shows, offers and filters a choice by them. A field that only names a few values needs no
+runtime schemas give them (`enumDict`) in the language of the request, which the frontend
+shows ("Choices are shown by their labels"). A field that only names a few values needs no
 model of its own for its labels.
 
 ### The labels of the fields
@@ -1871,15 +1891,14 @@ The props of every component are in the `API:` sections (the `Props` types of
 
 ### Choices are shown by their labels
 
-**Choices are shown by their labels.** A model field with `choices` is an attribute with
-`enum` (the values) and `enumDict` (their labels, translated into the language of the
-request) in the runtime schemas; `resourceSchema` reads them as `enum` and `labels` of the
-field (`choiceLabel(field, value)` of `@/bazis/react`). `FieldInput` offers them as a select
-of the labels (it sends the value), `FieldValue` (the cells of the lists, the values of the
-cards) shows the label, and the filter of such a field is a select of its labels
-(`choiceOptions`, from the list schema) that filters by the value. Translate the labels in
-the backend (`TextChoices` with `gettext_lazy`, the catalogs of the project); never make a
-model of the choices for their labels, nor map the values to texts in the frontend. The
+**Choices are shown by their labels**, those of the backend (see "The labels of the choices"
+in [The backend of a product](#the-backend-of-a-product)): a model field with `choices` is an
+attribute with `enum` (the values) and `enumDict` (their labels) in the runtime schemas;
+`resourceSchema` reads them as `enum` and `labels` of the field (`choiceLabel(field, value)`
+of `@/bazis/react`). `FieldInput` offers them as a select of the labels (it sends the value),
+`FieldValue` (the cells of the lists, the values of the cards) shows the label, and the
+filter of such a field is a select of its labels (`choiceOptions`, from the list schema) that
+filters by the value. Never map the values to texts in the frontend. The
 scenarios fill, find (`open_item`) and expect a choice by its label in the default language
 of the backend (`fill: {priority: High}`).
 
@@ -2311,9 +2330,10 @@ for some properties of its body and says it is done is `primitive: custom` of th
 (see [Custom actions of the specs](#custom-actions-of-the-specs)). An action that an item may
 take in some of its states only (pay an invoice that is not paid, close an open case) is a
 transit of bazis-statusy, which the backend offers by the state of the item (`TransitBar`),
-not a custom action, which a card shows in every state. In the code of a screen, call them with
-`useAction(path, '<name>')` of `@/bazis/react` (`mutate(body)`; `useItemAction` for
-`<path><id>/<name>/`, `method` for another method than POST), typed by `schema.d.ts`
+not a custom action, which a card shows in every state unless its `when` says otherwise. In
+the code of a screen, call them with `useAction(path, '<name>')` of `@/bazis/react`
+(`mutate(body)`; `useItemAction` for `<path><id>/<name>/`, `method` for another method than
+POST), typed by `schema.d.ts`
 (an action declared with `@http_get` that a screen shows is read with `useActionQuery`
 or `useItemActionQuery`, a query refetched with its resource, never a query of your own):
 a name or a body the backend does not have does not compile. The mutation refetches the
@@ -2638,17 +2658,24 @@ python manage.py bazis_front design --check   # write nothing; exit 1 if the the
 ```
 
 The design is one preset, the layers of its tokens (a palette, a pair of fonts, a shape and
-a surface, starters of the package named in `theme.yaml`), the tokens of a brand over them
-and a few options, compiled into the frontend. `init` generates the theme; generate it again
-after every change of `spec/design/` (and after `update`). The text depends on
-the design only: `--check` and the system check `front.W005` (when the lock has `design`;
-without Node and the database) render it again and compare it byte for byte, the font files
-by their hashes; `front.W005` also reports a frontend with components and no theme (an `init`
-whose design had errors). A font package (`font.package`) is read from `node_modules`: `design`
-needs it installed; without it (a CI without `npm install`) both compare with the hashes of
-the lock: a change of the design shows (of `product.yaml`, the languages and currencies that
-choose the subsets), a new version of bazis-front or of the package does not: `design --check`
-with the package installed shows it.
+a surface: "The layers" below), `tokens.json` over them (optional) and a few options,
+compiled into the frontend; together they define the tokens of the preset (D005). Without
+`spec/design/` the theme is that of the starter of `workspace` before the layers (the palette
+`indigo`, the fonts of the system, the shape `soft`); an option of `theme.yaml` that is left
+out is that of the preset.
+`tokens.json` is a subset of the DTCG format: groups of tokens with `$value` and `$type`
+(`color`, `dimension` in `px`/`rem`/`em`, `fontFamily`, `fontWeight`, `number`, `duration` in
+`ms`, `shadow`, `cubicBezier`) on every token, and references `{group.token}` to a token of
+the same type.
+
+`init` generates the theme; generate it again after every change of `spec/design/` (and
+after `update`). The text depends on the design only: `--check` and the system check
+`front.W005` (when the lock has `design`; without Node and the database) render it again and
+compare it byte for byte, the font files by their hashes; `front.W005` also reports a
+frontend with components and no theme (an `init` whose design had errors). A font package
+(`font.package`) is read from `node_modules`; without it (a CI without `npm install`) both
+compare with the hashes of the lock, and a new version of bazis-front or of the package shows
+only with the package installed.
 The generated files are never edited. The design must have no errors (`bazis_front check
 --layer design`).
 
@@ -2674,9 +2701,6 @@ The generated files are never edited. The design must have no errors (`bazis_fro
 - `src/bazis/generated/theme.ts`: `THEME`, typed by `Theme` (`preset`, `navigation`,
   `density`, `shell`, `composition`, `controls`, `statuses`, `icons`, `brand`, and `dark`:
   whether the user switches to a dark mode).
-
-The tokens, their defaults and what a product changes over the base are in
-[Customizing the look](#customizing-the-look).
 
 ### Presets
 
@@ -2788,9 +2812,7 @@ Tailwind palette (`bg-blue-600`), a literal (`#3b82f6`, `oklch(...)`) or
 after a change that succeeded, `toast()` of `@/bazis/ui/state-panel` (the forms and the
 transits already do); the errors stay where they happened.
 
-- Check every screen in both modes and at the width of a phone.
-
-## Customizing the look
+### Customizing the look
 
 The look that `init` writes (`frost`, `golos`, `lifted`; the fields a bottom line, the filters
 on a plate, the sidebar that collapses to a rail, the search of a list in the header of its
@@ -2804,8 +2826,8 @@ the table; what it lists as code is a screen of your own or its extension (see
 |---|---|---|
 | the sidebar a rail, or expanded, until the user chooses | `shell.sidebar: rail` or `expanded` (`auto`, the default: expanded from `lg`, a rail below); the choice of the user wins, kept by the browser (`bazis-sidebar`); D018 under `navigation: topbar` | the sidebar on the right |
 | a wider sidebar, rail or content | `size.sidebar`, `size.sidebar-rail`, `size.content` | the drawer of a phone |
-| a top bar instead of the sidebar | `navigation: topbar` (see [The design](#the-design)) | — |
-| the filters on the page, without their plate | `composition.filters: row` (a list, a board; those of a calendar are in the line of its period) | the order of the filters is `list.filters` |
+| a top bar instead of the sidebar | `navigation: topbar` ("The top bar" above) | — |
+| the filters on the page, without their plate | `composition.filters: row` (a list, a board, a calendar: over its navigation, as on a board) | the order of the filters is `list.filters` |
 | the search, the view and the actions of the lists beside their titles | `composition.list_tools: header` (`init` names it for `workspace`): the list of a screen only, a related section keeps its own (`NestedLists`); a screen chooses by `header.search`, `false` over its list | the order of the tools |
 | a list as cards, the card on its own page, the forms on pages | `composition.list`, `list_phone`, `list_card`, `forms` | — |
 | the current link of the sidebar | `color.nav-active` (its fill), `color.nav-active-bar` (the bar at its start), `shadow.nav-active` | — |
@@ -2822,7 +2844,7 @@ should follow the sidebar is an expression of a role variable (`var(--sidebar)`,
 `var(--primary)`), as below.
 
 ```yaml
-# theme.yaml: the base with the sidebar a rail, the filters on the page, the tools over the lists
+# theme.yaml
 shell:
   sidebar: rail            # auto | expanded | rail: the sidebar until the user chooses
 composition:
@@ -2853,8 +2875,8 @@ composition:
 | `font.weight-heading`, `-subheading`, `font.tracking-heading` (`h1`–`h3`, `font-heading`, `font-subheading`) | 600; 600; `-0.025em` (`-0.02em` for `portal`) |
 | `shadow.xs` (the blocks and the controls by default), `-sm`, `-md` (the popovers, the dialogs), `-lg` | the shadows of Tailwind |
 | `motion.fast`, `-base`, `-slow`, `-ease` (`duration-(--motion-fast)`, `ease-standard`; `base` and `ease` are those of every `transition`) | 100ms, 150ms, 300ms and the curve of Tailwind |
-| `size.sidebar`, `size.sidebar-rail` (the sidebar expanded and as a rail), `size.content` (the widest content of a screen) | 15rem, 4.25rem, 80rem (under `navigation: topbar` that of 0.12: `calc(72rem - 2 * var(--space-page-x))`) |
-| `color.border-surface`, `-control`, `color.control`, `-hover`, `color.field-line`, `-hover`, `-focus` (the line of a field), `color.shade`, `color.surface-light`, `shadow.lift-*`, `shadow.ring-focus`, `shadow.field-focus`, `shadow.nav-active` (`surface: lifted`) | the look before them (`DEFAULTS`); line: muted text 60%, 85% |
+| `size.sidebar`, `size.sidebar-rail` (the sidebar expanded and as a rail), `size.content` (the widest content of a screen) | 15rem, 4.25rem, 80rem (under `navigation: topbar` `calc(72rem - 2 * var(--space-page-x))`) |
+| `color.border-surface`, `-control`, `color.control`, `-hover`, `color.field-line`, `-hover`, `-focus` (the line of a field), `color.shade` (set by each starter palette: a dark paper of its hue), `color.surface-light`, `shadow.lift-*`, `shadow.ring-focus`, `shadow.field-focus`, `shadow.nav-active` (`surface: lifted`) | the look before them (`DEFAULTS`); line: muted text 60%, 85% |
 | `color.sidebar-to`, `-glow`, `color.glow-a`, `-b` (`frost`); `color.nav-active`, `-bar` (the current link) | not drawn; `sidebar-accent`, none |
 
 A design that names no layer (older) keeps its look: `update` and `design` add
@@ -2862,8 +2884,6 @@ the new tokens with these defaults until `theme.yaml` names one. Inside the side
 colors (`--foreground`, `--card` and its text, …) are its own and the tokens of the surfaces
 and the fields are computed on them (flat): a color that follows it is an expression of a
 role variable; a literal is the same everywhere.
-
-## The fonts and the brand
 
 ### Fonts
 
@@ -2888,19 +2908,18 @@ package of @fontsource-variable:
 ```
 
 `bazis_front design` copies the files of its subsets with the license into
-`frontend/public/fonts/<id>-<version>/` (commit them; the lock keeps their hashes, and
-`--check` and `front.W005` report them stale) and writes their `@font-face`: each subset with
-its unicode-range, so a page downloads only those it draws. `subsets` is `auto` (those of the
-`languages` of `product.yaml` and of the signs of `display.currency`: `ru` takes the Cyrillic
-and the Latin with their extensions) or a list (D015 when it leaves out a language or a
-currency). `preload` (true for `font.body`) puts the file of the letters of the first
-language in a `<link rel="preload">` of `index.html`. `fallback` (a starter has its own)
-makes the face `<Family> Fallback`, a local font with the metrics of the web font, so the swap
-moves no line: name it second in `$value` (D016 for a name it does not make). A heading font
+`frontend/public/fonts/<id>-<version>/` (commit them) and writes their `@font-face`: each
+subset with its unicode-range, so a page downloads only those it draws. `subsets` is `auto`
+(those of the `languages` of `product.yaml` and of the signs of `display.currency`: `ru` takes
+the Cyrillic and the Latin with their extensions) or a list (D015 when it leaves out a language
+or a currency). `preload` (true for `font.body`) puts the file of the letters of the first
+language in a `<link rel="preload">` of `index.html`. `fallback` (a starter has its own) makes
+the face `<Family> Fallback`, a local font with the metrics of the web font, so the swap moves
+no line: name it second in `$value` (D016 for a name it does not make). A heading font
 with optical sizes is loaded with `axes: [opsz, wght]`: D014 knows `source-serif-4`,
 `literata`, `fraunces` and `newsreader` of @fontsource-variable (a starter has all its axes);
 give another family with `opsz` its `axes` yourself. A font of another package is
-imported as before: `"$extensions": {"bazis": {"import": "@fontsource-variable/brand-sans"}}`
+imported: `"$extensions": {"bazis": {"import": "@fontsource-variable/brand-sans"}}`
 (an npm package that the product installs, or the `https://` URL of a stylesheet).
 
 ### Brand
@@ -2910,9 +2929,8 @@ imported as before: `"$extensions": {"bazis": {"import": "@fontsource-variable/b
 the current link, the selected row and the soft tints derive from the primary
 (`color-mix`). The palettes are OKLCH (`oklch(L C H)`): keep the lightness
 and the chroma of the palette and change the hue; `check` reports a text color that loses
-its contrast (D009). A token of `tokens.json` replaces that of the layers: a `tokens.json`
-that defines every color (of an older version) hides the palette, so remove the colors it
-should take from the palette (D012). Set `density` for the spacing.
+its contrast (D009). A `tokens.json` that defines every color (of an older version) hides the
+palette: remove the colors it should take from it (D012). Set `density` for the spacing.
 
 **The mark of the brand** next to the name of the product in the shell and on the login
 screen (`Brand` of `@/bazis/ui/app-shell`) is `brand` of
@@ -2935,17 +2953,15 @@ it are computed on its variables; the shadows keep the `shade` of the content, a
 (`bg-avatar-<n>`) are colors of the content: never in the sidebar.
 
 **The links of the sidebar.** The current link is the fill `color.nav-active` with the bar
-`color.nav-active-bar` at its start and `shadow.nav-active` (by default the accent of the
-sidebar without a bar or a shadow; `palette: frost`: white at 6.5 % over the sidebar and a
-honey bar), its icon in the color of its text; the headings of the groups are small capitals
-in `--sidebar-muted-foreground`. A link with `count` shows the number of its items at its end
-(`count:<screen>` with it in `data-value`; nothing at 0 or before it is loaded), in
-`--sidebar-primary` on the current link. With his name (`user` of the session of `AppShell`,
-`detail` under it; the template passes none) the user is a plate at the foot: the circle of
-his initials in `--sidebar-primary`, the logout an icon. The last button of the tools collapses
-the sidebar to a rail of icons `size.sidebar-rail` wide (`data-state="collapsed"` of the `aside`,
-the choice kept in the storage of the browser; until the user chooses, `shell.sidebar`: a rail
-below `lg` by default): the label of a link is a tooltip at its side, a number is a dot.
+`color.nav-active-bar` at its start and `shadow.nav-active`, its icon in the color of its text;
+the headings of the groups are small capitals in `--sidebar-muted-foreground`. A link with
+`count` shows the number of its items at its end (`count:<screen>` with it in `data-value`;
+nothing at 0 or before it is loaded), in `--sidebar-primary` on the current link. With his name
+(`user` of the session of `AppShell`, `detail` under it; the template passes none) the user is
+a plate at the foot: the circle of his initials in `--sidebar-primary`, the logout an icon. The
+last button of the tools collapses the sidebar to a rail of icons `size.sidebar-rail` wide
+(`data-state="collapsed"` of the `aside`; `shell.sidebar` until the user chooses): the label of
+a link is a tooltip at its side, a number is a dot.
 
 **The headings.** `font-heading` is the family, the weight and the tracking of a heading
 (the title of a screen, a card, a figure of a dashboard) and `font-subheading` those of the
@@ -3011,8 +3027,8 @@ your own go to `frontend/e2e/custom/` ("The tests of your own" below).
   space (the no-break spaces of the groups of digits of `Intl` too): a decimal with
   `display: {currency: RUB}` is `1500 ₽` (four digits are not grouped), `15 000 ₽`,
   `15 000,50 ₽` (`15 000` matches it, `15000` does not; `fraction: always`: `15 000,00 ₽`), one
-  without `display` its digits in the language, `1500,00` in Russian; a whole quantity of
-  `{unit: h}` `24 h` (of `24.0`); a time `08:00`. On a card in tabs,
+  without `display` its significant digits, `1500` of `1500.00`; `{unit: ч}` `24 ч` of
+  `24.0`, `19,5 ч` of `19.50`; a time `08:00`. On a card in tabs,
   `action`, `fill`, `expectValues` and `expectFieldReadonly` first show the tab of the mark
   they act on (the tab whose `aria-controls` is the hidden panel that has it).
 
@@ -3049,11 +3065,12 @@ named `e2e_data` (`sample/tasks/management/commands/e2e_data.py`).
 - **it only adds, and runs before every run of the tests**: it never deletes a user or a
   record, of the previous runs, of the scenarios or its own (no option such as `--clean`):
   they stay for the user to look at, and the database of a product that exists, or shared, is
-  never emptied. Only the demo database of a new product, which the agent made itself, is made
-  again once at the end (drop, `migrate`, `e2e_data`, no test after). Run again, in one transaction, it finds its records by a key of their own
-  (`update_or_create` by the title), creates those that are missing, sets their dates relative
-  to the day of the run again and the password of the test users to the current
-  `E2E_PASSWORD` (the sample moves the date of its task: `sample/tasks/e2e.py`).
+  never emptied. Only the database of `.env` created in this session for the new product (by
+  `create_project`, or by you when it was missing), which holds nothing but its demo data, is
+  made again once at the end (drop, `migrate`, `e2e_data`, no test after). Run again, in one
+  transaction, it finds its records by a key of their own (`update_or_create` by the title),
+  creates those that are missing, sets their dates relative to the day of the run again and
+  the password of the test users to the current `E2E_PASSWORD`.
 - **the scenarios run again on the same database**, which keeps the items of the previous
   runs, and pass every time:
   - a scenario that changes an item (a transit, a move, an edit, a custom or a bulk action,
@@ -3078,8 +3095,8 @@ named `e2e_data` (`sample/tasks/management/commands/e2e_data.py`).
     `review-hours` of the sample count the task of `e2e_data` by its title and sum its hours);
   - a notification is one that came since its test started: those of the previous runs stay.
 
-The scenarios share the database and run one at a time (`playwright.config.ts`); none
-depends on another: a scenario opens an item that `e2e_data` creates, or one it creates.
+The scenarios share the database and run one at a time; none depends on another: a scenario
+opens an item that `e2e_data` creates, or one it creates.
 
 ### Running the tests
 
@@ -3223,7 +3240,7 @@ one issue for the screenshot, with the number of the small controls and the firs
 | `V006` | error | a text has a contrast below 4.5:1 (3:1 for a large text) on its background, as rendered: a literal color, or a text color of the tokens on a background it was not made for; use the pairs of the tokens (`text-foreground` on `bg-background`, `text-<tone>-ink` on `bg-<tone>-soft`) |
 | `V007` | warning | a light surface in the dark mode: a literal color that ignores the tokens of the theme; use the classes of the tokens |
 | `V008` | warning | an empty state without a text, or without the action that creates an item when the user may create one: put the create action in the empty state |
-| `V009` | warning | controls under 44×44 px on a phone (the `<label>` around a control and its stretched `::after` count): give them the size of the components (an icon button of shadcn/ui is `size="icon"`); one of a component of bazis-front is its defect: report it, do not edit the copies |
+| `V009` | warning | controls under 44×44 px on a phone (the `<label>` around a control and its stretched `::after` or `::before` count): give them the size of the components (an icon button of shadcn/ui is `size="icon"`); one of a component of bazis-front is its defect: report it, do not edit the copies |
 | `V010` | warning | a text cut by an ellipsis without its whole text in a title or a tooltip: give it `title`, or let it wrap |
 | `V011` | error | an error of the page that nothing caught (`pageerror`): fix the code of the screen that throws it (the message says which) |
 | `V012` | warning | an error written to the console (`console.error`: a warning of React, a failure that the page handles), also a failed connection of the socket of the page that is not open again within 2 s (`socket:open`; not that of a page left): fix what React warns of (a key, a nested form), handle the failure without writing it, and route the socket where the contract has it |
@@ -3239,7 +3256,7 @@ one issue for the screenshot, with the number of the small controls and the firs
 
 ### The checklist of the screenshots
 
-Open the screenshots (the PNG files) and look at what no check measures:
+Open the screenshots and look at what no check measures:
 
 - one `h1` per screen, the subtitles and the secondary texts muted;
 - the first column of a list is the label of its items, the numbers aligned right, a status
@@ -3548,17 +3565,17 @@ translations of their English names, `gettext_lazy`, from the catalogs of the pr
 ### The asset `i18n`
 
 **The asset `i18n`** (`src/bazis/i18n/`, copied by `init` like the hooks, not edited):
-`LanguageProvider`, `useLanguage()` (`{language, languages, setLanguage, t}`),
-`t(key, params)` over flat dictionaries by language with stable keys (those of the
-components in `src/bazis/i18n/messages/<language>.ts`, English and Russian), the plural
-forms of `Intl.PluralRules` (`<key>.one`, `<key>.few`, `<key>.many`, `<key>.other`, with
-the parameter `count`), `translator(store, messages)` (`t` outside the components), and
+`LanguageProvider`, `useLanguage()` (`{language, languages, setLanguage, t}`), `t(key, params)`
+over flat dictionaries by language with stable keys (those of the components in
+`src/bazis/i18n/messages/<language>.ts`, English and Russian), the plural forms of
+`Intl.PluralRules` (`<key>.one`, `<key>.few`, `<key>.many`, `<key>.other`, with the parameter
+`count`), `translator(store, messages)` (`t` outside the components), and
 `formatNumber(value, language, options?)` (the options of `Intl.NumberFormat`: a sum,
 `{style: 'currency', currency: 'RUB'}`), `formatDecimal(value, language, options?)` (a
-`DecimalField`, a string of the API, formatted exactly with its digits after the point; a
-sum with the same options), `formatDate(value, language)`,
-`formatDateTime(value, language)`, `formatTime(date, language)` (`Intl`, in the language
-of the interface: `const { language } = useLanguage()`). No i18next.
+`DecimalField`, a string of the API, with its significant digits after the point, never
+rounded; a sum with the same options, with its cents unless it is whole),
+`formatDate(value, language)`, `formatDateTime(value, language)`, `formatTime(date, language)`
+(`Intl`, in the language of the interface: `const { language } = useLanguage()`). No i18next.
 
 ### The dictionaries of the product
 
@@ -3572,14 +3589,15 @@ Every text of a screen goes through `t()`; never write a text of the interface i
 
 ### In a screen
 
-**In a screen**: `const { t, language } = useLanguage()` of `@/bazis/i18n`,
-`t('tasks.title')`, `t('list.range_of', {from, to, count})`. Dates and numbers are
-formatted in the language of the interface, never in that of the browser: `formatNumber`,
-`formatDecimal`, `formatDate`, `formatDateTime`, `formatTime` with `language` (`FieldValue`
-does it for the fields, a `DecimalField` with its digits and a `TimeField` its hours and
-minutes; a sum in the currency of the product is its `display` in the specs, or in `cells` of
-`ResourceList` and `values` of `ResourceCard` `formatDecimal(fieldValue(row, 'total'),
-language, {style: 'currency', currency: 'RUB'})`, `—` for none); the names of the statuses are `statusName(type, id, language)` of
+**In a screen**: `const { t, language } = useLanguage()` of `@/bazis/i18n`, `t('tasks.title')`,
+`t('list.range_of', {from, to, count})`. Dates and numbers are formatted in the language of the
+interface, never in that of the browser: `formatNumber`, `formatDecimal`, `formatDate`,
+`formatDateTime`, `formatTime` with `language` (`FieldValue` does it for the fields, a
+`DecimalField` with its significant digits and a `TimeField` its hours and minutes; a sum in
+the currency of the product is its `display` in the specs, or in `cells` of `ResourceList` and
+`values` of `ResourceCard`
+`formatDecimal(fieldValue(row, 'total'), language, {style: 'currency', currency: 'RUB'})`, `—`
+for none); the names of the statuses are `statusName(type, id, language)` of
 `@/bazis/ui/status-badge`.
 
 ### The language of the interface
@@ -3754,8 +3772,9 @@ its logout endpoint.
   in `contract.json` (`type: string`); a write takes a string or a number. Never compute
   with it as a float: show it with `formatDecimal`, and let the backend sum it. A count of
   pieces is an `IntegerField`; a `DecimalField` has the places of its meaning (2 for money, 1
-  for hours, not 3 for pieces: `24,000 шт.` reads as thousands). With `display: {unit}` a
-  whole quantity has no zeros (`24 шт.`), another its digits.
+  for hours, not 3 for pieces: `24,000 шт.` reads as thousands). It is shown with its
+  significant digits (`24 шт.` of `24.000`, `19,5 ч` of `19.50`), a sum with its cents unless
+  it is whole (`250,50 ₽`, `3600 ₽`).
 - The `id` of an item of a model with an integer primary key (`FileUpload`) is a JSON number
   in its documents, a string in the relationships that reference it: compare them as
   strings.
@@ -3785,6 +3804,8 @@ pip install -U bazis-front
 python manage.py bazis_front update --check     # write nothing; list the changes, exit 1 if a copy is stale
 python manage.py bazis_front update             # every copied asset
 python manage.py bazis_front update react       # an asset with those it requires
+(cd frontend && npm install)                     # when `update` says that its package.json changed
+python manage.py bazis_front status              # then the subcommands that it lists
 cd frontend && npx tsc --noEmit && npm run lint && npm test
 ```
 
@@ -3877,7 +3898,10 @@ removing its path from `conflicts` of the lock. Commit the frontend with `.bazis
 lock. The client, the hooks and the helpers are never edited, so they
 are replaced without conflicts; wrap them in the product code instead.
 
-### Migrating the code of the product
+What a new version changes for the code and the tests of the product is in [Migrating the
+code of the product](#migrating-the-code-of-the-product).
+
+## Migrating the code of the product
 
 `tsc` shows what a new version changes in the API of the copies (a name removed from them
 is an error there); the changes so far:
@@ -4189,6 +4213,31 @@ The API of the copies that 0.9.0 changes:
   `bodyField` of the forms of the actions) gives the payload of a transit the picker of the
   relationship of the same name; a custom dialog of a transit with a picker of its own may
   become `relation` of the payload.
+
+The API of the copies that 0.10.0 changes:
+
+- `update` adds `e2e/fixtures/photo.png`, the image of the template: a file of the product at
+  that path fails the update, so rename it first, with the `upload` steps and the payloads
+  that name it (else they upload the image of the template).
+
+The API of the copies that 0.14.0 changes:
+
+- A decimal that is not a sum is shown with its significant digits (`1500` of `1500.00`,
+  `19,5 ч` of `19.50`), also by `formatDecimal` in the code of the product: an expectation
+  with the zeros at its end (`values`, a `where` of `open_item`, `select` or `move`, a test of
+  `e2e/custom/` or of the product: `1500,00`, `19,50 ч`) no longer finds its text, so remove
+  them. A whole sum of a field (`3600 ₽`) and one with as many digits as the
+  cents of its currency (`250,50 ₽`) are found as before; one with another number of digits
+  (`1,5 ₽` of `1.5`, `250,500 ₽`) has its cents and then its significant digits (`1,50 ₽`,
+  `250,50 ₽`), and a code that `Intl` refuses is written after the number with them too
+  (`12.50 euro` of `12.5`). `formatDecimal` with `{style: 'currency', currency}` in the code
+  of the product shows a sum so (`3600 ₽` of `3600,00 ₽`): change an expectation of it, or
+  give `trailingZeroDisplay: 'auto'` with the cast `as Intl.NumberFormatOptions` to keep the
+  zero cents of a whole sum.
+- Every starter palette but `frost` defines `color.shade`, a dark paper of its hue: after
+  `design` the shadows of `surface: lifted` in the light mode have a light tint of the
+  palette, and with the other surfaces the inner shadow of the tabs changes (it was light in
+  the dark mode).
 
 ## API: the client
 
@@ -4684,6 +4733,10 @@ Its props, `BazisProviderProps`:
 
 `useSchema<K extends ItemSchemaKind>(path: SchemaPath<K>, kind: K, id: string): UseQueryResult<JsonSchema>`
 
+#### useViewable
+
+`useViewable(paths: readonly SchemaPath<'list'>[]): readonly (boolean | undefined)[]`: Whether the backend lets the current user view the items of each route set, as `useCan(path, 'view')` tells (the queries of `useSchema`): one hook for any number of them.
+
 #### useResourceForm
 
 `useResourceForm<P extends CreatePath>(path: P, options?: { id?: undefined; fixed?: FixedValues; initial?: Readonly<Record<string, unknown>>; }): ResourceForm<CreateResponse<P>>`: A form of a resource bound to its runtime schema: `schema_create/` without an id, `schema_update/` of the item with one, so that the fields are those the current user may set.
@@ -5111,7 +5164,7 @@ Its props, `SocketProviderProps`:
 
 #### formatDecimal
 
-`formatDecimal(value: unknown, language: string, options?: Intl.NumberFormatOptions): string`: A decimal of the backend: a `DecimalField` is a string in the API and in the contract (`"45000.10"`, its exact digits), formatted exactly with the digits after the point that it has (`45,000.10` in English, `45 000,10` in Russian, grouped as `formatNumber` groups, a zero without a sign: `-0.00` is `0.00`) unless `options` sets them; a sum is `{style: 'currency', currency: 'RUB'}` (`45 000,10 ₽`).
+`formatDecimal(value: unknown, language: string, options?: Intl.NumberFormatOptions): string`: A decimal of the backend: a `DecimalField` is a string in the API and in the contract (`"45000.10"`, its exact digits), formatted with its significant digits after the point (`45,000.1` in English, `45 000,1` in Russian, `12.000` is `12`, grouped as `formatNumber` groups, a zero without a sign: `-0.00` is `0`), never rounded, unless `options` sets them.
 
 #### formatNumber
 
@@ -5456,6 +5509,7 @@ Its props, `ChartProps`:
 - `series?: boolean`: A color of the series per value (the statuses); one color for all by default.
 - `periods?: boolean`: The values are periods, the current one the last: the bars before it lighter.
 - `hero?: { bucket: ChartBucket; side: readonly ChartSide[]; } | undefined`: The values are periods of `bucket`: the value of the current one (the last) large over the drawing with its change on the one before, the figures `side` beside it.
+- `display?: FieldDisplay | undefined`: How its numbers are shown (`display` of the field of the measure); plain numbers without.
 - `state?: ViewState`: The state of what it shows: `empty` when every value is 0.
 - `error?: unknown`
 - `className?: string`
@@ -5474,6 +5528,7 @@ Its props, `StatusChartProps`:
 - `filter?: Filter | undefined`: The items it counts; every item that the user may view without.
 - `statuses?: readonly string[] | undefined`: The statuses it shows, in this order; all of the workflow by default.
 - `value?: ChartMeasure | undefined`: What it shows of a field of the items instead of their number: `{sum: 'amount'}`.
+- `display?: Readonly<Record<string, FieldDisplay>>`: How the fields are shown (`display` of the entity of the specs): that of the field of `value`.
 - `className?: string`
 
 #### TimeChart
@@ -5492,6 +5547,7 @@ Its props, `TimeChartProps`:
 - `last?: number`: The number of the periods, the current one the last: 12 by default.
 - `filter?: Filter | undefined`
 - `value?: ChartMeasure | undefined`: What it shows of a field of the items instead of their number: `{sum: 'amount'}`.
+- `display?: Readonly<Record<string, FieldDisplay>>`: How the fields are shown (`display` of the entity of the specs): that of the field of `value`.
 - `hero?: readonly ChartSide[] | undefined`: The chart in focus of a dashboard (`hero` of the specs): the value of the current period large over it with its change on the one before, these figures beside it.
 - `now?: Date | undefined`: The current moment (the tests); the moment of the first render by default.
 - `className?: string`
@@ -5852,7 +5908,7 @@ Its props, `NotificationCenterProps`:
 
 - `NotificationCenterProps`: the props of `NotificationCenter`, listed with it
 
-## API: the components: resource
+## API: the components: resource (dates, field-input, field-value, fields, files, points)
 
 The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
 
@@ -6193,6 +6249,24 @@ Its props, `FileViewProps`:
 - `onChange: (value: LatLng | null) => void`
 - `disabled: boolean`
 
+#### The types and the constants of `@/bazis/ui/resource`
+
+- `DateInputProps`: the props of `DateInput`, listed with it
+- `type FieldFilters = Readonly<Record<string, Filter>>`: The filters of the pickers of the relationships of a form by their fields (`filters` of the specs).
+- `FieldInputProps`: the props of `FieldInput`, listed with it
+- `FieldValueProps`: the props of `FieldValue`, listed with it
+- `ItemValueProps`: the props of `ItemValue`, listed with it
+- `type FieldDisplay = 'plain' | 'phone' | 'image' | 'avatar' | 'chips' | { currency: string; fraction?: 'auto' | 'always'; per?: string; } | { unit: string; } | { bar: number; }`: How the value of a field is shown (`display` of the field of an entity of the specs): `plain`, a number without the separators of its thousands (a code, a year); `phone`, a phone number to call; `{currency}`, a sum in the currency (ISO 4217), without zero cents unless `fraction: always`, then ` / ` and the text of `per` (`3600 ₽ / сутки`); `{unit}`, a quantity, a no-break space and its unit; `{bar}`, a number with a bar of its share of the maximum; `image`, a file as its thumbnail; `avatar`, a name after its initials; `chips`, the parts of a text (by commas) or the related items.
+- `FILE_RESOURCES: readonly string[]`: The resources of the uploaded files of the contract; none without bazis-uploadable.
+- `FileViewProps`: the props of `FileView`, listed with it
+- `POINT_FIELDS: Readonly<Record<string, readonly string[]>>`: The point fields of the contract (`format: point`) by the path of each route set of their resource.
+
+## API: the components: resource (hooks, relation, status, relation-picker)
+
+The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
+
+### `@/bazis/ui/resource`
+
 #### text
 
 `text(value: unknown): string`: A value as text: a JSON value that is not a string, a number or a boolean as JSON.
@@ -6228,6 +6302,10 @@ Its props, `FileViewProps`:
 
 `RelationLabel(props: { relation: string; id: string; path?: string | undefined; }): Element`: The label of a related item: read from its resource when the contract has a route for it (`useRelatedItem`: the items of a resource shown together are read with one request, and cached), else the start of its id; a skeleton marked `state:loading` while it is read.
 
+#### shownWhen
+
+`shownWhen(when: StatusWhen | undefined, item: ResourceObject): boolean`: Whether the item shows what has `when`: always without it.
+
 #### StatusLabel
 
 `StatusLabel(props: StatusLabelProps): Element`: A status by its id: its name in a badge of its tone, `status:<id>` with `data-tone`.
@@ -6242,6 +6320,12 @@ Its props, `StatusLabelProps`:
 #### statusTone
 
 `statusTone(status: string): Tone`: The tone of a status: `statuses` of the theme, neutral for another.
+
+#### StatusWhen
+
+`interface StatusWhen`: The statuses in which an item shows something (`when` of the specs).
+
+- `status: readonly string[]`
 
 #### RelationListPicker
 
@@ -6278,15 +6362,6 @@ Its props, `RelationPickerProps`:
 
 #### The types and the constants of `@/bazis/ui/resource`
 
-- `DateInputProps`: the props of `DateInput`, listed with it
-- `type FieldFilters = Readonly<Record<string, Filter>>`: The filters of the pickers of the relationships of a form by their fields (`filters` of the specs).
-- `FieldInputProps`: the props of `FieldInput`, listed with it
-- `FieldValueProps`: the props of `FieldValue`, listed with it
-- `ItemValueProps`: the props of `ItemValue`, listed with it
-- `type FieldDisplay = 'plain' | 'phone' | 'image' | 'avatar' | 'chips' | { currency: string; fraction?: 'auto' | 'always'; per?: string; } | { unit: string; } | { bar: number; }`: How the value of a field is shown (`display` of the field of an entity of the specs): `plain`, a number without the separators of its thousands (a code, a year); `phone`, a phone number to call; `{currency}`, a sum in the currency (ISO 4217), without zero cents unless `fraction: always`, then ` / ` and the text of `per` (`3600 ₽ / сутки`); `{unit}`, a quantity, a no-break space and its unit; `{bar}`, a number with a bar of its share of the maximum; `image`, a file as its thumbnail; `avatar`, a name after its initials; `chips`, the parts of a text (by commas) or the related items.
-- `FILE_RESOURCES: readonly string[]`: The resources of the uploaded files of the contract; none without bazis-uploadable.
-- `FileViewProps`: the props of `FileView`, listed with it
-- `POINT_FIELDS: Readonly<Record<string, readonly string[]>>`: The point fields of the contract (`format: point`) by the path of each route set of their resource.
 - `ITEM_META: readonly string[]`: The meta of the retrieve of an item that its card reads (`ResourceCard`) and the transits of the card (`TransitBar`): one request for both.
 - `useAnyAction: (path: string, name: string) => ActionMutation<unknown, Readonly<Record<string, unknown>>>`: `useAction(path, name)`: a custom action of the route set (POST), `mutateAsync(body)`.
 - `useAnyActionFile: (path: string, name: string) => ActionMutation<SavedFile, Readonly<Record<string, unknown>>>`: `useActionFile(path, name)`: a custom action of the route set that answers a file, saved; resolves to its name and its meta.
@@ -6298,6 +6373,7 @@ Its props, `RelationPickerProps`:
 - `useAnyRelated: (path: string, id: string) => UseQueryResult<ResourceObject | null>`: `useRelatedItem(path, id)`: null when the user may not view the item.
 - `useAnyResourceForm: (path: string, options: { id?: string | undefined; fixed?: Readonly<Record<string, unknown>> | undefined; initial?: Readonly<Record<string, unknown>> | undefined; }) => ResourceForm<...>`: `useResourceForm(path, {id, fixed, initial})`: a create without an id.
 - `useAnySchema: (path: string, kind: "list" | "create" | "retrieve" | "update" | "transit", id?: string | undefined) => UseQueryResult<Readonly<Record<string, unknown>>>`: `useSchema(path, kind)` of the route set, `useSchema(path, kind, id)` of an item.
+- `useAnyViewable: (paths: readonly string[]) => readonly (boolean | undefined)[]`: `useViewable(paths)`: whether the user may view the items of each route set.
 - `SOFT_TONES: Readonly<Record<Tone, string>>`: The soft colors of each tone that the theme derives from the tokens: a background and the text on it.
 - `StatusLabelProps`: the props of `StatusLabel`, listed with it
 - `PICKER_PAGE: 20`: How many items a page of the picker reads; `Load more` reads the next one.
@@ -6353,6 +6429,7 @@ Its props, `ResourceBoardProps`:
 
 #### The types and the constants of `@/bazis/ui/resource-board`
 
+- `BOARD_COLUMN: "min-w-56 max-w-96 flex-1 basis-0 snap-start"`: The size of a column of a board, the flex item of its row (the column, or the `Column` of the drag and drop around it) and its skeleton: the columns share the width, four beside the sidebar at 1280 px, from 14rem each (more scroll in the board, each column snapped), at most 24rem (one or two never as wide as the screen).
 - `ResourceBoardProps`: the props of `ResourceBoard`, listed with it
 
 ### `@/bazis/ui/resource-calendar`
@@ -6369,7 +6446,7 @@ Its props, `ResourceCalendarProps`:
 - `field: string`: The date or date-time field of the day of an item.
 - `end?: string | undefined`: The date or date-time field of the last day of an item that spans days.
 - `label?: readonly string[] | undefined`: The fields that an item shows; the label of the resource of the contract by default.
-- `tone?: { field: string; tone: Tone; } | undefined`: The items whose boolean field is true, in a tone of the theme.
+- `tone?: { field: string; tone: Tone; } | 'status' | undefined`: The items whose boolean field is true, in a tone of the theme; `status`: every item in the tone of its status (`statusTone`, neutral for a status without one).
 - `views?: readonly CalendarView[]`: The views the user switches between, the first shown at first: a month by default.
 - `filter?: Filter | undefined`: The items of the calendar (the filter of the screen).
 - `filters?: readonly (string | ListFilter)[]`: The filters of the user, as those of a list (`FilterBar` of resource-list), above the days.
@@ -6457,16 +6534,18 @@ Its props, `ResourceCardProps`:
 - `id: string`
 - `title: ReactNode`
 - `sections?: readonly string[]`: The ids of the sections it shows (`sections` of the card).
+- `paths?: readonly string[]`: The route sets of the lists that are all it shows (its related lists): it is left out when the user may view none of them.
 - `content?: ReactNode | ((item: ResourceObject, meta: PermitMeta | null | undefined) => ReactNode)`: What it shows after them, given the item and its permission meta, as the children of the card.
 
 #### CardAction
 
-`interface CardAction`: An action of the card, a button `action:<id>`, shown when the user may do it on the item.
+`interface CardAction`: An action of the card, a button `action:<id>`, shown when the user may do it on the item, in a status of its `when`.
 
 - `id: string`
 - `label: ReactNode`
 - `onClick: () => void`
 - `permission?: 'change' | 'delete' | CustomActionName`: `change`, `delete`, or a custom action of the item (`action_<name>`, in `custom_actions` of its meta).
+- `when?: StatusWhen`: Shown only while the item is in one of these statuses; always without it.
 - `variant?: 'default' | 'outline' | 'destructive'`
 
 #### CardSection
@@ -6476,7 +6555,7 @@ Its props, `ResourceCardProps`:
 - `id: string`
 - `title?: ReactNode`
 - `fields: readonly string[]`
-- `when?: { status: readonly string[]; }`: Shown only while the item is in one of these statuses (its relationship `status`, bazis-statusy); always without it.
+- `when?: StatusWhen`: Shown only while the item is in one of these statuses (its relationship `status`, bazis-statusy); always without it.
 
 #### CardSummary
 
@@ -6551,7 +6630,8 @@ The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The co
 - `id: string`
 - `label: ReactNode`
 - `icon?: ComponentType<{ className?: string; }>`: Its icon, such as an icon of lucide-react.
-- `permission?: 'change' | 'delete'`: What the backend must allow on a row of the page (`for_change`, `for_delete` of its meta): the others are left out.
+- `permission?: 'change' | 'delete' | { transit: string; }`: What the backend must allow on a row of the page, the others left out: its change or its delete (`for_change`, `for_delete` of the meta), or a transit (in `for_transit` of the meta for the row, which the list then asks for; all the rows without that meta).
+- `when?: StatusWhen`: The statuses that a row of the page must be in (its relationship `status`): the others are left out.
 - `variant?: 'default' | 'outline' | 'destructive'`
 - `run: (id: string) => Promise<unknown>`: Runs the action on an item, rejected when its request fails: `useItemsTransit(path)` of `@/bazis/react/statusy` (`mutateAsync({id, transit})`), `useDestroy(path)`.
 
@@ -6649,12 +6729,13 @@ Its props, `ResourceListProps`:
 
 #### RowAction
 
-`interface RowAction`: An action of a row, a button `action:<id>` in it, shown when the user may do it on the item.
+`interface RowAction`: An action of a row, a button `action:<id>` in it, shown when the user may do it on the item, in a status of its `when`.
 
 - `id: string`
 - `label: ReactNode`
 - `onClick: (id: string) => void`
 - `permission?: 'change' | 'delete'`
+- `when?: StatusWhen`: Shown only while the item of the row is in one of these statuses; always without it.
 
 #### CardLayout
 
@@ -6810,6 +6891,7 @@ Its props, `UpdateFormActionProps`:
 - `path: DestroyPath`: The route set of the entity (`ROUTES` of the contract).
 - `item: string`: The id of the item of the card.
 - `then?: string | undefined`: The route shown once the item is deleted (the screen `then` of the action); the card stays without it.
+- `when?: StatusWhen`: The statuses of the item in which the action is shown; always without it.
 
 #### useCustomAction
 
@@ -6819,7 +6901,7 @@ Its props, `UpdateFormActionProps`:
 
 `interface CustomAction`: A custom action of a screen: its buttons, its run and its dialog.
 
-- `action: { id: string; label: ReactNode; permission: CustomActionName; onClick: () => void; }`: The button of the card of its item (`ResourceCard` `actions`), or of the toolbar of a list for an action of the route set (`ResourceList` `actions`): shown when the backend lists it in `custom_actions` of the meta.
+- `action: { id: string; label: ReactNode; permission: CustomActionName; when?: StatusWhen; onClick: () => void; }`: The button of the card of its item (`ResourceCard` `actions`), or of the toolbar of a list for an action of the route set (`ResourceList` `actions`): shown when the backend lists it in `custom_actions` of the meta.
 - `row: RowAction`: The button of the rows of a list (`ResourceList` `rowActions`): shown on a row that the list lets the user change (or delete) when the action requires it (`access_action`).
 - `bulk: BulkAction`: The action on the selected rows of a list (`ResourceList` `bulk`, `bulk:<id>`), called on each with an empty body, on the rows that it lets the user change (or delete) as `row`, with the same rule of S032.
 - `dialog: ReactNode`: Its dialog, rendered in the screen.
@@ -6842,6 +6924,7 @@ Its props, `UpdateFormActionProps`:
 - `description?: ReactNode`: What its dialog says.
 - `confirm?: boolean`: Whether an action without fields is confirmed in a dialog first.
 - `message?: ReactNode`: What the toast says once it is done.
+- `when?: StatusWhen`: The statuses of the item in which an action of an item is shown (on a card, a row) and runs (on the selected rows); always without it.
 
 #### extended
 

@@ -24,7 +24,7 @@ import type { ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { BoardDnd } from '@/bazis/ui/board-dnd';
-import { ResourceBoard } from '@/bazis/ui/resource-board';
+import { BOARD_COLUMN, ResourceBoard } from '@/bazis/ui/resource-board';
 import { Backend, ITEMS, listDocument, renderWithBazis, resource, runtimeSchema } from '@/bazis/ui/testing';
 
 /** A card or a column of @dnd-kit: its id and its data. */
@@ -98,6 +98,9 @@ describe('BoardDnd', () => {
     await screen.findAllByTestId('row:a');
     expect(fake.droppables).toEqual(expect.arrayContaining(['draft', 'start']));
     expect(fake.draggables).toContain('a');
+    // the column where a card is dropped is the item of the row of the board, of the size of a column
+    const wrapper = screen.getByTestId('column:draft').parentElement;
+    expect(BOARD_COLUMN.split(' ').every((it) => wrapper?.classList.contains(it))).toBe(true);
     // dropped outside a column, or on its own: nothing
     act(() => {
       fake.drop?.({ active: { id: 'a' }, over: null });

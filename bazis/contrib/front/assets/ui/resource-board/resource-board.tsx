@@ -57,7 +57,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
-import { useBoardDrag } from './drag.js';
+import { BOARD_COLUMN, useBoardDrag } from './drag.js';
 
 export interface ResourceBoardProps {
   /** The route set of a statusy model (`ROUTES` of the contract). */
@@ -320,7 +320,7 @@ export function ResourceBoard({
           skeleton={
             <div className="flex gap-4 overflow-hidden" aria-hidden="true">
               {statuses.map((status) => (
-                <Skeleton key={status} className="h-64 w-72 shrink-0 rounded-xl" />
+                <Skeleton key={status} className={cn('h-64 rounded-xl', BOARD_COLUMN)} />
               ))}
             </div>
           }
@@ -337,7 +337,7 @@ export function ResourceBoard({
                       data-bz={`column:${status}`}
                       data-count={count}
                       aria-label={statusName(type, status, language)}
-                      className="flex w-72 shrink-0 snap-start flex-col gap-3 rounded-xl bg-muted/60 p-3"
+                      className={cn('flex flex-col gap-3 rounded-xl bg-muted/60 p-3', BOARD_COLUMN)}
                     >
                       <header className="flex items-center justify-between gap-2">
                         <StatusLabel type={type} status={status} />

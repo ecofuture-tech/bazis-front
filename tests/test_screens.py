@@ -301,6 +301,27 @@ def test_a_related_list_shows_the_values_as_the_list_of_its_entity(tmp_path):
     assert "columns={['title', 'dt_created']}\n                display={STEP.display}\n                icon={STEP.Icon}\n" in card
 
 
+def test_a_tab_of_related_lists_only_gives_their_route_sets(tmp_path):
+    """
+    A tab that shows related lists only gives their route sets (`paths`), by which the card
+    leaves it out for a user who may view none of them; one with sections or the history too
+    gives none, being shown whatever the lists.
+    """
+    shutil.copytree(SAMPLE_SPEC, tmp_path / 'spec')
+    card = rendered(tmp_path)[f'{screens.GENERATED_DIR}/task-card.tsx']
+    assert "            id: 'steps',\n            title: t('screens.task-card.card.tabs.steps.title'),\n            paths: [STEP.path],\n" in card
+    assert card.count('paths:') == 1
+
+    # the steps with a section, then with the history
+    for details, steps in (
+        (['main'], {'sections': ['report'], 'related': ['steps'], 'history': True}),
+        (['main', 'report'], {'related': ['steps'], 'history': True}),
+    ):
+        tabs = [{'id': 'details', 'title': 'Details', 'sections': details}, {'id': 'steps', 'title': 'Steps', **steps}]
+        edit_screen(tmp_path, 'task-card', lambda data, tabs=tabs: data['card'].update(tabs=tabs))
+        assert 'paths:' not in rendered(tmp_path)[f'{screens.GENERATED_DIR}/task-card.tsx']
+
+
 def test_the_confirmation_of_a_deletion_is_titled_by_its_title(tmp_path):
     """
     The confirmation of a deletion is titled by `title` of the action, a question, and its
@@ -327,9 +348,11 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     The kitchen sink: a list with its map, its create form, a custom action of the route set
     (the values that its dialog starts with), its bulk action and its status filter; a card without tabs (its transits under its
     heading, its related list and its history under its sections) with a create form in its
-    header, an update form, a delete that describes itself and a custom action; the tone of
+    header, an update form, a delete that describes itself and a custom action, each shown in some
+    statuses (`when`), as a custom action of the rows and a custom bulk action; the tone of
     the rows; forms as pages; a board without drag and drop, with a badge and its own empty
-    text; a calendar with its add and its tone; a dashboard of two entities, a tile with its
+    text; a calendar with its add and its tone by a boolean field, one in the tones of the
+    statuses; a dashboard of two entities, a tile with its
     own icon, the aggregates of a tile and of a chart; forms that show a screen without an item after them, whose code takes no saved
     item; the form of a custom action without a result, then a list, linked once the backend
     lists its action; a plain card, whose code uses no navigation, no translation and no item (the lint of
@@ -361,7 +384,12 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     places = files[f'{screens.GENERATED_DIR}/task-places.tsx']
     assert '        {...createForm}\n' in places
     assert "        filters={[{ field: 'status', options: statusOptions(TASK.type, language) }]}\n" in places
-    assert "run: (item) => transit.mutateAsync({ id: item, transit: 'start' })," in places
+    # the bulk transit on the rows of the page whose transits have it
+    assert "            permission: { transit: 'start' },\n            run: (item) => transit.mutateAsync({ id: item, transit: 'start' }),\n" in places
+    # a custom action of the rows and a custom bulk action on the drafts only (`when`)
+    assert "    target: 'item',\n    confirm: true,\n    when: { status: ['draft'] },\n  });\n" in places
+    assert "    target: 'item',\n    when: { status: ['draft'] },\n  });\n" in places
+    assert '        rowActions={[escalateAction.row]}\n' in places and '          escalateAllBulk.bulk,\n' in places
     # a custom action of the route set in the toolbar, after the create form, its dialog after the list
     assert "    action: 'count',\n    target: 'route',\n    fields: ['priority'],\n    values: { priority: 'high' },\n" in places
     assert '          countAction.action,\n        ]}\n' in places and '      {countAction.dialog}\n' in places
@@ -405,8 +433,12 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     assert "            summary: { range: ['dt_created', 'due'], figure: 'hours', meta: ['priority'] },\n" in summary
     assert "description: t('screens.task-summary.actions.delete.description')," in summary
     assert '      {deleteAction.confirm}\n' in summary
-    # a custom action of the item, among the actions of the card
-    assert "    action: 'escalate',\n    target: 'item',\n    item: id,\n    confirm: false,\n  });\n" in summary
+    # the actions of the card shown in some statuses of the item (`when`): the delete, the
+    # update form and a custom action of the item, among the actions of the card
+    assert "    then: routeTo('task-list'),\n    when: { status: ['draft'] },\n  });\n" in summary
+    assert (
+        "    action: 'escalate',\n    target: 'item',\n    item: id,\n    confirm: false,\n    when: { status: ['draft'] },\n  });\n"
+    ) in summary
     assert '              escalateAction.action,\n' in summary and '      {escalateAction.dialog}\n' in summary
     # no tabs: the transits under the heading, the related list and the history under the sections
     assert '            children: <TransitBar path={TASK.path} id={id} transits={TASK.transits} />,\n' in summary
@@ -418,7 +450,10 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     assert "add={{ id: 'add-step', label: t('form.create'), fields: ['title'] }}" in summary
     assert '      actions={\n        <>\n          <ScreenAction\n' in summary
     # the update form, an action of the card shown to whom may change the item
-    assert "{ id: 'edit', label: t('card.edit'), permission: 'change', onClick: editForm.onOpen }," in summary
+    assert (
+        "                id: 'edit',\n                label: t('card.edit'),\n                permission: 'change',\n"
+        "                when: { status: ['draft', 'in_progress'] },\n                onClick: editForm.onOpen,\n"
+    ) in summary
     assert '      <UpdateFormAction\n        {...editForm}\n        path={TASK.path}\n        id={id}\n' in summary
     # the title of a generated card is not shown: not a text of the screen
     assert 'screens.task-summary.title' not in files[f'{screens.GENERATED_DIR}/messages.ts']
@@ -464,6 +499,7 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     schedule = files[f'{screens.GENERATED_DIR}/user-schedule.tsx']
     assert '              onAdd: addForm.onOpenWith,\n' in schedule
     assert "            tone: { field: 'urgent', tone: 'danger' },\n" in schedule
+    assert '        tone="status"\n' in files[f'{screens.GENERATED_DIR}/task-agenda.tsx']
     assert '      <CreateFormAction\n        {...addForm}\n' in schedule
 
     # a dashboard of two entities: the day of today and no links (props that the extension may
@@ -489,7 +525,11 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     assert '              icon: FootprintsIcon,\n' in overview
     assert '        <TimeChart\n' in overview and 'StatusChart' not in overview
     assert "              value: { max: 'due' },\n              display: TASK.display,\n" in overview
-    assert "                  value={{ avg: 'hours' }}\n" in overview
+    # the aggregate of a field shown as the display of its entity says; a count without it,
+    # although the entity of the steps has one
+    assert "                  value={{ avg: 'hours' }}\n                  display={TASK.display}\n" in overview
+    steps_chart = overview[overview.index('id="steps-by-day"'):]
+    assert 'display' not in steps_chart[:steps_chart.index('/>')]
     assert "requires={{ path: STEP.path, can: 'add' }}" in overview
     # the last items that the user must be allowed to add, not only to view
     assert "              columns: ['title'],\n              requires: { can: 'add' },\n" in overview

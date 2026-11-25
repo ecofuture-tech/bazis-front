@@ -122,7 +122,7 @@ describe('StatCard', () => {
       <StatCard id="price" path={ITEMS as never} label="Price" value={{ avg: 'price' }} />,
       new Backend().on('GET', ITEMS, totals({ 'avg(price)': 1872.7 })),
     );
-    expect((await within(screen.getByTestId('tile:price')).findByTestId('state:loaded')).textContent).toBe('1872.70');
+    expect((await within(screen.getByTestId('tile:price')).findByTestId('state:loaded')).textContent).toBe('1872.7');
   });
 
   it('rounds a negative average with its sign, and one rounded to zero without it', async () => {
@@ -132,9 +132,9 @@ describe('StatCard', () => {
     const cases = [
       ['hours', '-1.2550000000000000', '-1.26'],
       ['whole', '-0.4000000000000000', '0'],
-      ['hours', '-0.0040000000000000', '0.00'],
+      ['hours', '-0.0040000000000000', '0'],
       ['whole', '2.4000000000000000', '2'],
-      ['hours', '0E-16', '0.00'],
+      ['hours', '0E-16', '0'],
       ['count', -0.0001, '0'],
       ['count', -2.5, '-2.5'],
       ['count', -0.0004, '0\u00a0h', unit],

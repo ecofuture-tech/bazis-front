@@ -513,6 +513,20 @@ def test_the_paper_of_frost_is_far_from_its_accent():
     assert chroma <= 0.008 and min(distance, 360 - distance) >= 60
 
 
+def test_every_starter_palette_shades_in_the_tone_of_a_dark_paper():
+    # the shadows of `surface: lifted` in the hue of the paper, never the foreground of the default
+    def lch(value: str) -> tuple[float, float, float]:
+        lightness, a, b = color.to_oklab(color.parse(value))
+        return lightness, math.hypot(a, b), math.degrees(math.atan2(b, a)) % 360
+
+    for name in starters('palettes'):
+        data = design.layer('palettes', name)
+        assert 'shade' in data['color'] and 'shade' in data['dark']['color'], name
+        lightness, chroma, hue = lch(data['color']['shade']['$value'])
+        distance = abs(hue - lch(data['color']['background']['$value'])[2]) % 360
+        assert lightness <= 0.35 and chroma <= 0.05 and min(distance, 360 - distance) <= 6, name
+
+
 def test_the_contrast_of_the_controls_of_the_product():
     # a background of the controls that the text cannot be read on (in the light mode), once
     # for each text color, at the text color as every pair (of the palette); with the default

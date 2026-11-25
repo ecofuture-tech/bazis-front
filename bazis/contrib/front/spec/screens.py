@@ -703,6 +703,8 @@ def custom_action(
         options.append(('confirm', Raw('true' if action['confirm'] else 'false')))
     if (message := screen.text(*path, 'message')) is not None:
         options.append(('message', message))
+    if 'when' in action:
+        options.append(('when', status_when(action['when'])))
     screen.hook(name, Const(name, Call('useCustomAction', [Obj(options)])), '@/bazis/ui/screens', 'useCustomAction')
     if not bulk:
         screen.after.append(Raw(f'{name}.dialog'))
@@ -728,7 +730,8 @@ def bulk_action(screen: Screen, const: Raw, index: int, bulk: dict) -> Obj | Raw
             screen.code.use('@/bazis/ui/status-badge', 'transitName')
             label = Call('transitName', [Raw(f'{const.code}.type'), Str(bulk['transit']), Raw('language')])
         run = Call('transit.mutateAsync', [Obj([('id', Raw('item')), ('transit', Str(bulk['transit']))])])
-        props += [('label', label), ('run', Arrow(['item'], run))]
+        # on the rows of the page whose transits (`for_transit`) have it
+        props += [('label', label), ('permission', Obj([('transit', Str(bulk['transit']))])), ('run', Arrow(['item'], run))]
     else:
         screen.hook('destroy', f'const destroy = useDestroy({const.code}.path);', '@/bazis/react', 'useDestroy')
         props += [
@@ -804,14 +807,26 @@ def card_section(screen: Screen, index: int, section: dict) -> Obj:
         props.append(('title', title))
     props.append(('fields', Arr([Str(it) for it in section['fields']])))
     if 'when' in section:
-        props.append(('when', Obj([('status', Arr([Str(it) for it in section['when']['status']]))])))
+        props.append(('when', status_when(section['when'])))
     return Obj(props)
 
 
+def status_when(when: dict) -> Obj:
+    """`when` of a section or an action of an item: the statuses in which it is shown (`StatusWhen`)."""
+    return Obj([('status', Arr([Str(it) for it in when['status']]))])
+
+
 def card_tab(screen: Screen, index: int, tab: dict, related: dict, history) -> Obj:
+    """
+    A tab of a card; one of related lists only gives their route sets (`paths`), so that it is
+    left out for a user who may view none of them.
+    """
     props = [('id', Str(tab['id'])), ('title', screen.text('card', 'tabs', index, 'title'))]
     if 'sections' in tab:
         props.append(('sections', Arr([Str(it) for it in tab['sections']])))
+    elif 'related' in tab and not tab.get('history'):
+        entities = {it['id']: it['entity'] for it in screen.data['card']['related']}
+        props.append(('paths', Arr([Raw(f'{screen.entity(entities[it]).code}.path') for it in tab['related']])))
     parts = [related[it] for it in tab.get('related', [])] + ([history] if tab.get('history') else [])
     if parts:
         props.append(('content', content(parts)))
@@ -846,6 +861,8 @@ def destroy_action(screen: Screen, const: Raw, index: int, action: dict) -> Raw:
     options += [('path', Raw(f'{const.code}.path')), ('item', Raw('id'))]
     if 'then' in action:
         options.append(('then', screen.route(action['then'])))
+    if 'when' in action:
+        options.append(('when', status_when(action['when'])))
     hook = Const(name, Call('useDestroyCardAction', [Obj(options)]))
     screen.hook(name, hook, '@/bazis/ui/screens', 'useDestroyCardAction')
     screen.after.append(Raw(f'{name}.confirm'))
@@ -859,10 +876,10 @@ def update_action(screen: Screen, const: Raw, index: int, action: dict) -> Obj:
     screen.form_action(
         'UpdateFormAction', state, screen.data['entity'], action, label, screen.text('actions', index, 'description')
     )
-    return Obj([
-        ('id', Str(action['id'])), ('label', label), ('permission', Str('change')),
-        ('onClick', Raw(f'{state.code}.onOpen')),
-    ])
+    props = [('id', Str(action['id'])), ('label', label), ('permission', Str('change'))]
+    if 'when' in action:
+        props.append(('when', status_when(action['when'])))
+    return Obj([*props, ('onClick', Raw(f'{state.code}.onOpen'))])
 
 
 def header_actions(screen: Screen) -> Jsx | None:
@@ -1029,8 +1046,9 @@ def adds(spec: dict) -> bool:
 def chart(screen: Screen, index: int, spec: dict, hero: dict | None = None) -> Jsx:
     """
     A chart of the items of an entity by its status (`StatusChart`) or by a date (`TimeChart`,
-    the chart in focus with the figures of `hero`), shown to the users who may view them, and
-    add one with `requires` (`Viewable`, as the tiles and the last items).
+    the chart in focus with the figures of `hero`), its aggregate of a field shown as the display
+    of the entity says, shown to the users who may view them, and add one with `requires`
+    (`Viewable`, as the tiles and the last items).
     """
     const = screen.entity(spec['entity'])
     attrs = [Attr('id', spec['id']), Attr('path', Raw(f'{const.code}.path'))]
@@ -1044,6 +1062,8 @@ def chart(screen: Screen, index: int, spec: dict, hero: dict | None = None) -> J
         attrs.append(Attr('last', Raw(str(spec['last']))))
     if 'value' in spec:
         attrs.append(Attr('value', aggregate_value(spec['value'])))
+        if has_display(screen.product, spec['entity']):
+            attrs.append(Attr('display', Raw(f'{const.code}.display')))
     if hero is not None:
         attrs.append(Attr('hero', Arr([Str(it) for it in hero.get('side', [])])))
     name = 'StatusChart' if by_status else 'TimeChart'
@@ -1136,8 +1156,10 @@ def render_calendar(product: Product, data: dict) -> str:
         attrs.append(Attr('filters', Arr([list_filter(screen, entity, const, it) for it in spec['filters']])))
     if 'label' in spec:
         attrs.append(Attr('label', Arr([Str(it) for it in spec['label']])))
-    if 'tone' in spec:
-        attrs.append(Attr('tone', Obj([('field', Str(spec['tone']['field'])), ('tone', Str(spec['tone']['tone']))])))
+    if (tone := spec.get('tone')) == 'status':
+        attrs.append(Attr('tone', 'status'))
+    elif tone is not None:
+        attrs.append(Attr('tone', Obj([('field', Str(tone['field'])), ('tone', Str(tone['tone']))])))
     if 'views' in spec:
         attrs.append(Attr('views', Arr([Str(it) for it in spec['views']])))
     if 'open' in spec:

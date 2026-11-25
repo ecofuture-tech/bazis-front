@@ -27,7 +27,15 @@ import { useRef, useState, type ReactNode } from 'react';
 
 import type { CustomActionName } from '@/bazis/client';
 import { useLanguage } from '@/bazis/i18n';
-import { customActionAt, useAnyAction, useAnyItemAction, useListFields, useUploads, type FieldFilters } from '@/bazis/ui/resource';
+import {
+  customActionAt,
+  useAnyAction,
+  useAnyItemAction,
+  useListFields,
+  useUploads,
+  type FieldFilters,
+  type StatusWhen,
+} from '@/bazis/ui/resource';
 import type { BulkAction, RowAction } from '@/bazis/ui/resource-list';
 import { errorState, failureText, StatePanel, toast } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
@@ -71,6 +79,11 @@ export interface CustomActionOptions {
   confirm?: boolean;
   /** What the toast says once it is done. */
   message?: ReactNode;
+  /**
+   * The statuses of the item in which an action of an item is shown (on a card, a row) and runs
+   * (on the selected rows); always without it. The code of the action refuses another state itself.
+   */
+  when?: StatusWhen;
 }
 
 /** A custom action of a screen: its buttons, its run and its dialog. */
@@ -80,7 +93,7 @@ export interface CustomAction {
    * for an action of the route set (`ResourceList` `actions`): shown when the backend lists it
    * in `custom_actions` of the meta.
    */
-  action: { id: string; label: ReactNode; permission: CustomActionName; onClick: () => void };
+  action: { id: string; label: ReactNode; permission: CustomActionName; when?: StatusWhen; onClick: () => void };
   /**
    * The button of the rows of a list (`ResourceList` `rowActions`): shown on a row that the
    * list lets the user change (or delete) when the action requires it (`access_action`). A
@@ -127,6 +140,7 @@ export function useCustomAction({
   description,
   confirm = false,
   message,
+  when,
 }: CustomActionOptions): CustomAction {
   const { t } = useLanguage();
   const ofItem = useAnyItemAction(path, action);
@@ -252,12 +266,13 @@ export function useCustomAction({
       id,
       label,
       permission: declared.key,
+      when,
       onClick: () => {
         start(item);
       },
     },
-    row: { id, label, permission, onClick: start },
-    bulk: { id, label, permission, run: (on) => send(on, {}) },
+    row: { id, label, permission, when, onClick: start },
+    bulk: { id, label, permission, when, run: (on) => send(on, {}) },
     dialog,
   };
 }

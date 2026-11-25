@@ -137,7 +137,7 @@ test('the filters of a line of 28rem to 48rem share it, wrapping where it has no
       .getByTestId(`filters:${width}`)
       .locator('[data-slot="field-group"]')
       .evaluateAll((all) => all.map((it) => it.getBoundingClientRect()).map(({ x, y, width }) => ({ x: Math.round(x), y: Math.round(y), width: Math.round(width) })));
-  // as a calendar gives them: one row of three, as wide as each other (never a column)
+  // a line of 45rem: one row of three, as wide as each other (never a column)
   const wide = await boxes('45rem');
   expect(new Set(wide.map((it) => it.y)).size).toBe(1);
   expect(new Set(wide.map((it) => it.width)).size).toBe(1);

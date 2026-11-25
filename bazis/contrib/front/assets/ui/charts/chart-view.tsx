@@ -16,8 +16,9 @@
 // in package.json), a chunk of its own loaded with the first chart shown (`charts.tsx`): the
 // bars, the line or the ring of the values, in the colors of the series of the theme
 // (`--chart-1` … `--chart-6`), the axes and the grid in its muted colors: the zero line and
-// the scale from 0 to the largest value only, in the language and as wide as its longest number;
-// the bars of the periods before the current one (the last) lighter.
+// the scale from 0 to the largest value only, its numbers and those of the tooltips as the chart
+// formats them (`format`), as wide as its longest label; the bars of the periods before the
+// current one (the last) lighter.
 
 import {
   Bar,
@@ -33,9 +34,7 @@ import {
   YAxis,
 } from 'recharts';
 
-import { formatNumber, useLanguage } from '@/bazis/i18n';
-
-import type { ChartKind } from './charts.js';
+import type { ChartFormat, ChartKind } from './charts.js';
 
 /** A value of the drawing, with its color. */
 export interface ChartPoint {
@@ -67,11 +66,6 @@ const TOOLTIP = {
 /** The opacity of the bar of a period before the current one. */
 const PAST = 0.55;
 
-/** A number of the scale in the language: grouped from five digits, shortened from a million (`1.2M`). */
-function scaleLabel(value: number, language: string): string {
-  return formatNumber(value, language, Math.abs(value) >= 1_000_000 ? { notation: 'compact', maximumFractionDigits: 1 } : undefined);
-}
-
 /** The width of the scale: its longest label in the digits of its 12 px (7 px each) and the gap to the plot. */
 function scaleWidth(labels: readonly string[]): number {
   return Math.max(...labels.map((it) => it.length)) * 7 + 12;
@@ -79,23 +73,24 @@ function scaleWidth(labels: readonly string[]): number {
 
 /**
  * The chart of the values: bars, a line, or a ring (`donut`); `periods`: the values of periods,
- * the last one the current.
+ * the last one the current; `format`: the text of a number, of the scale and of the tooltips.
  */
 export default function ChartView({
   kind,
   points,
   periods = false,
+  format,
 }: {
   kind: Exclude<ChartKind, 'distribution'>;
   points: readonly ChartPoint[];
   periods?: boolean;
+  format: ChartFormat;
 }) {
   const data = points.map((it, index) => ({
     ...it,
     fill: it.color,
     fillOpacity: periods && index < points.length - 1 ? PAST : 1,
   }));
-  const { language } = useLanguage();
   const largest = Math.max(0, ...points.map((it) => it.value));
   // the scale of its ends, never cut (`322 423`, not `22423`), the grid of its zero
   const ticks = [0, largest];
@@ -104,17 +99,18 @@ export default function ChartView({
       allowDecimals={false}
       ticks={ticks}
       domain={[0, largest]}
-      tickFormatter={(value: number) => scaleLabel(value, language)}
-      width={scaleWidth(ticks.map((it) => scaleLabel(it, language)))}
+      tickFormatter={(value: number) => format(value, true)}
+      width={scaleWidth(ticks.map((it) => format(it, true)))}
       {...AXIS}
     />
   );
   const grid = <CartesianGrid vertical={false} horizontalValues={[0]} stroke="var(--border)" />;
+  const tooltip = <Tooltip {...TOOLTIP} formatter={(value) => format(Number(value))} />;
   return (
     <ResponsiveContainer width="100%" height="100%">
       {kind === 'donut' ? (
         <PieChart>
-          <Tooltip {...TOOLTIP} />
+          {tooltip}
           <Pie
             data={data}
             dataKey="value"
@@ -131,7 +127,7 @@ export default function ChartView({
           {grid}
           <XAxis dataKey="label" {...AXIS} />
           {scale}
-          <Tooltip {...TOOLTIP} />
+          {tooltip}
           <Line
             dataKey="value"
             name=""
@@ -147,7 +143,7 @@ export default function ChartView({
           {grid}
           <XAxis dataKey="label" {...AXIS} />
           {scale}
-          <Tooltip {...TOOLTIP} />
+          {tooltip}
           <Bar dataKey="value" name="" radius={[4, 4, 0, 0]} isAnimationActive={false} />
         </BarChart>
       )}

@@ -35,6 +35,7 @@ import {
   useRelatedItem,
   useResourceForm,
   useSchema,
+  useViewable,
   type ActionMutation,
   type FixedValues,
   type JsonSchema,
@@ -115,6 +116,9 @@ export const useAnySchema = useSchema as unknown as (
   kind: 'list' | 'create' | 'retrieve' | 'update' | 'transit',
   id?: string,
 ) => UseQueryResult<JsonSchema>;
+
+/** `useViewable(paths)`: whether the user may view the items of each route set. */
+export const useAnyViewable = useViewable as unknown as (paths: readonly string[]) => readonly (boolean | undefined)[];
 
 /** `useAction(path, name)`: a custom action of the route set (POST), `mutateAsync(body)`. */
 export const useAnyAction = useAction as unknown as (

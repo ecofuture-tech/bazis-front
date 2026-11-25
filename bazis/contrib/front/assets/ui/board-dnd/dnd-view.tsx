@@ -23,7 +23,7 @@ import { DndContext, MouseSensor, TouchSensor, useDraggable, useDroppable, useSe
 import type { ReactNode } from 'react';
 
 import { useLanguage } from '@/bazis/i18n';
-import { BoardDragProvider, type BoardDrag } from '@/bazis/ui/resource-board';
+import { BOARD_COLUMN, BoardDragProvider, type BoardDrag } from '@/bazis/ui/resource-board';
 import { cn } from '@/lib/utils';
 
 /** The label of a card or of a column, given with its id (`data`). */
@@ -74,7 +74,7 @@ export function DndColumn({ status, label, children }: { status: string; label: 
     <div
       ref={setNodeRef}
       data-over={isOver || undefined}
-      className="flex shrink-0 snap-start rounded-xl transition-shadow data-over:ring-2 data-over:ring-primary/40"
+      className={cn('flex rounded-xl transition-shadow data-over:ring-2 data-over:ring-primary/40', BOARD_COLUMN)}
     >
       {children}
     </div>

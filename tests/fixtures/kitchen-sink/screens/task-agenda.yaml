@@ -1,0 +1,16 @@
+# yaml-language-server: $schema=../../../../bazis/contrib/front/spec/schemas/screen.schema.json
+# A calendar without an extension: the tasks in the tones of their statuses (`statuses` of
+# theme.yaml), the status in the label too, never the color alone.
+spec: bazis-screen/1
+id: task-agenda
+title: {en: Agenda, ru: Повестка}
+route: /agenda
+entity: task
+roles: [manager, viewer]
+primitive: calendar
+calendar:
+  field: due
+  label: [title, status]
+  tone: status
+  open: task-card
+states: [loading, empty, error, forbidden]

@@ -166,6 +166,16 @@ function metaQuery(api: Api, path: string, query: QueryOptions, scope: string) {
   });
 }
 
+/** Whether the backend refused a query: 403. */
+function refused(result: { error: Error | null }): boolean {
+  return result.error instanceof ApiError && result.error.status === 403;
+}
+
+/** `view` of the query of the runtime schema of a list: undefined until it answers, false when refused. */
+function viewable(result: { isPending: boolean; error: Error | null }): boolean | undefined {
+  return result.isPending ? undefined : !refused(result);
+}
+
 /**
  * Whether the backend lets the current user view the items of a route set (`view`) or add
  * one (`add`). `view` is the runtime schema of the list, which bazis-permit refuses with 403
@@ -200,15 +210,23 @@ export function useCan(path: string, action: Can): boolean | undefined {
       ? { ...(schemaQuery(api, path, 'create', undefined, scope) as unknown as ReturnType<typeof metaQuery>), enabled: asked }
       : { ...first, enabled: false },
   );
-  const refused = (result: { error: Error | null }) => result.error instanceof ApiError && result.error.status === 403;
+  if (action === 'view') return viewable(query);
   if (query.isPending) return undefined;
-  if (action === 'view') return !refused(query);
   if (action === 'add') {
     if (typeof meta?.for_create === 'boolean') return meta.for_create;
     return create.isFetched ? !refused(create) : undefined;
   }
   if (refused(query)) return false;
   return meta?.custom_actions == null || meta.custom_actions.includes(action);
+}
+
+/**
+ * Whether the backend lets the current user view the items of each route set, as
+ * `useCan(path, 'view')` tells (the queries of `useSchema`): one hook for any number of them.
+ */
+export function useViewable(paths: readonly SchemaPath<'list'>[]): readonly (boolean | undefined)[] {
+  const { api, scope } = useBazis();
+  return useQueries({ queries: paths.map((path) => schemaQuery(api, path, 'list', undefined, scope)) }).map(viewable);
 }
 
 /** The fields a list can be filtered by (`route_filter_fields/`), with their types. */

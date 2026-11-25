@@ -118,7 +118,7 @@ select of their labels; a decimal, `format: decimal` of a `DecimalField` in the 
 `contractFormat`, or a number or a string of Pydantic, is typed on one line with a point or
 a comma and given as its digits with a point, `'2.5'`), `FieldValue` (with `formatValue`: the value in the language of the
 interface, a choice by its label, a decimal by `formatDecimal`, a time its hours and minutes, a value by its `display`: `plain` without the separators
-of its thousands, `phone` a link to call it, `{currency}`, `{unit}` (after a no-break space, a whole quantity without its zeros), `{bar}` a `meter` of its
+of its thousands, `phone` a link to call it, `{currency}`, `{unit}` (after a no-break space), `{bar}` a `meter` of its
 share, `avatar` a name after the circle of its initials (its tint by the name), `chips` the parts
 of a text or the related items (two, then `+N`; all in a card), each cut with its title; the `status` of an item of a statusy model by its name in the contract,
 `statusName`; `choiceOptions`: the choices as options of a filter; `itemName`/`itemLabel`:
@@ -181,7 +181,10 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   `aria-description`, the meaning in words. With `bulk` (`list.bulk` of the specs) the rows
   are selectable without `onSelectionChange` too, and a bar above them, while rows are
   selected, has their number, a button per action (`bulk:<id>`; with `permission`, run only
-  on the rows of the page that the meta allows) and `action:clear-selection`; an action asks
+  on the rows of the page that the meta allows: `for_change`, `for_delete`, or a transit in
+  `for_transit` of the row, which the list then asks for; with `when`, only on those in its
+  statuses; a row of another page is left to the backend, and the button is disabled while
+  none of the selected rows is left to it) and `action:clear-selection`; an action asks
   to confirm (`action:confirm-bulk`), then runs on each item in turn (`run`, a request each:
   the core has no bulk endpoint; a transit without a payload, `useItemsTransit` of
   `@/bazis/react/statusy`, or a deletion; nothing is read per row first, the backend refuses
@@ -284,7 +287,7 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   default), each on a line of its own, cut to the width of the day with its whole text in its
   title, the first after the time of a date-time on the day it starts (on the next line when
   they do not fit together), in a tone of the theme while the boolean field of `tone` is
-  true; a week at the width of a phone is a list of its days; a click on a
+  true, or in that of its status (`tone: 'status'`, `statusTone`); a week at the width of a phone is a list of its days; a click on a
   day selects it, and the list of the selected day (today at first) has all its items,
   `row:<id>` again (below `md` the days of a month have a dot and only the list has the items,
   so that no hidden copy of a row is in the page). One
@@ -310,9 +313,13 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   With `tabs` (`card.tabs` of the specs) the sections are in tabs of Radix (`tab:<id>`,
   `role="tab"` with `aria-controls`), each with its sections and its `content` (a related
   section, the history: a function of the item and its meta, as `children`), a section that
-  no tab names in the first one; `children` (the transits) stay above them. Every panel stays
-  in the page, hidden while its tab is not selected, so that a scenario finds what it acts
-  on (the helpers of the end-to-end tests select its tab first).
+  no tab names in the first one shown; `children` (the transits) stay above them. A tab of
+  lists only (`paths`: their route sets, which the generator gives a tab of related sections
+  alone) is left out, its trigger and its panel, when the user may view none of them
+  (`useViewable` of the hooks: the runtime schemas of their lists), the tabs loading until the
+  backend tells; without a tab shown, the sections that no tab names are shown alone. Every
+  panel shown stays in the page, hidden while its tab is not selected, so that a scenario
+  finds what it acts on (the helpers of the end-to-end tests select its tab first).
 - **The field permissions of bazis-permit** (`<app>.<model>.field.<operation>.<selector>…
   .<field>.<restriction>`, restrictions `enable`, `readonly`, `disable`, …) are read from
   what the backend returns, never from the roles: a field that the user may not see is left

@@ -28,9 +28,11 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
+import type { Tone } from '@/bazis/generated/theme';
 import { weekStart } from '@/bazis/i18n';
+import { SOFT_TONES } from '@/bazis/ui/resource';
 import { ResourceCalendar } from '@/bazis/ui/resource-calendar';
-import { Backend, errors, ITEMS, listDocument, renderWithBazis, resource, runtimeSchema } from '@/bazis/ui/testing';
+import { Backend, errors, ITEMS, listDocument, renderWithBazis, resource, runtimeSchema, setTheme } from '@/bazis/ui/testing';
 
 const schema = runtimeSchema(
   {
@@ -65,6 +67,23 @@ function lists(server: Backend): string[] {
 }
 
 const item = (id: string, attributes: Record<string, unknown>) => resource(id, { title: `Task ${id}`, ...attributes });
+
+/** Whether an item (its button) has the soft colors of a tone. */
+function toned(row: HTMLElement, tone: Tone): boolean {
+  const look = row.firstElementChild;
+  return SOFT_TONES[tone].split(' ').every((it) => look?.classList.contains(it));
+}
+
+/** Whether the dot of a day of a phone is in the color of a tone (the text of its soft colors). */
+function dotted(day: HTMLElement, tone: Tone): boolean {
+  const ink = SOFT_TONES[tone].split(' ').find((it) => it.startsWith('text-'));
+  return ink !== undefined && (day.querySelector('.bg-current')?.classList.contains(ink) ?? false);
+}
+
+/** The width of a phone: `matchMedia` matches no query (`useWide` is false). */
+function phone() {
+  vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query, addEventListener() {}, removeEventListener() {} }));
+}
 
 describe('ResourceCalendar', () => {
   it('is loading, then shows the days of the month of today with their items, and the list of today', async () => {
@@ -131,7 +150,7 @@ describe('ResourceCalendar', () => {
   });
 
   it('shows a month at the width of a phone with the rows of the selected day only, each once', async () => {
-    vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query, addEventListener() {}, removeEventListener() {} }));
+    phone();
     try {
       const server = new Backend()
         .on('GET', `${ITEMS}schema_list/`, schema)
@@ -145,6 +164,49 @@ describe('ResourceCalendar', () => {
       expect(within(calendar).getAllByTestId(/^row:/).map((it) => it.dataset.bz)).toEqual(['row:a']);
       fireEvent.click(within(busy).getByRole('button'));
       expect(within(calendar).getAllByTestId(/^row:/).map((it) => it.dataset.bz)).toEqual(['row:b']);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('shows an item whose boolean field of `tone` is true in its tone', async () => {
+    renderWithBazis(
+      <ResourceCalendar path={ITEMS as never} entity="item" field="due" label={['title']} tone={{ field: 'late', tone: 'danger' }} now={now} />,
+      new Backend()
+        .on('GET', `${ITEMS}schema_list/`, schema)
+        .on('GET', ITEMS, listDocument([item('a', { due: '2026-10-15', late: true }), item('b', { due: '2026-10-15', late: false })])),
+    );
+    const day = await screen.findByTestId('day:2026-10-15');
+    expect(toned(within(day).getByTestId('row:a'), 'danger')).toBe(true);
+    expect(toned(within(day).getByTestId('row:b'), 'danger')).toBe(false);
+  });
+
+  it('shows every item in the tone of its status with `tone: status`, neutral for a status without one, also the dot of a day', async () => {
+    setTheme({ statuses: { done: 'success' } });
+    const calendar = <ResourceCalendar path={ITEMS as never} entity="item" field="due" label={['title']} tone="status" now={now} />;
+    const backend = () =>
+      new Backend()
+        .on('GET', `${ITEMS}schema_list/`, schema)
+        .on(
+          'GET',
+          ITEMS,
+          listDocument([
+            item('a', { due: '2026-10-15', status: 'done' }),
+            item('b', { due: '2026-10-15', status: 'no-tone' }),
+            item('c', { due: '2026-10-16', status: 'no-tone' }),
+          ]),
+        );
+    const wide = renderWithBazis(calendar, backend());
+    const day = await screen.findByTestId('day:2026-10-15');
+    expect(toned(within(day).getByTestId('row:a'), 'success')).toBe(true);
+    expect(toned(within(day).getByTestId('row:b'), 'neutral')).toBe(true);
+    wide.unmount();
+    // a month of a phone: the dot of a day in the tone of its first item
+    phone();
+    try {
+      renderWithBazis(calendar, backend());
+      expect(dotted(await screen.findByTestId('day:2026-10-15'), 'success')).toBe(true);
+      expect(dotted(screen.getByTestId('day:2026-10-16'), 'neutral')).toBe(true);
     } finally {
       vi.unstubAllGlobals();
     }
@@ -304,6 +366,7 @@ describe('ResourceCalendar', () => {
   });
 
   it('narrows the items by the filters of the user, and gives the add the related item filtered by', async () => {
+    setTheme({ composition: { filters: 'plate' } });
     const onAdd = vi.fn();
     const server = new Backend()
       .on('GET', `${ITEMS}schema_list/`, schema)
@@ -322,24 +385,55 @@ describe('ResourceCalendar', () => {
     );
     const title = await screen.findByTestId<HTMLInputElement>('field:title');
     expect(screen.getByTestId('field:owner')).toBeTruthy();
-    // the filters a line, which they share at any width (never a column: `fields.spec.ts` of the playwright helpers)
-    expect(title.closest('[data-slot="filter-row"]')?.hasAttribute('data-line')).toBe(true);
-    // as wide as where the filters fold (28rem, 15rem a filter): beside the period or a line of the toolbar, never a column
-    const line = title.closest('[data-slot="filter-row"]')?.parentElement;
-    expect(line?.style.minWidth).toBe('min(100%, 28rem)');
-    expect(line?.style.maxWidth).toBe('30rem');
-    // the place of the reset is kept by the width of the line of the navigation, its container
-    const place = document.querySelector('[data-slot="reset-place"]');
-    expect(place?.closest('.\\@container')?.contains(screen.getByTestId('action:previous-period'))).toBe(true);
+    // the row of the filters of a board: on the plate of the theme, never a line, over the navigation
+    const row = title.closest('[data-slot="filter-row"]');
+    if (!(row instanceof HTMLElement)) throw new Error('No row of the filters');
+    expect(row.getAttribute('data-plate')).toBe('true');
+    expect(row.hasAttribute('data-line')).toBe(false);
+    expect(row.compareDocumentPosition(screen.getByTestId('action:previous-period')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // the reset among its tools, its place kept there while it is hidden
+    expect(row.contains(document.querySelector('[data-slot="reset-place"]'))).toBe(true);
     fireEvent.change(title, { target: { value: 'plan' } });
     await waitFor(() => {
       expect(lists(server).some((it) => it.includes('title__$search=plan') && it.includes('at__gte='))).toBe(true);
     });
-    expect(await screen.findByTestId('action:reset-filters')).toBeTruthy();
+    expect(row.contains(await screen.findByTestId('action:reset-filters'))).toBe(true);
     expect(document.querySelector('[data-slot="reset-place"]')).toBeNull();
     // a text is no value of a new item; the related item of a filter is, for a field of the form
     fireEvent.click(await screen.findByTestId('action:add'));
     expect(onAdd).toHaveBeenLastCalledWith({ at: new Date(2026, 9, 15).toISOString() });
+  });
+
+  it('puts the views and the add in one group at the end of the line of the navigation, without a row of filters when it has none', async () => {
+    const add = { id: 'add', label: 'Add', onAdd: vi.fn() };
+    const backend = (create: boolean) =>
+      new Backend().on('GET', `${ITEMS}schema_list/`, schema).on('GET', ITEMS, listDocument([], { meta: { for_create: create } }));
+    /** Whether an element is in the line of the navigation, in a group of its own after the period. */
+    const atTheEnd = (element: HTMLElement) =>
+      !element.parentElement?.contains(screen.getByTestId('action:today')) &&
+      (element.parentElement?.parentElement?.contains(screen.getByTestId('action:today')) ?? false);
+    const both = renderWithBazis(
+      <ResourceCalendar path={ITEMS as never} entity="item" field="due" views={['month', 'week']} add={add} now={now} />,
+      backend(true),
+    );
+    const button = await screen.findByTestId('action:add');
+    expect(atTheEnd(button)).toBe(true);
+    expect(button.parentElement?.contains(screen.getByTestId('view:week'))).toBe(true);
+    expect(document.querySelector('[data-slot="filter-row"]')).toBeNull();
+    both.unmount();
+    // one view: the add alone in the group
+    const one = renderWithBazis(<ResourceCalendar path={ITEMS as never} entity="item" field="due" add={add} now={now} />, backend(true));
+    expect(atTheEnd(await screen.findByTestId('action:add'))).toBe(true);
+    expect(screen.queryByTestId('view:month')).toBeNull();
+    one.unmount();
+    // the user may not create: the views alone
+    renderWithBazis(
+      <ResourceCalendar path={ITEMS as never} entity="item" field="due" views={['month', 'week']} add={add} now={now} />,
+      backend(false),
+    );
+    expect(await screen.findByTestId('state:empty')).toBeTruthy();
+    expect(screen.queryByTestId('action:add')).toBeNull();
+    expect(atTheEnd(screen.getByTestId('view:week').parentElement as HTMLElement)).toBe(true);
   });
 
   it('marks an error and a forbidden list', async () => {

@@ -12,16 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// The tones of the theme as the components show them, and the status of an item as a badge
-// of its tone (`statuses` of spec/design/theme.yaml), read from the contract without the
-// hooks of bazis-statusy: the badge of `status-badge` and of the column `status` of a list.
+// The tones of the theme as the components show them, the status of an item as a badge of its
+// tone (`statuses` of spec/design/theme.yaml), read from the contract without the hooks of
+// bazis-statusy: the badge of `status-badge` and of the column `status` of a list; and what is
+// shown only in some statuses of the item (`when` of the specs: a section, an action).
 
 import { THEME, type Tone } from '@/bazis/generated/theme';
 import { useLanguage } from '@/bazis/i18n';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
-import { statusName } from './fields.js';
+import { fieldValue, statusName, type ResourceObject } from './fields.js';
 
 /** The soft colors of each tone that the theme derives from the tokens: a background and the text on it. */
 export const SOFT_TONES: Readonly<Record<Tone, string>> = {
@@ -36,6 +37,21 @@ export const SOFT_TONES: Readonly<Record<Tone, string>> = {
 /** The tone of a status: `statuses` of the theme, neutral for another. */
 export function statusTone(status: string): Tone {
   return THEME.statuses[status] ?? 'neutral';
+}
+
+/** The statuses in which an item shows something (`when` of the specs). */
+export interface StatusWhen {
+  status: readonly string[];
+}
+
+/**
+ * Whether the item shows what has `when`: always without it. Else while the item (its
+ * relationship `status`, bazis-statusy) is in one of its statuses; it only reflects the state
+ * of the item, the backend refuses what the state does not allow.
+ */
+export function shownWhen(when: StatusWhen | undefined, item: ResourceObject): boolean {
+  const status = fieldValue(item, 'status');
+  return when === undefined || (typeof status === 'string' && when.status.includes(status));
 }
 
 export interface StatusLabelProps {

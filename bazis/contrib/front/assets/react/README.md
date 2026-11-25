@@ -61,6 +61,7 @@ they make.
 | `useCan(path, 'view')` | the query of `useSchema(path, 'list')` | whether the user may view the items of the route set: undefined while it loads, false on a 403 (bazis-permit, without a permission of the model for the action), else true |
 | `useCan(path, 'add')` | `GET path?page[limit]=1&meta=for_create`; the query of `useSchema(path, 'create')` without that meta or when the list is refused | whether the user may add an item: undefined while it loads, `for_create` of bazis-permit (no refused request for a user who may only view), else false on a 403 of the create |
 | `useCan(path, 'action_<name>')` | `GET path?page[limit]=1&meta=custom_actions` | whether the user may call a custom action of the collection (`custom_actions` of bazis-permit 2.11; true without the meta, false on a 403) |
+| `useViewable(paths)` | the queries of `useSchema(path, 'list')` of each, one `useQueries` | whether the user may view the items of each route set, as `useCan(path, 'view')` |
 | `useRelatedItem` | `GET path?filter=pk=<id>\|pk=<id>…&page[limit]=<n>`, one for the items of the resource asked for together | the item of the list (to show its label), null when the user may not view it |
 | `useCreate` | `POST path` | `mutate(document)` |
 | `useUpdate` | `PATCH path{id}/` | `mutate({id, document})` |
@@ -180,7 +181,8 @@ the components), and `Intl` for the plural forms, the dates and the numbers.
   text shows its key. `translate(dictionaries, locale, key, params)` is the same as a
   function.
 - `formatNumber`, `formatDecimal` (a `DecimalField` of the backend, a string such as
-  `"45000.10"`, formatted exactly with its digits after the point), `formatDate` (a date of
+  `"45000.10"`, formatted with its significant digits after the point and never rounded,
+  `45,000.1`; a sum with its cents unless it is whole, `3600 ₽`, `250,50 ₽`), `formatDate` (a date of
   the backend, `2026-10-08`, is that day wherever the user is), `formatDateTime`,
   `formatTime`: `Intl` in the language of the interface.
 - The language of the profile: with `profile_language` of the capability `users` (a text

@@ -22,7 +22,8 @@
 // summary of a card, an outline button and an input. And a list with its card beside it
 // (`split.html`): its rows within the list, Escape, the dialog of a changed form, the focus ring of
 // a filled button, the soft tones of the statuses and an unavailable primary button in both modes,
-// the widths of the sidebar from the tokens and less motion.
+// the widths of the sidebar from the tokens and less motion. And a board (`board.html`): its
+// columns share the width of the screen, beside the sidebar and under the top bar.
 
 import { fileURLToPath } from 'node:url';
 
@@ -45,7 +46,7 @@ test.beforeAll(async () => {
     // a cache of its own: the page of the pickers bundles other dependencies
     cacheDir: fileURLToPath(new URL('../test-results/.vite-shell', import.meta.url)),
     // the dependencies are bundled before the page loads: no reload in a test
-    optimizeDeps: { entries: ['shell.tsx', 'surfaces.tsx', 'focus.tsx', 'split.tsx'] },
+    optimizeDeps: { entries: ['shell.tsx', 'surfaces.tsx', 'focus.tsx', 'split.tsx', 'board.tsx'] },
     server: { host: '127.0.0.1', port: 0, strictPort: false, hmr: false },
     logLevel: 'error',
   });
@@ -641,4 +642,104 @@ test('less motion when the system asks for it: the transitions end at once', asy
   expect(await edit.evaluate((element) => getComputedStyle(element).transitionDuration)).not.toBe('1e-05s');
   await page.emulateMedia({ reducedMotion: 'reduce' });
   expect(await edit.evaluate((element) => getComputedStyle(element).transitionDuration)).toBe('1e-05s');
+});
+
+/**
+ * Opens the board (`board.html`) at `width` with `columns` columns of two cards, beside the
+ * sidebar or under the top bar (with the width of the content of a theme of the top bar,
+ * `TOPBAR_CONTENT` of spec/theme.py); `move`: with the drag and drop; `held`: its lists answer
+ * once it resolves.
+ */
+async function openBoard(
+  page: Page,
+  width: number,
+  { columns, navigation = 'sidebar', move = false, held }: { columns: number; navigation?: 'sidebar' | 'topbar'; move?: boolean; held?: Promise<void> },
+) {
+  await page.setViewportSize({ width, height: 900 });
+  await page.route('**/api/test/item/**', async (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname.endsWith('/schema_list/')) {
+      await route.fulfill({ json: itemSchema(['title'], { list: true }) });
+      return;
+    }
+    await held;
+    const status = /status=([a-z]+)/.exec(decodeURIComponent(url.search))?.[1] ?? '';
+    const rows = [1, 2].map((it) => ({
+      id: `${status}-${String(it)}`,
+      type: 'test.item',
+      attributes: { title: `Card ${String(it)} of ${status}` },
+      relationships: { status: { data: { type: 'statusy.status', id: status } } },
+    }));
+    await route.fulfill({ json: { data: rows, links: { next: null }, meta: { pagination: { count: 2, limit: 20, offset: 0 }, for_transit: {} } } });
+  });
+  await page.goto(`${origin}/board.html?columns=${String(columns)}&navigation=${navigation}&move=${String(move)}`);
+  if (navigation === 'topbar') await page.addStyleTag({ content: ':root { --size-content: calc(72rem - 2 * var(--space-page-x)); }' });
+}
+
+/**
+ * The widths of the row of the columns of the board (the nearest element that scrolls sideways
+ * around them: its width and what it scrolls) and of the elements of `selector` in it.
+ */
+function boardWidths(page: Page, selector: string): Promise<{ width: number; scroll: number; columns: number[] }> {
+  return page.locator('[data-bz="board:item"]').evaluate((board, of) => {
+    const columns = [...board.querySelectorAll(of)];
+    let row = columns[0]?.parentElement ?? null;
+    while (row && row !== board && !['auto', 'hidden'].includes(getComputedStyle(row).overflowX)) row = row.parentElement;
+    return { width: row?.clientWidth ?? 0, scroll: row?.scrollWidth ?? 0, columns: columns.map((it) => it.getBoundingClientRect().width) };
+  }, selector);
+}
+
+for (const [navigation, move] of [
+  ['sidebar', false],
+  ['sidebar', true],
+  ['topbar', false],
+] as const) {
+  test(`four columns of a board share its width at 1280 px (${navigation}${move ? ', drag and drop' : ''}), a fifth scrolls in the board`, async ({ page }) => {
+    await openBoard(page, 1280, { columns: 4, navigation, move });
+    await expect(page.locator('[data-bz^="column:"]')).toHaveCount(4);
+    const four = await boardWidths(page, '[data-bz^="column:"]');
+    expect(four.scroll).toBeLessThanOrEqual(four.width);
+    for (const it of four.columns) expect(it).toBeGreaterThanOrEqual(224);
+    expect(await scrollsSideways(page)).toBe(false);
+
+    await openBoard(page, 1280, { columns: 5, navigation, move });
+    await expect(page.locator('[data-bz^="column:"]')).toHaveCount(5);
+    const five = await boardWidths(page, '[data-bz^="column:"]');
+    expect(five.scroll).toBeGreaterThan(five.width);
+    for (const it of five.columns) expect(it).toBeGreaterThanOrEqual(224);
+    expect(await scrollsSideways(page)).toBe(false);
+  });
+}
+
+test('one or two columns of a board are never as wide as the screen', async ({ page }) => {
+  for (const columns of [1, 2]) {
+    await openBoard(page, 1280, { columns });
+    await expect(page.locator('[data-bz^="column:"]')).toHaveCount(columns);
+    const { width, columns: widths } = await boardWidths(page, '[data-bz^="column:"]');
+    for (const it of widths) expect(it).toBe(384);
+    expect(widths.length * 384).toBeLessThan(width);
+  }
+});
+
+for (const width of [1100, 768]) {
+  test(`a board of five columns keeps the page within ${String(width)} px`, async ({ page }) => {
+    await openBoard(page, width, { columns: 5 });
+    await expect(page.locator('[data-bz^="column:"]')).toHaveCount(5);
+    expect(await scrollsSideways(page)).toBe(false);
+  });
+}
+
+test('the skeleton of a board has the columns of its size', async ({ page }) => {
+  let answer: () => void = () => undefined;
+  const held = new Promise<void>((resolve) => {
+    answer = resolve;
+  });
+  await openBoard(page, 1280, { columns: 4, held });
+  await expect(page.locator('[data-bz="board:item"] [data-slot="skeleton"]')).toHaveCount(4);
+  const skeleton = await boardWidths(page, '[data-slot="skeleton"]');
+  answer();
+  await expect(page.locator('[data-bz^="column:"]')).toHaveCount(4);
+  const loaded = await boardWidths(page, '[data-bz^="column:"]');
+  expect(skeleton.columns).toEqual(loaded.columns);
+  expect(skeleton.width).toBe(loaded.width);
 });

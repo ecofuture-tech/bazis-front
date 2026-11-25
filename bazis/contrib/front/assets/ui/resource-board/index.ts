@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-export { BoardDragProvider, useBoardDrag } from './drag.js';
+export { BOARD_COLUMN, BoardDragProvider, useBoardDrag } from './drag.js';
 export type { BoardDrag } from './drag.js';
 export { ResourceBoard } from './resource-board.js';
 export type { ResourceBoardProps } from './resource-board.js';
